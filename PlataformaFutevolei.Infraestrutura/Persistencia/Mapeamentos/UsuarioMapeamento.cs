@@ -1,0 +1,25 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PlataformaFutevolei.Dominio.Entidades;
+
+namespace PlataformaFutevolei.Infraestrutura.Persistencia.Mapeamentos;
+
+public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
+{
+    public void Configure(EntityTypeBuilder<Usuario> builder)
+    {
+        builder.ToTable("usuarios");
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+        builder.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(150).IsRequired();
+        builder.Property(x => x.Email).HasColumnName("email").HasMaxLength(150).IsRequired();
+        builder.Property(x => x.SenhaHash).HasColumnName("senha_hash").HasMaxLength(255).IsRequired();
+        builder.Property(x => x.Perfil).HasColumnName("perfil").IsRequired();
+        builder.Property(x => x.Ativo).HasColumnName("ativo").IsRequired();
+        builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
+        builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
+
+        builder.HasIndex(x => x.Email).IsUnique();
+    }
+}

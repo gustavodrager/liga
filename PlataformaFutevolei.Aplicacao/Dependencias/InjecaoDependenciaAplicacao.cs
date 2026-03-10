@@ -1,0 +1,20 @@
+using Microsoft.Extensions.DependencyInjection;
+using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Servicos;
+
+namespace PlataformaFutevolei.Aplicacao.Dependencias;
+
+public static class InjecaoDependenciaAplicacao
+{
+    public static IServiceCollection AdicionarAplicacao(this IServiceCollection services)
+    {
+        services.AddScoped<IAutenticacaoServico, AutenticacaoServico>();
+        services.AddScoped<IAtletaServico, AtletaServico>();
+        services.AddScoped<IDuplaServico, DuplaServico>();
+        services.AddScoped<ICompeticaoServico, CompeticaoServico>();
+        services.AddScoped<ICategoriaCompeticaoServico, CategoriaCompeticaoServico>();
+        services.AddScoped<IPartidaServico, PartidaServico>();
+
+        return services;
+    }
+}

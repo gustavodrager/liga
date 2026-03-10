@@ -1,0 +1,23 @@
+@PlataformaFutevolei.Api_HostAddress = http://localhost:5000
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/registrar
+Content-Type: application/json
+
+{
+  "nome": "Administrador",
+  "email": "admin@futevolei.com",
+  "senha": "123456",
+  "perfil": 1
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/login
+Content-Type: application/json
+
+{
+  "email": "admin@futevolei.com",
+  "senha": "123456"
+}
+
+###

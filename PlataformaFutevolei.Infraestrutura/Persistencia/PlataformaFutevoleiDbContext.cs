@@ -1,0 +1,21 @@
+using Microsoft.EntityFrameworkCore;
+using PlataformaFutevolei.Dominio.Entidades;
+
+namespace PlataformaFutevolei.Infraestrutura.Persistencia;
+
+public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDbContext> options)
+    : DbContext(options)
+{
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Atleta> Atletas => Set<Atleta>();
+    public DbSet<Dupla> Duplas => Set<Dupla>();
+    public DbSet<Competicao> Competicoes => Set<Competicao>();
+    public DbSet<CategoriaCompeticao> CategoriasCompeticao => Set<CategoriaCompeticao>();
+    public DbSet<Partida> Partidas => Set<Partida>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(PlataformaFutevoleiDbContext).Assembly);
+        base.OnModelCreating(modelBuilder);
+    }
+}
