@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -13,12 +14,25 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.Sources.Clear();
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var configuracaoJwt = builder.Configuration.GetSection(ConfiguracaoJwt.Secao).Get<ConfiguracaoJwt>()
     ?? new ConfiguracaoJwt();
 
 if (string.IsNullOrWhiteSpace(configuracaoJwt.Chave))
 {
-    throw new InvalidOperationException("A configuração JWT está incompleta. Defina Jwt:Chave em appsettings.");
+    throw new InvalidOperationException(
+        "A configuração JWT está incompleta. Defina Jwt:Chave (ou a variável de ambiente Jwt__Chave).");
 }
 
 builder.Services.AddControllers();
@@ -27,12 +41,16 @@ builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();
 builder.Services.AdicionarAplicacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
 
-var origemFrontend = builder.Configuration.GetValue<string>("Frontend:Url") ?? "http://localhost:5173";
+var origemFrontendConfigurada = builder.Configuration.GetValue<string>("Frontend:Url");
+var origensFrontend = string.IsNullOrWhiteSpace(origemFrontendConfigurada)
+    ? new[] { "http://localhost:5173" }
+    : origemFrontendConfigurada
+        .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
     {
-        policy.WithOrigins(origemFrontend)
+        policy.WithOrigins(origensFrontend)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -83,24 +101,105 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+app.Logger.LogInformation("Inicializando API no ambiente {Ambiente}.", app.Environment.EnvironmentName);
+app.Logger.LogInformation("Origens CORS configuradas: {Origens}.", string.Join(", ", origensFrontend));
+
+var habilitarSwagger = builder.Configuration.GetValue("Diagnostics:EnableSwagger", true);
+if (habilitarSwagger)
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<PlataformaFutevoleiDbContext>();
-    dbContext.Database.Migrate();
+    app.Logger.LogInformation("Swagger habilitado temporariamente para validação inicial do deploy.");
+}
+else
+{
+    app.Logger.LogInformation("Swagger desabilitado por configuração.");
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+var habilitarDbTestEndpoint = builder.Configuration.GetValue("Diagnostics:EnableDbTestEndpoint", true);
+if (!habilitarDbTestEndpoint)
+{
+    app.Logger.LogInformation("Endpoint /db-test desabilitado por configuração.");
+}
+
+var aplicarMigrations = builder.Configuration.GetValue("Database:MigrateOnStartup", true);
+if (aplicarMigrations)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<PlataformaFutevoleiDbContext>();
+
+    try
+    {
+        app.Logger.LogInformation("Aplicando migrations pendentes...");
+        dbContext.Database.Migrate();
+        app.Logger.LogInformation("Migrations aplicadas com sucesso.");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Falha ao aplicar migrations na inicialização.");
+    }
+}
+else
+{
+    app.Logger.LogInformation("Execução de migrations na inicialização desabilitada por configuração.");
+}
+
+app.UseForwardedHeaders();
 
 app.UseMiddleware<MiddlewareTratamentoErros>();
-if (!app.Environment.IsDevelopment())
+
+if (habilitarSwagger)
 {
-    app.UseHttpsRedirection();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+app.UseHttpsRedirection();
 
 app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/health", (IHostEnvironment environment) =>
+{
+    return Results.Ok(new
+    {
+        status = "ok",
+        ambiente = environment.EnvironmentName,
+        utc = DateTime.UtcNow
+    });
+});
+
+if (habilitarDbTestEndpoint)
+{
+    app.MapGet("/db-test", async (PlataformaFutevoleiDbContext dbContext, CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            var conectou = await dbContext.Database.CanConnectAsync(cancellationToken);
+            if (!conectou)
+            {
+                return Results.Problem(
+                    title: "Banco indisponível.",
+                    detail: "Não foi possível conectar ao PostgreSQL.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+
+            return Results.Ok(new
+            {
+                status = "ok",
+                banco = "conectado",
+                utc = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(
+                title: "Falha na conexão com banco.",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    });
+}
+
 app.MapControllers();
 
 app.Run();
