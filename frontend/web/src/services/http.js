@@ -1,6 +1,26 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+function normalizarUrlBase(url) {
+  if (!url) {
+    return url;
+  }
+
+  return url.trim().replace(/\/+$/, '');
+}
+
+const apiUrl = import.meta.env.VITE_API_URL;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const fallbackApiProducao = 'https://api-qnf-mvp-hxeufubybfcgefcq.brazilsouth-01.azurewebsites.net';
+
+let baseURL = '/api';
+
+if (apiBaseUrl) {
+  baseURL = normalizarUrlBase(apiBaseUrl);
+} else if (apiUrl) {
+  baseURL = `${normalizarUrlBase(apiUrl)}/api`;
+} else if (import.meta.env.PROD) {
+  baseURL = `${fallbackApiProducao}/api`;
+}
 
 export const http = axios.create({
   baseURL,
