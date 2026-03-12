@@ -18,7 +18,7 @@ Plataforma web para registro de partidas de futevôlei com backend .NET 8 + Post
 docker compose up -d
 ```
 
-2. Ajuste a connection string em `PlataformaFutevolei.Api/appsettings.Development.json` se necessário.
+2. Ajuste a connection string em `PlataformaFutevolei.Api/appsettings.json` se necessário.
 3. Execute a API:
 
 ```bash

@@ -29,6 +29,23 @@ export const http = axios.create({
   }
 });
 
+let manipuladorNaoAutorizado = null;
+
+http.interceptors.response.use(
+  (resposta) => resposta,
+  (erro) => {
+    if (erro?.response?.status === 401 && typeof manipuladorNaoAutorizado === 'function') {
+      manipuladorNaoAutorizado();
+    }
+
+    return Promise.reject(erro);
+  }
+);
+
+export function definirManipuladorNaoAutorizado(manipulador) {
+  manipuladorNaoAutorizado = manipulador;
+}
+
 export function definirTokenAutorizacao(token) {
   if (token) {
     http.defaults.headers.common.Authorization = `Bearer ${token}`;

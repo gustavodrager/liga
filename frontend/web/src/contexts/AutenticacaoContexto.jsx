@@ -1,15 +1,56 @@
-import { createContext, useEffect, useMemo, useState } from 'react';
-import { definirTokenAutorizacao } from '../services/http';
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { definirManipuladorNaoAutorizado, definirTokenAutorizacao } from '../services/http';
 import { autenticacaoServico } from '../services/autenticacaoServico';
 
 const CHAVE_ARMAZENAMENTO = 'plataforma_futevolei_autenticacao';
 
 export const AutenticacaoContexto = createContext(null);
 
+function tokenExpirado(token) {
+  if (!token) {
+    return true;
+  }
+
+  try {
+    const [, carga] = token.split('.');
+    if (!carga) {
+      return true;
+    }
+
+    const cargaNormalizada = carga.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (cargaNormalizada.length % 4)) % 4);
+    const conteudo = atob(`${cargaNormalizada}${padding}`);
+    const dados = JSON.parse(conteudo);
+
+    if (typeof dados.exp !== 'number') {
+      return false;
+    }
+
+    const agora = Math.floor(Date.now() / 1000);
+    return dados.exp <= agora;
+  } catch {
+    return true;
+  }
+}
+
 export function ProvedorAutenticacao({ children }) {
   const [token, setToken] = useState(null);
   const [usuario, setUsuario] = useState(null);
   const [carregando, setCarregando] = useState(true);
+
+  const salvarAutenticacao = useCallback((resposta) => {
+    setToken(resposta.token);
+    setUsuario(resposta.usuario);
+    definirTokenAutorizacao(resposta.token);
+    localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify(resposta));
+  }, []);
+
+  const sair = useCallback(() => {
+    setToken(null);
+    setUsuario(null);
+    definirTokenAutorizacao(null);
+    localStorage.removeItem(CHAVE_ARMAZENAMENTO);
+  }, []);
 
   useEffect(() => {
     const conteudo = localStorage.getItem(CHAVE_ARMAZENAMENTO);
@@ -20,6 +61,12 @@ export function ProvedorAutenticacao({ children }) {
 
     try {
       const dados = JSON.parse(conteudo);
+
+      if (tokenExpirado(dados.token)) {
+        localStorage.removeItem(CHAVE_ARMAZENAMENTO);
+        return;
+      }
+
       setToken(dados.token);
       setUsuario(dados.usuario);
       definirTokenAutorizacao(dados.token);
@@ -30,25 +77,33 @@ export function ProvedorAutenticacao({ children }) {
     }
   }, []);
 
-  const entrar = async (email, senha) => {
+  const entrar = useCallback(async (email, senha) => {
     const resposta = await autenticacaoServico.login({ email, senha });
-    setToken(resposta.token);
-    setUsuario(resposta.usuario);
-    definirTokenAutorizacao(resposta.token);
-    localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify(resposta));
+    salvarAutenticacao(resposta);
     return resposta;
-  };
+  }, [salvarAutenticacao]);
 
-  const sair = () => {
-    setToken(null);
-    setUsuario(null);
-    definirTokenAutorizacao(null);
-    localStorage.removeItem(CHAVE_ARMAZENAMENTO);
-  };
+  const registrar = useCallback(async (nome, email, senha) => {
+    const resposta = await autenticacaoServico.registrar({
+      nome,
+      email,
+      senha,
+      perfil: 1
+    });
+    salvarAutenticacao(resposta);
+    return resposta;
+  }, [salvarAutenticacao]);
+
+  useEffect(() => {
+    definirManipuladorNaoAutorizado(sair);
+    return () => {
+      definirManipuladorNaoAutorizado(null);
+    };
+  }, [sair]);
 
   const valor = useMemo(
-    () => ({ token, usuario, carregando, entrar, sair }),
-    [token, usuario, carregando]
+    () => ({ token, usuario, carregando, entrar, registrar, sair }),
+    [token, usuario, carregando, entrar, registrar, sair]
   );
 
   return <AutenticacaoContexto.Provider value={valor}>{children}</AutenticacaoContexto.Provider>;

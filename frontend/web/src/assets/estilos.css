@@ -294,6 +294,16 @@ button {
   color: #547167;
 }
 
+.alternador-auth {
+  display: flex;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.alternador-auth button {
+  flex: 1;
+}
+
 .tela-carregamento {
   min-height: 100vh;
   display: flex;
