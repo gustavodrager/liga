@@ -15,6 +15,11 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
         builder.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(150).IsRequired();
         builder.Property(x => x.Email).HasColumnName("email").HasMaxLength(150).IsRequired();
         builder.Property(x => x.SenhaHash).HasColumnName("senha_hash").HasMaxLength(255).IsRequired();
+        builder.Property(x => x.CodigoRedefinicaoSenhaHash)
+            .HasColumnName("codigo_redefinicao_senha_hash")
+            .HasMaxLength(255);
+        builder.Property(x => x.CodigoRedefinicaoSenhaExpiraEmUtc)
+            .HasColumnName("codigo_redefinicao_senha_expira_em_utc");
         builder.Property(x => x.Perfil).HasColumnName("perfil").IsRequired();
         builder.Property(x => x.Ativo).HasColumnName("ativo").IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();

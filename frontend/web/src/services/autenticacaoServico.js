@@ -11,6 +11,16 @@ export const autenticacaoServico = {
     return resposta.data;
   },
 
+  async solicitarRedefinicaoSenha(dados) {
+    const resposta = await http.post('/autenticacao/esqueci-senha/solicitar', dados);
+    return resposta.data;
+  },
+
+  async redefinirSenha(dados) {
+    const resposta = await http.post('/autenticacao/esqueci-senha/redefinir', dados);
+    return resposta.data;
+  },
+
   async me() {
     const resposta = await http.get('/autenticacao/me');
     return resposta.data;

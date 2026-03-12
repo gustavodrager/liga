@@ -6,5 +6,9 @@ public interface IAutenticacaoServico
 {
     Task<RespostaAutenticacaoDto> RegistrarAsync(RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken = default);
     Task<RespostaAutenticacaoDto> LoginAsync(LoginRequisicaoDto dto, CancellationToken cancellationToken = default);
+    Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
+        EsqueciSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken = default);
+    Task RedefinirSenhaAsync(RedefinirSenhaRequisicaoDto dto, CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default);
 }

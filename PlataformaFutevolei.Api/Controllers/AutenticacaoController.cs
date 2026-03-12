@@ -27,6 +27,28 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         return Ok(resposta);
     }
 
+    [HttpPost("esqueci-senha/solicitar")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(SolicitarRedefinicaoSenhaRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SolicitarRedefinicaoSenha(
+        [FromBody] EsqueciSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.SolicitarRedefinicaoSenhaAsync(dto, cancellationToken);
+        return Ok(resposta);
+    }
+
+    [HttpPost("esqueci-senha/redefinir")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RedefinirSenha(
+        [FromBody] RedefinirSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        await autenticacaoServico.RedefinirSenhaAsync(dto, cancellationToken);
+        return Ok(new { mensagem = "Senha redefinida com sucesso." });
+    }
+
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]

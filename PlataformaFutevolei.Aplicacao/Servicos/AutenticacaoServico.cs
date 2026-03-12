@@ -5,6 +5,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Dominio.Entidades;
+using System.Security.Cryptography;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
@@ -60,6 +61,73 @@ public class AutenticacaoServico(
         return new RespostaAutenticacaoDto(token, usuario.ParaDto());
     }
 
+    public async Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
+        EsqueciSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
+        var mensagemPadrao = "Se o e-mail estiver cadastrado, um código de redefinição foi gerado.";
+
+        if (usuario is null || !usuario.Ativo)
+        {
+            return new SolicitarRedefinicaoSenhaRespostaDto(mensagemPadrao, null);
+        }
+
+        var codigo = GerarCodigoRedefinicao();
+        usuario.CodigoRedefinicaoSenhaHash = senhaServico.GerarHash(codigo);
+        usuario.CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(15);
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return new SolicitarRedefinicaoSenhaRespostaDto(mensagemPadrao, codigo);
+    }
+
+    public async Task RedefinirSenhaAsync(RedefinirSenhaRequisicaoDto dto, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Codigo))
+        {
+            throw new RegraNegocioException("Código de redefinição é obrigatório.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.NovaSenha) || dto.NovaSenha.Length < 6)
+        {
+            throw new RegraNegocioException("A nova senha deve ter no mínimo 6 caracteres.");
+        }
+
+        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
+        var codigoValido = usuario is not null
+            && usuario.Ativo
+            && !string.IsNullOrWhiteSpace(usuario.CodigoRedefinicaoSenhaHash)
+            && usuario.CodigoRedefinicaoSenhaExpiraEmUtc is not null
+            && usuario.CodigoRedefinicaoSenhaExpiraEmUtc.Value >= DateTime.UtcNow
+            && senhaServico.Verificar(dto.Codigo.Trim(), usuario.CodigoRedefinicaoSenhaHash);
+
+        if (!codigoValido)
+        {
+            throw new RegraNegocioException("Código de redefinição inválido ou expirado.");
+        }
+
+        usuario!.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
+        usuario.CodigoRedefinicaoSenhaHash = null;
+        usuario.CodigoRedefinicaoSenhaExpiraEmUtc = null;
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
     public async Task<UsuarioLogadoDto> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default)
     {
         if (usuarioContexto.UsuarioId is null)
@@ -92,5 +160,11 @@ public class AutenticacaoServico(
         {
             throw new RegraNegocioException("A senha deve ter no mínimo 6 caracteres.");
         }
+    }
+
+    private static string GerarCodigoRedefinicao()
+    {
+        var numero = RandomNumberGenerator.GetInt32(100000, 1000000);
+        return numero.ToString();
     }
 }

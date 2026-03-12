@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import logoLiga from '../assets/logo-liga.svg';
 
 const itensMenu = [
   { caminho: '/dashboard', nome: 'Dashboard' },
@@ -16,9 +17,12 @@ export function LayoutPrincipal() {
   return (
     <div className="layout-app">
       <header className="topo-app">
-        <div>
-          <p className="marca-subtitulo">Plataforma</p>
-          <h1 className="marca-titulo">Registro de Futevôlei</h1>
+        <div className="marca-topo">
+          <img className="logo-interno" src={logoLiga} alt="Liga" />
+          <div>
+            <p className="marca-subtitulo">Plataforma</p>
+            <h1 className="marca-titulo">Registro de Futevôlei</h1>
+          </div>
         </div>
 
         <div className="usuario-topo">

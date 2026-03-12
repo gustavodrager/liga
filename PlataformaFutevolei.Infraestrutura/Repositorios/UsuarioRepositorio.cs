@@ -14,6 +14,12 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
             .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
     }
 
+    public Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Usuarios
+            .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+    }
+
     public Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.Usuarios
@@ -24,5 +30,10 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
     public async Task AdicionarAsync(Usuario usuario, CancellationToken cancellationToken = default)
     {
         await dbContext.Usuarios.AddAsync(usuario, cancellationToken);
+    }
+
+    public void Atualizar(Usuario usuario)
+    {
+        dbContext.Usuarios.Update(usuario);
     }
 }

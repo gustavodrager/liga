@@ -5,8 +5,10 @@ namespace PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 public interface IUsuarioRepositorio
 {
     Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Usuario usuario, CancellationToken cancellationToken = default);
+    void Atualizar(Usuario usuario);
 }
 
 public interface IAtletaRepositorio

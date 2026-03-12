@@ -14,6 +14,21 @@ public record LoginRequisicaoDto(
     string Senha
 );
 
+public record EsqueciSenhaRequisicaoDto(
+    string Email
+);
+
+public record RedefinirSenhaRequisicaoDto(
+    string Email,
+    string Codigo,
+    string NovaSenha
+);
+
+public record SolicitarRedefinicaoSenhaRespostaDto(
+    string Mensagem,
+    string? Codigo
+);
+
 public record UsuarioLogadoDto(
     Guid Id,
     string Nome,
