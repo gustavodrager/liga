@@ -34,6 +34,8 @@ public record PartidaDto(
     int PlacarDuplaB,
     Guid DuplaVencedoraId,
     string NomeDuplaVencedora,
+    decimal PesoRankingCategoria,
+    decimal PontosRankingVitoria,
     DateTime DataPartida,
     string? Observacoes,
     DateTime DataCriacao,

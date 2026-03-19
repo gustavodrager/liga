@@ -35,6 +35,15 @@ internal static class MapeadorEntidades
             dupla.DataAtualizacao
         );
 
+    public static LigaDto ParaDto(this Liga liga)
+        => new(
+            liga.Id,
+            liga.Nome,
+            liga.Descricao,
+            liga.DataCriacao,
+            liga.DataAtualizacao
+        );
+
     public static CompeticaoDto ParaDto(this Competicao competicao)
         => new(
             competicao.Id,
@@ -43,6 +52,9 @@ internal static class MapeadorEntidades
             competicao.Descricao,
             competicao.DataInicio,
             competicao.DataFim,
+            competicao.LigaId,
+            competicao.Liga?.Nome,
+            competicao.ContaRankingLiga,
             competicao.DataCriacao,
             competicao.DataAtualizacao
         );
@@ -55,6 +67,7 @@ internal static class MapeadorEntidades
             categoria.Nome,
             categoria.Genero,
             categoria.Nivel,
+            categoria.PesoRanking,
             categoria.DataCriacao,
             categoria.DataAtualizacao
         );
@@ -72,6 +85,8 @@ internal static class MapeadorEntidades
             partida.PlacarDuplaB,
             partida.DuplaVencedoraId,
             partida.DuplaVencedora?.Nome ?? string.Empty,
+            partida.CategoriaCompeticao?.PesoRanking ?? 1m,
+            partida.CalcularPontosRankingVitoria(),
             partida.DataPartida,
             partida.Observacoes,
             partida.DataCriacao,

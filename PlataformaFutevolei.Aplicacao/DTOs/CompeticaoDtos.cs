@@ -7,7 +7,9 @@ public record CriarCompeticaoDto(
     TipoCompeticao Tipo,
     string? Descricao,
     DateTime DataInicio,
-    DateTime? DataFim
+    DateTime? DataFim,
+    Guid? LigaId,
+    bool ContaRankingLiga
 );
 
 public record AtualizarCompeticaoDto(
@@ -15,7 +17,9 @@ public record AtualizarCompeticaoDto(
     TipoCompeticao Tipo,
     string? Descricao,
     DateTime DataInicio,
-    DateTime? DataFim
+    DateTime? DataFim,
+    Guid? LigaId,
+    bool ContaRankingLiga
 );
 
 public record CompeticaoDto(
@@ -25,6 +29,9 @@ public record CompeticaoDto(
     string? Descricao,
     DateTime DataInicio,
     DateTime? DataFim,
+    Guid? LigaId,
+    string? NomeLiga,
+    bool ContaRankingLiga,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

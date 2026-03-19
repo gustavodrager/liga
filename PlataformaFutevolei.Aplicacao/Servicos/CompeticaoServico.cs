@@ -9,6 +9,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class CompeticaoServico(
     ICompeticaoRepositorio competicaoRepositorio,
+    ILigaRepositorio ligaRepositorio,
     IUnidadeTrabalho unidadeTrabalho
 ) : ICompeticaoServico
 {
@@ -32,6 +33,7 @@ public class CompeticaoServico(
     public async Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
         Validar(dto.Nome, dto.DataInicio, dto.DataFim);
+        await ValidarLigaAsync(dto.LigaId, cancellationToken);
 
         var competicao = new Competicao
         {
@@ -39,17 +41,22 @@ public class CompeticaoServico(
             Tipo = dto.Tipo,
             Descricao = dto.Descricao?.Trim(),
             DataInicio = dto.DataInicio,
-            DataFim = dto.DataFim
+            DataFim = dto.DataFim,
+            LigaId = dto.LigaId,
+            ContaRankingLiga = dto.ContaRankingLiga
         };
 
         await competicaoRepositorio.AdicionarAsync(competicao, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
-        return competicao.ParaDto();
+        var competicaoCriada = await competicaoRepositorio.ObterPorIdAsync(competicao.Id, cancellationToken);
+        return competicaoCriada!.ParaDto();
     }
 
     public async Task<CompeticaoDto> AtualizarAsync(Guid id, AtualizarCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
         Validar(dto.Nome, dto.DataInicio, dto.DataFim);
+        await ValidarLigaAsync(dto.LigaId, cancellationToken);
+
         var competicao = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (competicao is null)
         {
@@ -61,11 +68,14 @@ public class CompeticaoServico(
         competicao.Descricao = dto.Descricao?.Trim();
         competicao.DataInicio = dto.DataInicio;
         competicao.DataFim = dto.DataFim;
+        competicao.LigaId = dto.LigaId;
+        competicao.ContaRankingLiga = dto.ContaRankingLiga;
         competicao.AtualizarDataModificacao();
 
         competicaoRepositorio.Atualizar(competicao);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
-        return competicao.ParaDto();
+        var competicaoAtualizada = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
+        return competicaoAtualizada!.ParaDto();
     }
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
@@ -78,6 +88,20 @@ public class CompeticaoServico(
 
         competicaoRepositorio.Remover(competicao);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private async Task ValidarLigaAsync(Guid? ligaId, CancellationToken cancellationToken)
+    {
+        if (!ligaId.HasValue)
+        {
+            return;
+        }
+
+        var liga = await ligaRepositorio.ObterPorIdAsync(ligaId.Value, cancellationToken);
+        if (liga is null)
+        {
+            throw new RegraNegocioException("A liga informada para a competição não foi encontrada.");
+        }
     }
 
     private static void Validar(string nome, DateTime dataInicio, DateTime? dataFim)

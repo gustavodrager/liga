@@ -6,13 +6,15 @@ public record CriarCategoriaCompeticaoDto(
     Guid CompeticaoId,
     string Nome,
     GeneroCategoria Genero,
-    NivelCategoria Nivel
+    NivelCategoria Nivel,
+    decimal? PesoRanking
 );
 
 public record AtualizarCategoriaCompeticaoDto(
     string Nome,
     GeneroCategoria Genero,
-    NivelCategoria Nivel
+    NivelCategoria Nivel,
+    decimal? PesoRanking
 );
 
 public record CategoriaCompeticaoDto(
@@ -22,6 +24,7 @@ public record CategoriaCompeticaoDto(
     string Nome,
     GeneroCategoria Genero,
     NivelCategoria Nivel,
+    decimal PesoRanking,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
