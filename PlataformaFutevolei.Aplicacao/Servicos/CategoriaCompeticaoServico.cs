@@ -32,7 +32,7 @@ public class CategoriaCompeticaoServico(
 
     public async Task<CategoriaCompeticaoDto> CriarAsync(CriarCategoriaCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
-        Validar(dto.Nome);
+        Validar(dto.Nome, dto.PesoRanking);
         var competicao = await competicaoRepositorio.ObterPorIdAsync(dto.CompeticaoId, cancellationToken);
         if (competicao is null)
         {
@@ -44,7 +44,8 @@ public class CategoriaCompeticaoServico(
             CompeticaoId = dto.CompeticaoId,
             Nome = dto.Nome.Trim(),
             Genero = dto.Genero,
-            Nivel = dto.Nivel
+            Nivel = dto.Nivel,
+            PesoRanking = dto.PesoRanking ?? 1m
         };
 
         await categoriaRepositorio.AdicionarAsync(categoria, cancellationToken);
@@ -55,7 +56,7 @@ public class CategoriaCompeticaoServico(
 
     public async Task<CategoriaCompeticaoDto> AtualizarAsync(Guid id, AtualizarCategoriaCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
-        Validar(dto.Nome);
+        Validar(dto.Nome, dto.PesoRanking);
         var categoria = await categoriaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (categoria is null)
         {
@@ -65,6 +66,7 @@ public class CategoriaCompeticaoServico(
         categoria.Nome = dto.Nome.Trim();
         categoria.Genero = dto.Genero;
         categoria.Nivel = dto.Nivel;
+        categoria.PesoRanking = dto.PesoRanking ?? 1m;
         categoria.AtualizarDataModificacao();
 
         categoriaRepositorio.Atualizar(categoria);
@@ -85,11 +87,16 @@ public class CategoriaCompeticaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private static void Validar(string nome)
+    private static void Validar(string nome, decimal? pesoRanking)
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
             throw new RegraNegocioException("Nome da categoria é obrigatório.");
+        }
+
+        if (pesoRanking.HasValue && pesoRanking.Value <= 0)
+        {
+            throw new RegraNegocioException("Peso de ranking da categoria deve ser maior que zero.");
         }
     }
 }

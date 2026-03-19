@@ -24,161 +24,72 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Atleta", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Apelido")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("apelido");
-
-                    b.Property<string>("Cidade")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("cidade");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("nome");
-
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<string>("Apelido").HasMaxLength(100).HasColumnType("character varying(100)").HasColumnName("apelido");
+                    b.Property<string>("Cidade").HasMaxLength(100).HasColumnType("character varying(100)").HasColumnName("cidade");
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<string>("Nome").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)").HasColumnName("nome");
                     b.HasKey("Id");
-
                     b.ToTable("atletas", (string)null);
                 });
 
-            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.CategoriaCompeticao", b =>
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Liga", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("CompeticaoId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("competicao_id");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<int>("Genero")
-                        .HasColumnType("integer")
-                        .HasColumnName("genero");
-
-                    b.Property<int>("Nivel")
-                        .HasColumnType("integer")
-                        .HasColumnName("nivel");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("nome");
-
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<string>("Descricao").HasMaxLength(1000).HasColumnType("character varying(1000)").HasColumnName("descricao");
+                    b.Property<string>("Nome").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("nome");
                     b.HasKey("Id");
-
-                    b.HasIndex("CompeticaoId");
-
-                    b.ToTable("categorias_competicao", (string)null);
+                    b.HasIndex("Nome").IsUnique();
+                    b.ToTable("ligas", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Competicao", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<DateTime?>("DataFim")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_fim");
-
-                    b.Property<DateTime>("DataInicio")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_inicio");
-
-                    b.Property<string>("Descricao")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("descricao");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("nome");
-
-                    b.Property<int>("Tipo")
-                        .HasColumnType("integer")
-                        .HasColumnName("tipo");
-
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<bool>("ContaRankingLiga").ValueGeneratedOnAdd().HasColumnType("boolean").HasColumnName("conta_ranking_liga").HasDefaultValue(false);
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<DateTime?>("DataFim").HasColumnType("timestamp with time zone").HasColumnName("data_fim");
+                    b.Property<DateTime>("DataInicio").HasColumnType("timestamp with time zone").HasColumnName("data_inicio");
+                    b.Property<string>("Descricao").HasMaxLength(1000).HasColumnType("character varying(1000)").HasColumnName("descricao");
+                    b.Property<Guid?>("LigaId").HasColumnType("uuid").HasColumnName("liga_id");
+                    b.Property<string>("Nome").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("nome");
+                    b.Property<int>("Tipo").HasColumnType("integer").HasColumnName("tipo");
                     b.HasKey("Id");
-
+                    b.HasIndex("LigaId");
                     b.ToTable("competicoes", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.CategoriaCompeticao", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<Guid>("CompeticaoId").HasColumnType("uuid").HasColumnName("competicao_id");
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<int>("Genero").HasColumnType("integer").HasColumnName("genero");
+                    b.Property<int>("Nivel").HasColumnType("integer").HasColumnName("nivel");
+                    b.Property<string>("Nome").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)").HasColumnName("nome");
+                    b.Property<decimal>("PesoRanking").ValueGeneratedOnAdd().HasPrecision(10, 2).HasColumnType("numeric(10,2)").HasColumnName("peso_ranking").HasDefaultValue(1m);
+                    b.HasKey("Id");
+                    b.HasIndex("CompeticaoId");
+                    b.ToTable("categorias_competicao", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("Atleta1Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("atleta1_id");
-
-                    b.Property<Guid>("Atleta2Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("atleta2_id");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("nome");
-
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<Guid>("Atleta1Id").HasColumnType("uuid").HasColumnName("atleta1_id");
+                    b.Property<Guid>("Atleta2Id").HasColumnType("uuid").HasColumnName("atleta2_id");
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<string>("Nome").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)").HasColumnName("nome");
                     b.HasKey("Id");
-
                     b.HasIndex("Atleta1Id");
-
                     b.HasIndex("Atleta2Id");
-
-                    b.HasIndex("Atleta1Id", "Atleta2Id")
-                        .IsUnique();
-
+                    b.HasIndex("Atleta1Id", "Atleta2Id").IsUnique();
                     b.ToTable("duplas", null, t =>
                         {
                             t.HasCheckConstraint("ck_duplas_atletas_diferentes", "\"atleta1_id\" <> \"atleta2_id\"");
@@ -187,125 +98,46 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Partida", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("CategoriaCompeticaoId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("categoria_competicao_id");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<DateTime>("DataPartida")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_partida");
-
-                    b.Property<Guid>("DuplaAId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dupla_a_id");
-
-                    b.Property<Guid>("DuplaBId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dupla_b_id");
-
-                    b.Property<Guid>("DuplaVencedoraId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dupla_vencedora_id");
-
-                    b.Property<string>("Observacoes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("observacoes");
-
-                    b.Property<int>("PlacarDuplaA")
-                        .HasColumnType("integer")
-                        .HasColumnName("placar_dupla_a");
-
-                    b.Property<int>("PlacarDuplaB")
-                        .HasColumnType("integer")
-                        .HasColumnName("placar_dupla_b");
-
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<Guid>("CategoriaCompeticaoId").HasColumnType("uuid").HasColumnName("categoria_competicao_id");
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<DateTime>("DataPartida").HasColumnType("timestamp with time zone").HasColumnName("data_partida");
+                    b.Property<Guid>("DuplaAId").HasColumnType("uuid").HasColumnName("dupla_a_id");
+                    b.Property<Guid>("DuplaBId").HasColumnType("uuid").HasColumnName("dupla_b_id");
+                    b.Property<Guid>("DuplaVencedoraId").HasColumnType("uuid").HasColumnName("dupla_vencedora_id");
+                    b.Property<string>("Observacoes").HasMaxLength(1000).HasColumnType("character varying(1000)").HasColumnName("observacoes");
+                    b.Property<int>("PlacarDuplaA").HasColumnType("integer").HasColumnName("placar_dupla_a");
+                    b.Property<int>("PlacarDuplaB").HasColumnType("integer").HasColumnName("placar_dupla_b");
                     b.HasKey("Id");
-
                     b.HasIndex("CategoriaCompeticaoId");
-
+                    b.HasIndex("CategoriaCompeticaoId", "DataPartida");
                     b.HasIndex("DuplaAId");
-
                     b.HasIndex("DuplaBId");
-
                     b.HasIndex("DuplaVencedoraId");
-
                     b.ToTable("partidas", null, t =>
                         {
                             t.HasCheckConstraint("ck_partidas_duplas_diferentes", "\"dupla_a_id\" <> \"dupla_b_id\"");
-
+                            t.HasCheckConstraint("ck_partidas_placar_valido", "\"placar_dupla_a\" <> \"placar_dupla_b\" AND GREATEST(\"placar_dupla_a\", \"placar_dupla_b\") >= 18 AND ABS(\"placar_dupla_a\" - \"placar_dupla_b\") >= 2");
+                            t.HasCheckConstraint("ck_partidas_vencedora_coerente_placar", "((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")");
                             t.HasCheckConstraint("ck_partidas_vencedora_valida", "\"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\"");
                         });
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Usuario", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("Ativo")
-                        .HasColumnType("boolean")
-                        .HasColumnName("ativo");
-
-                    b.Property<DateTime?>("CodigoRedefinicaoSenhaExpiraEmUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("codigo_redefinicao_senha_expira_em_utc");
-
-                    b.Property<string>("CodigoRedefinicaoSenhaHash")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("codigo_redefinicao_senha_hash");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("email");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("nome");
-
-                    b.Property<int>("Perfil")
-                        .HasColumnType("integer")
-                        .HasColumnName("perfil");
-
-                    b.Property<string>("SenhaHash")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("senha_hash");
-
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                    b.Property<bool>("Ativo").HasColumnType("boolean").HasColumnName("ativo");
+                    b.Property<DateTime?>("CodigoRedefinicaoSenhaExpiraEmUtc").HasColumnType("timestamp with time zone").HasColumnName("codigo_redefinicao_senha_expira_em_utc");
+                    b.Property<string>("CodigoRedefinicaoSenhaHash").HasMaxLength(255).HasColumnType("character varying(255)").HasColumnName("codigo_redefinicao_senha_hash");
+                    b.Property<DateTime>("DataAtualizacao").HasColumnType("timestamp with time zone").HasColumnName("data_atualizacao");
+                    b.Property<DateTime>("DataCriacao").HasColumnType("timestamp with time zone").HasColumnName("data_criacao");
+                    b.Property<string>("Email").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)").HasColumnName("email");
+                    b.Property<string>("Nome").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)").HasColumnName("nome");
+                    b.Property<int>("Perfil").HasColumnType("integer").HasColumnName("perfil");
+                    b.Property<string>("SenhaHash").IsRequired().HasMaxLength(255).HasColumnType("character varying(255)").HasColumnName("senha_hash");
                     b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
-
+                    b.HasIndex("Email").IsUnique();
                     b.ToTable("usuarios", (string)null);
                 });
 
@@ -318,6 +150,16 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .IsRequired();
 
                     b.Navigation("Competicao");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Competicao", b =>
+                {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Liga", "Liga")
+                        .WithMany("Competicoes")
+                        .HasForeignKey("LigaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Liga");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>
@@ -335,7 +177,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .IsRequired();
 
                     b.Navigation("Atleta1");
-
                     b.Navigation("Atleta2");
                 });
 
@@ -366,18 +207,14 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .IsRequired();
 
                     b.Navigation("CategoriaCompeticao");
-
                     b.Navigation("DuplaA");
-
                     b.Navigation("DuplaB");
-
                     b.Navigation("DuplaVencedora");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Atleta", b =>
                 {
                     b.Navigation("DuplasComoAtleta1");
-
                     b.Navigation("DuplasComoAtleta2");
                 });
 
@@ -394,10 +231,13 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>
                 {
                     b.Navigation("PartidasComoDuplaA");
-
                     b.Navigation("PartidasComoDuplaB");
-
                     b.Navigation("PartidasVencidas");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Liga", b =>
+                {
+                    b.Navigation("Competicoes");
                 });
 #pragma warning restore 612, 618
         }

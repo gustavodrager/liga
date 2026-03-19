@@ -15,6 +15,14 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
                 "ck_partidas_vencedora_valida",
                 "\"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\""
             );
+            tabela.HasCheckConstraint(
+                "ck_partidas_placar_valido",
+                "\"placar_dupla_a\" <> \"placar_dupla_b\" AND GREATEST(\"placar_dupla_a\", \"placar_dupla_b\") >= 18 AND ABS(\"placar_dupla_a\" - \"placar_dupla_b\") >= 2"
+            );
+            tabela.HasCheckConstraint(
+                "ck_partidas_vencedora_coerente_placar",
+                "((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")"
+            );
         });
 
         builder.HasKey(x => x.Id);
@@ -54,5 +62,6 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.HasIndex(x => x.DuplaAId);
         builder.HasIndex(x => x.DuplaBId);
         builder.HasIndex(x => x.DuplaVencedoraId);
+        builder.HasIndex(x => new { x.CategoriaCompeticaoId, x.DataPartida });
     }
 }

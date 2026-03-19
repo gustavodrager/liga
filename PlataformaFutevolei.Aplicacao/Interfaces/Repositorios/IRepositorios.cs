@@ -30,6 +30,16 @@ public interface IDuplaRepositorio
     void Remover(Dupla dupla);
 }
 
+public interface ILigaRepositorio
+{
+    Task<IReadOnlyList<Liga>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<Liga?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Liga?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(Liga liga, CancellationToken cancellationToken = default);
+    void Atualizar(Liga liga);
+    void Remover(Liga liga);
+}
+
 public interface ICompeticaoRepositorio
 {
     Task<IReadOnlyList<Competicao>> ListarAsync(CancellationToken cancellationToken = default);

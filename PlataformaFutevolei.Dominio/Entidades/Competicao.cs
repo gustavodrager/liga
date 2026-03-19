@@ -9,6 +9,9 @@ public class Competicao : EntidadeBase
     public string? Descricao { get; set; }
     public DateTime DataInicio { get; set; }
     public DateTime? DataFim { get; set; }
+    public Guid? LigaId { get; set; }
+    public bool ContaRankingLiga { get; set; }
 
+    public Liga? Liga { get; set; }
     public ICollection<CategoriaCompeticao> Categorias { get; set; } = new List<CategoriaCompeticao>();
 }

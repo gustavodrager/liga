@@ -8,6 +8,7 @@ public class CategoriaCompeticao : EntidadeBase
     public string Nome { get; set; } = string.Empty;
     public GeneroCategoria Genero { get; set; }
     public NivelCategoria Nivel { get; set; }
+    public decimal PesoRanking { get; set; } = 1m;
 
     public Competicao Competicao { get; set; } = default!;
     public ICollection<Partida> Partidas { get; set; } = new List<Partida>();
