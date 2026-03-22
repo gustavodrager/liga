@@ -1,10 +1,14 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
+    [DbContext(typeof(PlataformaFutevoleiDbContext))]
+    [Migration("20260312224500_AdicionarRecuperacaoSenhaUsuario")]
     public partial class AdicionarRecuperacaoSenhaUsuario : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

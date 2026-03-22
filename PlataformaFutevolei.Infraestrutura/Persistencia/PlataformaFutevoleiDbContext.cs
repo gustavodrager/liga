@@ -12,6 +12,7 @@ public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDb
     public DbSet<Liga> Ligas => Set<Liga>();
     public DbSet<Competicao> Competicoes => Set<Competicao>();
     public DbSet<CategoriaCompeticao> CategoriasCompeticao => Set<CategoriaCompeticao>();
+    public DbSet<InscricaoCampeonato> InscricoesCampeonato => Set<InscricaoCampeonato>();
     public DbSet<Partida> Partidas => Set<Partida>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

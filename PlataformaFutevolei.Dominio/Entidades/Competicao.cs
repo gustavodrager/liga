@@ -11,7 +11,9 @@ public class Competicao : EntidadeBase
     public DateTime? DataFim { get; set; }
     public Guid? LigaId { get; set; }
     public bool ContaRankingLiga { get; set; }
+    public bool InscricoesAbertas { get; set; }
 
     public Liga? Liga { get; set; }
     public ICollection<CategoriaCompeticao> Categorias { get; set; } = new List<CategoriaCompeticao>();
+    public ICollection<InscricaoCampeonato> Inscricoes { get; set; } = new List<InscricaoCampeonato>();
 }

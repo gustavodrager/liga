@@ -67,6 +67,21 @@ public interface IPartidaRepositorio
     void Remover(Partida partida);
 }
 
+public interface IInscricaoCampeonatoRepositorio
+{
+    Task<IReadOnlyList<InscricaoCampeonato>> ListarPorCampeonatoAsync(
+        Guid campeonatoId,
+        Guid? categoriaId,
+        CancellationToken cancellationToken = default);
+    Task<InscricaoCampeonato?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<InscricaoCampeonato?> ObterDuplicadaAsync(
+        Guid categoriaId,
+        Guid atleta1Id,
+        Guid atleta2Id,
+        CancellationToken cancellationToken = default);
+    Task AdicionarAsync(InscricaoCampeonato inscricao, CancellationToken cancellationToken = default);
+}
+
 public interface IUnidadeTrabalho
 {
     Task<int> SalvarAlteracoesAsync(CancellationToken cancellationToken = default);

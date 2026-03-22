@@ -18,6 +18,14 @@ const estadoInicial = {
   observacoes: ''
 };
 
+function paraIsoUtc(dataLocal) {
+  if (!dataLocal) {
+    return dataLocal;
+  }
+
+  return new Date(dataLocal).toISOString();
+}
+
 export function PaginaPartidas() {
   const [competicoes, setCompeticoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -179,7 +187,7 @@ export function PaginaPartidas() {
       placarDuplaA: Number(formulario.placarDuplaA),
       placarDuplaB: Number(formulario.placarDuplaB),
       duplaVencedoraId: formulario.duplaVencedoraId,
-      dataPartida: formulario.dataPartida,
+      dataPartida: paraIsoUtc(formulario.dataPartida),
       observacoes: formulario.observacoes || null
     };
 

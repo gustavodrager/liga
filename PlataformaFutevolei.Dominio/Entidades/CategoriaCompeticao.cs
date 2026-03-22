@@ -12,4 +12,5 @@ public class CategoriaCompeticao : EntidadeBase
 
     public Competicao Competicao { get; set; } = default!;
     public ICollection<Partida> Partidas { get; set; } = new List<Partida>();
+    public ICollection<InscricaoCampeonato> Inscricoes { get; set; } = new List<InscricaoCampeonato>();
 }

@@ -8,4 +8,6 @@ public class Atleta : EntidadeBase
 
     public ICollection<Dupla> DuplasComoAtleta1 { get; set; } = new List<Dupla>();
     public ICollection<Dupla> DuplasComoAtleta2 { get; set; } = new List<Dupla>();
+    public ICollection<InscricaoCampeonato> InscricoesComoAtleta1 { get; set; } = new List<InscricaoCampeonato>();
+    public ICollection<InscricaoCampeonato> InscricoesComoAtleta2 { get; set; } = new List<InscricaoCampeonato>();
 }

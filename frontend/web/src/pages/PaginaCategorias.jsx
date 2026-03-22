@@ -256,6 +256,15 @@ export function PaginaCategorias() {
                 >
                   Partidas
                 </button>
+                {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo === 1 && (
+                  <button
+                    type="button"
+                    className="botao-terciario"
+                    onClick={() => navegar(`/inscricoes?campeonatoId=${categoria.competicaoId}&categoriaId=${categoria.id}`)}
+                  >
+                    Inscrições
+                  </button>
+                )}
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(categoria)}>
                   Editar
                 </button>

@@ -33,6 +33,10 @@ public class PartidaServico(
 
     public async Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
     {
+        var dataPartidaUtc = dto.DataPartida == default
+            ? DateTime.UtcNow
+            : NormalizarParaUtc(dto.DataPartida);
+
         var categoria = await ValidarRelacionamentosAsync(
             dto.CategoriaCompeticaoId,
             dto.DuplaAId,
@@ -49,7 +53,7 @@ public class PartidaServico(
             PlacarDuplaA = dto.PlacarDuplaA,
             PlacarDuplaB = dto.PlacarDuplaB,
             DuplaVencedoraId = dto.DuplaVencedoraId,
-            DataPartida = dto.DataPartida == default ? DateTime.UtcNow : dto.DataPartida,
+            DataPartida = dataPartidaUtc,
             Observacoes = dto.Observacoes?.Trim(),
             CategoriaCompeticao = categoria
         };
@@ -70,6 +74,10 @@ public class PartidaServico(
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
+        var dataPartidaUtc = dto.DataPartida == default
+            ? partida.DataPartida
+            : NormalizarParaUtc(dto.DataPartida);
+
         var categoria = await ValidarRelacionamentosAsync(
             dto.CategoriaCompeticaoId,
             dto.DuplaAId,
@@ -84,7 +92,7 @@ public class PartidaServico(
         partida.PlacarDuplaA = dto.PlacarDuplaA;
         partida.PlacarDuplaB = dto.PlacarDuplaB;
         partida.DuplaVencedoraId = dto.DuplaVencedoraId;
-        partida.DataPartida = dto.DataPartida == default ? partida.DataPartida : dto.DataPartida;
+        partida.DataPartida = dataPartidaUtc;
         partida.Observacoes = dto.Observacoes?.Trim();
         partida.CategoriaCompeticao = categoria;
         ValidarResultadoPartida(partida);
@@ -106,6 +114,16 @@ public class PartidaServico(
 
         partidaRepositorio.Remover(partida);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private static DateTime NormalizarParaUtc(DateTime data)
+    {
+        return data.Kind switch
+        {
+            DateTimeKind.Utc => data,
+            DateTimeKind.Local => data.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(data, DateTimeKind.Utc)
+        };
     }
 
     private async Task<CategoriaCompeticao> ValidarRelacionamentosAsync(

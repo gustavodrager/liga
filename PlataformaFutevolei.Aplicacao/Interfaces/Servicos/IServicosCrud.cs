@@ -46,3 +46,19 @@ public interface IPartidaServico
     Task<PartidaDto> AtualizarAsync(Guid id, AtualizarPartidaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
+
+public interface IInscricaoCampeonatoServico
+{
+    Task<IReadOnlyList<InscricaoCampeonatoDto>> ListarPorCampeonatoAsync(
+        Guid campeonatoId,
+        Guid? categoriaId,
+        CancellationToken cancellationToken = default);
+    Task<InscricaoCampeonatoDto> ObterPorIdAsync(
+        Guid campeonatoId,
+        Guid inscricaoId,
+        CancellationToken cancellationToken = default);
+    Task<InscricaoCampeonatoDto> CriarAsync(
+        Guid campeonatoId,
+        CriarInscricaoCampeonatoDto dto,
+        CancellationToken cancellationToken = default);
+}

@@ -12,6 +12,11 @@ const atalhos = [
     rota: '/duplas'
   },
   {
+    titulo: 'Ligas',
+    descricao: 'Cadastre as ligas que agrupam as competições.',
+    rota: '/ligas'
+  },
+  {
     titulo: 'Competições',
     descricao: 'Crie campeonatos, eventos e grupos.',
     rota: '/competicoes'
@@ -20,6 +25,11 @@ const atalhos = [
     titulo: 'Categorias',
     descricao: 'Defina gênero e nível técnico por competição.',
     rota: '/categorias'
+  },
+  {
+    titulo: 'Inscrições',
+    descricao: 'Inscreva duplas em categorias de campeonatos.',
+    rota: '/inscricoes'
   },
   {
     titulo: 'Partidas',
@@ -33,7 +43,7 @@ export function PaginaDashboard() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Dashboard</h2>
-        <p>Fluxo do MVP: atletas, duplas, competição, categoria e partidas.</p>
+        <p>Fluxo do MVP: atletas, duplas, campeonatos, categorias, inscrições e partidas.</p>
       </div>
 
       <div className="grade-cartoes">

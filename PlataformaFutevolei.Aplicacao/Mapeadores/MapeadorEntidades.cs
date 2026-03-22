@@ -55,6 +55,7 @@ internal static class MapeadorEntidades
             competicao.LigaId,
             competicao.Liga?.Nome,
             competicao.ContaRankingLiga,
+            competicao.InscricoesAbertas,
             competicao.DataCriacao,
             competicao.DataAtualizacao
         );
@@ -91,5 +92,23 @@ internal static class MapeadorEntidades
             partida.Observacoes,
             partida.DataCriacao,
             partida.DataAtualizacao
+        );
+
+    public static InscricaoCampeonatoDto ParaDto(this InscricaoCampeonato inscricao)
+        => new(
+            inscricao.Id,
+            inscricao.CompeticaoId,
+            inscricao.Competicao?.Nome ?? string.Empty,
+            inscricao.CategoriaCompeticaoId,
+            inscricao.CategoriaCompeticao?.Nome ?? string.Empty,
+            inscricao.Atleta1Id,
+            inscricao.Atleta1?.Nome ?? string.Empty,
+            inscricao.Atleta2Id,
+            inscricao.Atleta2?.Nome ?? string.Empty,
+            inscricao.Status,
+            inscricao.Observacao,
+            inscricao.DataInscricaoUtc,
+            inscricao.DataCriacao,
+            inscricao.DataAtualizacao
         );
 }

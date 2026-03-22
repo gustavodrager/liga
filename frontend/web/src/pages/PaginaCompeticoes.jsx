@@ -9,7 +9,10 @@ const estadoInicial = {
   tipo: '1',
   descricao: '',
   dataInicio: '',
-  dataFim: ''
+  dataFim: '',
+  ligaId: '',
+  contaRankingLiga: false,
+  inscricoesAbertas: true
 };
 
 const tiposCompeticao = [
@@ -56,7 +59,10 @@ export function PaginaCompeticoes() {
       tipo: String(competicao.tipo),
       descricao: competicao.descricao || '',
       dataInicio: paraInputData(competicao.dataInicio),
-      dataFim: paraInputData(competicao.dataFim)
+      dataFim: paraInputData(competicao.dataFim),
+      ligaId: competicao.ligaId || '',
+      contaRankingLiga: Boolean(competicao.contaRankingLiga),
+      inscricoesAbertas: Boolean(competicao.inscricoesAbertas)
     });
   }
 
@@ -75,7 +81,10 @@ export function PaginaCompeticoes() {
       tipo: Number(formulario.tipo),
       descricao: formulario.descricao || null,
       dataInicio: formulario.dataInicio,
-      dataFim: formulario.dataFim || null
+      dataFim: formulario.dataFim || null,
+      ligaId: formulario.ligaId || null,
+      contaRankingLiga: formulario.contaRankingLiga,
+      inscricoesAbertas: Number(formulario.tipo) === 1 ? formulario.inscricoesAbertas : false
     };
 
     try {
@@ -168,6 +177,17 @@ export function PaginaCompeticoes() {
           />
         </label>
 
+        {Number(formulario.tipo) === 1 && (
+          <label className="campo-checkbox campo-largo">
+            <input
+              type="checkbox"
+              checked={formulario.inscricoesAbertas}
+              onChange={(evento) => atualizarCampo('inscricoesAbertas', evento.target.checked)}
+            />
+            <span>Campeonato aceitando inscrições</span>
+          </label>
+        )}
+
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
             {salvando ? 'Salvando...' : competicaoEdicaoId ? 'Atualizar competição' : 'Cadastrar competição'}
@@ -194,6 +214,9 @@ export function PaginaCompeticoes() {
                 <p>Tipo: {tiposCompeticao.find((tipo) => tipo.valor === competicao.tipo)?.rotulo || '-'}</p>
                 <p>Início: {formatarData(competicao.dataInicio)}</p>
                 <p>Fim: {formatarData(competicao.dataFim)}</p>
+                {competicao.tipo === 1 && (
+                  <p>Inscrições: {competicao.inscricoesAbertas ? 'Abertas' : 'Fechadas'}</p>
+                )}
               </div>
 
               <div className="acoes-item">
@@ -204,6 +227,15 @@ export function PaginaCompeticoes() {
                 >
                   Categorias
                 </button>
+                {competicao.tipo === 1 && (
+                  <button
+                    type="button"
+                    className="botao-terciario"
+                    onClick={() => navegar(`/inscricoes?campeonatoId=${competicao.id}`)}
+                  >
+                    Inscrições
+                  </button>
+                )}
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(competicao)}>
                   Editar
                 </button>

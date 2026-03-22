@@ -1,10 +1,14 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
+    [DbContext(typeof(PlataformaFutevoleiDbContext))]
+    [Migration("20260319120000_AdicionarLigasEPesoRanking")]
     public partial class AdicionarLigasEPesoRanking : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -6,8 +6,10 @@ const itensMenu = [
   { caminho: '/dashboard', nome: 'Dashboard' },
   { caminho: '/atletas', nome: 'Atletas' },
   { caminho: '/duplas', nome: 'Duplas' },
+  { caminho: '/ligas', nome: 'Ligas' },
   { caminho: '/competicoes', nome: 'Competições' },
   { caminho: '/categorias', nome: 'Categorias' },
+  { caminho: '/inscricoes', nome: 'Inscrições' },
   { caminho: '/partidas', nome: 'Partidas' }
 ];
 

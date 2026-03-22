@@ -176,6 +176,12 @@ textarea {
   resize: vertical;
 }
 
+input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -185,6 +191,13 @@ textarea:focus {
 
 .campo-largo {
   grid-column: 1 / -1;
+}
+
+.campo-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
 }
 
 .acoes-formulario {
