@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -48,5 +49,17 @@ public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, 
     {
         var partidas = await partidaServico.ListarPorCategoriaAsync(id, cancellationToken);
         return Ok(partidas);
+    }
+
+    [HttpPost("{id:guid}/partidas/gerar-tabela")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
+    [ProducesResponseType(typeof(GeracaoTabelaCategoriaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GerarTabelaPartidas(
+        Guid id,
+        [FromBody] GerarTabelaCategoriaDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resultado = await partidaServico.GerarTabelaCategoriaAsync(id, dto, cancellationToken);
+        return Ok(resultado);
     }
 }

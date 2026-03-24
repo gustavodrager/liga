@@ -4,9 +4,15 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarInscricaoCampeonatoDto(
     Guid CategoriaId,
-    Guid Atleta1Id,
-    Guid Atleta2Id,
-    string? Observacao
+    Guid? Atleta1Id,
+    Guid? Atleta2Id,
+    string? NomeAtleta1,
+    string? ApelidoAtleta1,
+    string? NomeAtleta2,
+    string? ApelidoAtleta2,
+    string? Observacao,
+    bool Atleta1CadastroPendente = false,
+    bool Atleta2CadastroPendente = false
 );
 
 public record InscricaoCampeonatoDto(

@@ -34,10 +34,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(100)")
                         .HasColumnName("apelido");
 
-                    b.Property<string>("Cidade")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("cidade");
+                    b.Property<bool>("CadastroPendente")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("cadastro_pendente")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone")
@@ -46,6 +47,16 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_criacao");
+
+                    b.Property<DateTime?>("DataNascimento")
+                        .HasColumnType("date")
+                        .HasColumnName("data_nascimento");
+
+                    b.Property<int>("Lado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("lado")
+                        .HasDefaultValue(3);
 
                     b.Property<string>("Nome")
                         .IsRequired()
@@ -68,6 +79,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<Guid>("CompeticaoId")
                         .HasColumnType("uuid")
                         .HasColumnName("competicao_id");
+
+                    b.Property<Guid?>("FormatoCampeonatoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("formato_campeonato_id");
 
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone")
@@ -101,6 +116,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasKey("Id");
 
                     b.HasIndex("CompeticaoId");
+
+                    b.HasIndex("FormatoCampeonatoId");
 
                     b.ToTable("categorias_competicao", (string)null);
                 });
@@ -149,6 +166,14 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("liga_id");
 
+                    b.Property<Guid?>("LocalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("local_id");
+
+                    b.Property<Guid?>("RegraCompeticaoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("regra_competicao_id");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -163,7 +188,96 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                     b.HasIndex("LigaId");
 
+                    b.HasIndex("LocalId");
+
+                    b.HasIndex("RegraCompeticaoId");
+
                     b.ToTable("competicoes", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.FormatoCampeonato", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo")
+                        .HasDefaultValue(true);
+
+                    b.Property<int?>("ClassificadosPorGrupo")
+                        .HasColumnType("integer")
+                        .HasColumnName("classificados_por_grupo");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("descricao");
+
+                    b.Property<bool>("DisputaTerceiroLugar")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("disputa_terceiro_lugar")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("GeraMataMataAposGrupos")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("gera_mata_mata_apos_grupos")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("nome");
+
+                    b.Property<bool>("PermiteCabecaDeChave")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("permite_cabeca_de_chave")
+                        .HasDefaultValue(false);
+
+                    b.Property<int?>("QuantidadeDerrotasParaEliminacao")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantidade_derrotas_para_eliminacao");
+
+                    b.Property<int?>("QuantidadeGrupos")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantidade_grupos");
+
+                    b.Property<int>("TipoFormato")
+                        .HasColumnType("integer")
+                        .HasColumnName("tipo_formato");
+
+                    b.Property<string>("TipoChave")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("tipo_chave");
+
+                    b.Property<bool>("TurnoEVolta")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasColumnName("turno_e_volta")
+                        .HasDefaultValue(false);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nome")
+                        .IsUnique();
+
+                    b.ToTable("formatos_campeonato", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>
@@ -307,6 +421,43 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.ToTable("ligas", (string)null);
                 });
 
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Local", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("QuantidadeQuadras")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantidade_quadras");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nome")
+                        .IsUnique();
+
+                    b.ToTable("locais", (string)null);
+                });
+
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Partida", b =>
                 {
                     b.Property<Guid>("Id")
@@ -326,7 +477,7 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_criacao");
 
-                    b.Property<DateTime>("DataPartida")
+                    b.Property<DateTime?>("DataPartida")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_partida");
 
@@ -338,9 +489,14 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("dupla_b_id");
 
-                    b.Property<Guid>("DuplaVencedoraId")
+                    b.Property<Guid?>("DuplaVencedoraId")
                         .HasColumnType("uuid")
                         .HasColumnName("dupla_vencedora_id");
+
+                    b.Property<string>("FaseCampeonato")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("fase_campeonato");
 
                     b.Property<string>("Observacoes")
                         .HasMaxLength(1000)
@@ -354,6 +510,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<int>("PlacarDuplaB")
                         .HasColumnType("integer")
                         .HasColumnName("placar_dupla_b");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("status")
+                        .HasDefaultValue(1);
 
                     b.HasKey("Id");
 
@@ -371,12 +533,88 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         {
                             t.HasCheckConstraint("ck_partidas_duplas_diferentes", "\"dupla_a_id\" <> \"dupla_b_id\"");
 
-                            t.HasCheckConstraint("ck_partidas_placar_valido", "\"placar_dupla_a\" <> \"placar_dupla_b\" AND GREATEST(\"placar_dupla_a\", \"placar_dupla_b\") >= 18 AND ABS(\"placar_dupla_a\" - \"placar_dupla_b\") >= 2");
+                            t.HasCheckConstraint("ck_partidas_placar_nao_negativo", "\"placar_dupla_a\" >= 0 AND \"placar_dupla_b\" >= 0");
 
-                            t.HasCheckConstraint("ck_partidas_vencedora_coerente_placar", "((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")");
+                            t.HasCheckConstraint("ck_partidas_status_e_resultado", "((\"status\" = 1) AND \"dupla_vencedora_id\" IS NULL AND \"placar_dupla_a\" = 0 AND \"placar_dupla_b\" = 0) OR ((\"status\" = 2) AND (((\"placar_dupla_a\" = \"placar_dupla_b\") AND \"dupla_vencedora_id\" IS NULL) OR ((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")))");
 
-                            t.HasCheckConstraint("ck_partidas_vencedora_valida", "\"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\"");
+                            t.HasCheckConstraint("ck_partidas_vencedora_valida", "\"dupla_vencedora_id\" IS NULL OR \"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\"");
                         });
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("descricao");
+
+                    b.Property<int>("DiferencaMinimaPartida")
+                        .HasColumnType("integer")
+                        .HasColumnName("diferenca_minima_partida");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("nome");
+
+                    b.Property<bool>("PermiteEmpate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("permite_empate");
+
+                    b.Property<decimal>("PontosDerrota")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("pontos_derrota");
+
+                    b.Property<decimal>("PontosPrimeiroLugar")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("pontos_primeiro_lugar");
+
+                    b.Property<decimal>("PontosParticipacao")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("pontos_participacao");
+
+                    b.Property<decimal>("PontosSegundoLugar")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("pontos_segundo_lugar");
+
+                    b.Property<decimal>("PontosTerceiroLugar")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("pontos_terceiro_lugar");
+
+                    b.Property<int>("PontosMinimosPartida")
+                        .HasColumnType("integer")
+                        .HasColumnName("pontos_minimos_partida");
+
+                    b.Property<decimal>("PontosVitoria")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("pontos_vitoria");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nome")
+                        .IsUnique();
+
+                    b.ToTable("regras_competicao", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Usuario", b =>
@@ -445,7 +683,14 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.FormatoCampeonato", "FormatoCampeonato")
+                        .WithMany()
+                        .HasForeignKey("FormatoCampeonatoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Competicao");
+
+                    b.Navigation("FormatoCampeonato");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Competicao", b =>
@@ -455,7 +700,21 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasForeignKey("LigaId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Local", "Local")
+                        .WithMany("Competicoes")
+                        .HasForeignKey("LocalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", "RegraCompeticao")
+                        .WithMany("Competicoes")
+                        .HasForeignKey("RegraCompeticaoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Liga");
+
+                    b.Navigation("Local");
+
+                    b.Navigation("RegraCompeticao");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>
@@ -535,8 +794,7 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.Dupla", "DuplaVencedora")
                         .WithMany("PartidasVencidas")
                         .HasForeignKey("DuplaVencedoraId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CategoriaCompeticao");
 
@@ -582,6 +840,16 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Liga", b =>
+                {
+                    b.Navigation("Competicoes");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Local", b =>
+                {
+                    b.Navigation("Competicoes");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", b =>
                 {
                     b.Navigation("Competicoes");
                 });

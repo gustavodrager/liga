@@ -18,6 +18,8 @@ public class CompeticaoMapeamento : IEntityTypeConfiguration<Competicao>
         builder.Property(x => x.DataInicio).HasColumnName("data_inicio").IsRequired();
         builder.Property(x => x.DataFim).HasColumnName("data_fim");
         builder.Property(x => x.LigaId).HasColumnName("liga_id");
+        builder.Property(x => x.LocalId).HasColumnName("local_id");
+        builder.Property(x => x.RegraCompeticaoId).HasColumnName("regra_competicao_id");
         builder.Property(x => x.ContaRankingLiga).HasColumnName("conta_ranking_liga").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.InscricoesAbertas).HasColumnName("inscricoes_abertas").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
@@ -28,6 +30,18 @@ public class CompeticaoMapeamento : IEntityTypeConfiguration<Competicao>
             .HasForeignKey(x => x.LigaId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(x => x.Local)
+            .WithMany(x => x.Competicoes)
+            .HasForeignKey(x => x.LocalId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.RegraCompeticao)
+            .WithMany(x => x.Competicoes)
+            .HasForeignKey(x => x.RegraCompeticaoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.LigaId);
+        builder.HasIndex(x => x.LocalId);
+        builder.HasIndex(x => x.RegraCompeticaoId);
     }
 }

@@ -11,11 +11,16 @@ public static class InjecaoDependenciaAplicacao
         services.AddScoped<IAutenticacaoServico, AutenticacaoServico>();
         services.AddScoped<IAtletaServico, AtletaServico>();
         services.AddScoped<ILigaServico, LigaServico>();
+        services.AddScoped<ILocalServico, LocalServico>();
+        services.AddScoped<IFormatoCampeonatoServico, FormatoCampeonatoServico>();
+        services.AddScoped<IRegraCompeticaoServico, RegraCompeticaoServico>();
         services.AddScoped<IDuplaServico, DuplaServico>();
         services.AddScoped<ICompeticaoServico, CompeticaoServico>();
         services.AddScoped<ICategoriaCompeticaoServico, CategoriaCompeticaoServico>();
         services.AddScoped<IInscricaoCampeonatoServico, InscricaoCampeonatoServico>();
         services.AddScoped<IPartidaServico, PartidaServico>();
+        services.AddScoped<IRankingServico, RankingServico>();
+        services.AddScoped<IImportacaoServico, ImportacaoServico>();
 
         return services;
     }

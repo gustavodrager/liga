@@ -1,46 +1,20 @@
-# AGENTS.md
+# Contexto local do frontend
 
-## Contexto do projeto
-Plataforma web para registro de partidas de futevôlei.
+Seguir o `AGENTS.md` da raiz. Neste diretório, além disso:
 
-## Stack
-- Backend: .NET 8, ASP.NET Core Web API, Entity Framework Core
-- Frontend: React + Vite
-- Banco: PostgreSQL
-- Arquitetura: monólito modular em camadas
+## Diretrizes
+- Manter React + Vite em JavaScript, seguindo a organização atual por `pages`, `services`, `contexts`, `hooks`, `layouts` e `utils`
+- Reutilizar `services`, `http.js`, utilitários e layout existente antes de criar abstrações novas
+- Só extrair componente, hook ou helper quando houver reutilização real ou simplificação clara
+- Não introduzir TypeScript, estado global, biblioteca de UI ou biblioteca de formulário sem necessidade real
+- Não duplicar regra de negócio do backend no cliente; o frontend deve refletir dados, estados e mensagens vindos da API
+- Tratar loading, erro, vazio e sucesso de forma explícita
+- Priorizar fluxo simples, responsivo e legível
 
-## Regras obrigatórias
-- Não criar projeto novo
-- Sempre analisar o código existente antes de implementar
-- Respeitar arquitetura e padrões atuais
-- Não criar soluções paralelas desnecessárias
-- Evitar overengineering
-- Priorizar simplicidade, clareza e manutenção
-
-## Regras de domínio
-- Partidas são 2x2
-- Cada dupla possui exatamente 2 atletas
-- Partida pode estar vinculada a uma categoria
-- Categoria pertence a uma competição
-- Competição pode ou não estar vinculada a uma liga
-
-## Regras configuráveis por competição
-- Nunca hardcodar regra de jogo ou pontuação
-- Sempre usar a regra da competição quando existir
-- Quando não existir, usar fallback padrão
-- Regra padrão da partida: mínimo 18 pontos, diferença mínima de 2, sem empate
-- Regra padrão de pontuação: vitória 3 pontos, derrota 0 pontos
-
-## Como trabalhar
-Antes de implementar:
-1. analisar o cenário atual
-2. identificar arquivos afetados
-3. explicar brevemente a abordagem
-4. só então implementar
-
-## Estilo de implementação
-- Código limpo e direto
-- Reutilizar estruturas existentes
-- Evitar duplicação de lógica
-- Evitar abstrações prematuras
-- Pensar como produto real em evolução
+## Fluxos já adotados
+- `Competições` já concentra atalhos para categorias e inscrições; preservar esse papel antes de criar navegação paralela
+- `Locais` é cadastro próprio e `Competições` apenas referencia o local escolhido
+- `Inscrições` aceita dupla existente ou criação no fluxo a partir de `Jogador 1` e `Jogador 2`
+- `Partidas` deve exibir a tabela de jogos da categoria; administrador pode gerar/alterar jogos e usuário comum apenas visualizar jogos e resultados
+- `Ranking` já possui modos de liga e competição; o da liga é consolidado e o da competição segue separado por categoria
+- `Modelos de importação` já oferece download e upload CSV por tipo de cadastro

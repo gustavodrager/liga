@@ -13,6 +13,7 @@ public class CategoriaCompeticaoMapeamento : IEntityTypeConfiguration<CategoriaC
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.CompeticaoId).HasColumnName("competicao_id").IsRequired();
+        builder.Property(x => x.FormatoCampeonatoId).HasColumnName("formato_campeonato_id");
         builder.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(150).IsRequired();
         builder.Property(x => x.Genero).HasColumnName("genero").IsRequired();
         builder.Property(x => x.Nivel).HasColumnName("nivel").IsRequired();
@@ -25,6 +26,12 @@ public class CategoriaCompeticaoMapeamento : IEntityTypeConfiguration<CategoriaC
             .HasForeignKey(x => x.CompeticaoId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(x => x.FormatoCampeonato)
+            .WithMany()
+            .HasForeignKey(x => x.FormatoCampeonatoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.CompeticaoId);
+        builder.HasIndex(x => x.FormatoCampeonatoId);
     }
 }

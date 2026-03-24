@@ -1,0 +1,294 @@
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { competicoesServico } from '../services/competicoesServico';
+import { ligasServico } from '../services/ligasServico';
+import { rankingServico } from '../services/rankingServico';
+import { extrairMensagemErro } from '../utils/erros';
+import { formatarDataHora } from '../utils/formatacao';
+
+const tiposConsulta = [
+  { valor: 'liga', rotulo: 'Ranking da liga' },
+  { valor: 'competicao', rotulo: 'Ranking da competição' }
+];
+
+const generos = {
+  1: 'Masculino',
+  2: 'Feminino',
+  3: 'Misto'
+};
+
+function normalizarRanking(lista, tipoConsulta) {
+  return (lista || [])
+    .map((grupo) => ({
+      ...grupo,
+      chave: `${tipoConsulta}-${grupo.categoriaId}`,
+      atletas: (grupo.atletas || []).map((atleta) => ({
+        ...atleta,
+        partidas: atleta.partidas || []
+      }))
+    }))
+    .sort((a, b) => {
+      const ordemCompeticao = a.nomeCompeticao.localeCompare(b.nomeCompeticao, 'pt-BR');
+      if (ordemCompeticao !== 0) {
+        return ordemCompeticao;
+      }
+
+      if ((a.genero ?? 0) !== (b.genero ?? 0)) {
+        return (a.genero ?? 0) - (b.genero ?? 0);
+      }
+
+      return a.nomeCategoria.localeCompare(b.nomeCategoria, 'pt-BR');
+    });
+}
+
+export function PaginaRanking() {
+  const [ligas, setLigas] = useState([]);
+  const [competicoes, setCompeticoes] = useState([]);
+  const [tipoConsulta, setTipoConsulta] = useState('liga');
+  const [ligaId, setLigaId] = useState('');
+  const [competicaoId, setCompeticaoId] = useState('');
+  const [ranking, setRanking] = useState([]);
+  const [detalheAberto, setDetalheAberto] = useState(null);
+  const [carregandoBase, setCarregandoBase] = useState(true);
+  const [carregandoRanking, setCarregandoRanking] = useState(false);
+  const [erro, setErro] = useState('');
+  const [params, setParams] = useSearchParams();
+
+  useEffect(() => {
+    carregarBase();
+  }, []);
+
+  useEffect(() => {
+    if (tipoConsulta === 'liga' && !ligaId) {
+      setRanking([]);
+      return;
+    }
+
+    if (tipoConsulta === 'competicao' && !competicaoId) {
+      setRanking([]);
+      return;
+    }
+
+    carregarRanking();
+  }, [tipoConsulta, ligaId, competicaoId]);
+
+  async function carregarBase() {
+    setCarregandoBase(true);
+    setErro('');
+
+    try {
+      const [listaLigas, listaCompeticoes] = await Promise.all([
+        ligasServico.listar(),
+        competicoesServico.listar()
+      ]);
+
+      setLigas(listaLigas);
+      setCompeticoes(listaCompeticoes);
+
+      const tipoUrl = params.get('tipo');
+      const tipoInicial = tipoUrl === 'competicao' ? 'competicao' : 'liga';
+      const ligaUrl = params.get('ligaId');
+      const competicaoUrl = params.get('competicaoId');
+
+      const ligaInicial = ligaUrl && listaLigas.some((liga) => liga.id === ligaUrl)
+        ? ligaUrl
+        : listaLigas[0]?.id || '';
+      const competicaoInicial = competicaoUrl && listaCompeticoes.some((competicao) => competicao.id === competicaoUrl)
+        ? competicaoUrl
+        : listaCompeticoes[0]?.id || '';
+
+      setTipoConsulta(tipoInicial);
+      setLigaId(ligaInicial);
+      setCompeticaoId(competicaoInicial);
+      atualizarParametros(tipoInicial, ligaInicial, competicaoInicial);
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setCarregandoBase(false);
+    }
+  }
+
+  async function carregarRanking() {
+    setCarregandoRanking(true);
+    setErro('');
+    setDetalheAberto(null);
+
+    try {
+      const lista = tipoConsulta === 'liga'
+        ? await rankingServico.listarAtletasPorLiga(ligaId)
+        : await rankingServico.listarAtletasPorCompeticao(competicaoId);
+
+      setRanking(normalizarRanking(lista, tipoConsulta));
+      atualizarParametros(tipoConsulta, ligaId, competicaoId);
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+      setRanking([]);
+    } finally {
+      setCarregandoRanking(false);
+    }
+  }
+
+  function atualizarParametros(tipo, novaLigaId, novaCompeticaoId) {
+    const proximos = { tipo };
+
+    if (tipo === 'liga' && novaLigaId) {
+      proximos.ligaId = novaLigaId;
+    }
+
+    if (tipo === 'competicao' && novaCompeticaoId) {
+      proximos.competicaoId = novaCompeticaoId;
+    }
+
+    setParams(proximos);
+  }
+
+  function selecionarTipoConsulta(valor) {
+    setTipoConsulta(valor);
+    atualizarParametros(valor, ligaId, competicaoId);
+  }
+
+  function selecionarLiga(valor) {
+    setLigaId(valor);
+    atualizarParametros(tipoConsulta, valor, competicaoId);
+  }
+
+  function selecionarCompeticao(valor) {
+    setCompeticaoId(valor);
+    atualizarParametros(tipoConsulta, ligaId, valor);
+  }
+
+  function alternarDetalhe(chaveGrupo, atletaId) {
+    const chave = `${chaveGrupo}-${atletaId}`;
+    setDetalheAberto((anterior) => (anterior === chave ? null : chave));
+  }
+
+  return (
+    <section className="pagina">
+      <div className="cabecalho-pagina">
+        <h2>Ranking</h2>
+        <p>Consulte o ranking consolidado da liga ou o ranking da competição.</p>
+        <p>No ranking da liga, os pontos somam todas as competições vinculadas à liga.</p>
+      </div>
+
+      <div className="formulario-grid">
+        <label>
+          Tipo
+          <select value={tipoConsulta} onChange={(evento) => selecionarTipoConsulta(evento.target.value)}>
+            {tiposConsulta.map((tipo) => (
+              <option key={tipo.valor} value={tipo.valor}>
+                {tipo.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {tipoConsulta === 'liga' ? (
+          <label>
+            Liga
+            <select value={ligaId} onChange={(evento) => selecionarLiga(evento.target.value)}>
+              <option value="">Selecione</option>
+              {ligas.map((liga) => (
+                <option key={liga.id} value={liga.id}>
+                  {liga.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label>
+            Competição
+            <select value={competicaoId} onChange={(evento) => selecionarCompeticao(evento.target.value)}>
+              <option value="">Selecione</option>
+              {competicoes.map((competicao) => (
+                <option key={competicao.id} value={competicao.id}>
+                  {competicao.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {erro && <p className="texto-erro">{erro}</p>}
+
+      {carregandoBase ? (
+        <p>Carregando ranking...</p>
+      ) : tipoConsulta === 'liga' && ligas.length === 0 ? (
+        <p>Nenhuma liga cadastrada.</p>
+      ) : tipoConsulta === 'competicao' && competicoes.length === 0 ? (
+        <p>Nenhuma competição cadastrada.</p>
+      ) : carregandoRanking ? (
+        <p>Carregando ranking...</p>
+      ) : ranking.length === 0 ? (
+        <p>Nenhuma pontuação encontrada para o filtro selecionado.</p>
+      ) : (
+        <div className="lista-cartoes">
+          {ranking.map((grupo) => (
+            <article key={grupo.categoriaId} className="cartao-lista">
+              <div>
+                <h3>{grupo.nomeCategoria}</h3>
+                <p>{tipoConsulta === 'liga' ? `Liga: ${grupo.nomeCompeticao}` : `Gênero: ${generos[grupo.genero] || '-'}`}</p>
+                {tipoConsulta !== 'liga' && <p>Competição: {grupo.nomeCompeticao}</p>}
+              </div>
+
+              <div className="ranking-tabela-wrapper">
+                <table className="ranking-tabela">
+                  <thead>
+                    <tr>
+                      <th>Pos.</th>
+                      <th>Atleta</th>
+                      <th>Pontuação</th>
+                      <th>Jogos</th>
+                      <th>Vitórias</th>
+                      <th>Derrotas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grupo.atletas.map((item) => {
+                      const chaveDetalhe = `${grupo.chave}-${item.atletaId}`;
+                      const aberto = detalheAberto === chaveDetalhe;
+
+                      return (
+                        <tr key={item.atletaId}>
+                          <td>{item.posicao}º</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="botao-link"
+                              onClick={() => alternarDetalhe(grupo.chave, item.atletaId)}
+                            >
+                              {item.nomeAtleta}
+                            </button>
+                            {aberto && (
+                              <div className="ranking-detalhes">
+                                <strong>Partidas do ranking</strong>
+                                {item.partidas.map((partida) => (
+                                  <p key={partida.partidaId}>
+                                    {formatarDataHora(partida.dataPartida)}
+                                    {' • '}{partida.nomeCompeticao}
+                                    {' • '}{partida.nomeCategoria}
+                                    {' • '}{partida.confronto}
+                                    {' • '}{partida.resultado}
+                                    {' • '}Pontos {partida.pontos}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td>{item.pontos}</td>
+                          <td>{item.jogos}</td>
+                          <td>{item.vitorias}</td>
+                          <td>{item.derrotas}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}

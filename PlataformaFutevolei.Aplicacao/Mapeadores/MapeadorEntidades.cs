@@ -18,7 +18,9 @@ internal static class MapeadorEntidades
             atleta.Id,
             atleta.Nome,
             atleta.Apelido,
-            atleta.Cidade,
+            atleta.CadastroPendente,
+            atleta.Lado,
+            atleta.DataNascimento,
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
@@ -44,6 +46,35 @@ internal static class MapeadorEntidades
             liga.DataAtualizacao
         );
 
+    public static LocalDto ParaDto(this Local local)
+        => new(
+            local.Id,
+            local.Nome,
+            local.Tipo,
+            local.QuantidadeQuadras,
+            local.DataCriacao,
+            local.DataAtualizacao
+        );
+
+    public static FormatoCampeonatoDto ParaDto(this FormatoCampeonato formato)
+        => new(
+            formato.Id,
+            formato.Nome,
+            formato.Descricao,
+            formato.TipoFormato,
+            formato.Ativo,
+            formato.QuantidadeGrupos,
+            formato.ClassificadosPorGrupo,
+            formato.GeraMataMataAposGrupos,
+            formato.TurnoEVolta,
+            formato.TipoChave,
+            formato.QuantidadeDerrotasParaEliminacao,
+            formato.PermiteCabecaDeChave,
+            formato.DisputaTerceiroLugar,
+            formato.DataCriacao,
+            formato.DataAtualizacao
+        );
+
     public static CompeticaoDto ParaDto(this Competicao competicao)
         => new(
             competicao.Id,
@@ -53,18 +84,48 @@ internal static class MapeadorEntidades
             competicao.DataInicio,
             competicao.DataFim,
             competicao.LigaId,
+            competicao.LocalId,
+            competicao.RegraCompeticaoId,
             competicao.Liga?.Nome,
-            competicao.ContaRankingLiga,
+            competicao.Local?.Nome,
+            competicao.RegraCompeticao?.Nome,
+            competicao.LigaId.HasValue,
             competicao.InscricoesAbertas,
+            competicao.ObterPontosMinimosPartida(),
+            competicao.ObterDiferencaMinimaPartida(),
+            competicao.ObterPermiteEmpate(),
+            competicao.ObterPontosVitoria(),
+            competicao.ObterPontosDerrota(),
+            competicao.ObterPontosParticipacao(),
             competicao.DataCriacao,
             competicao.DataAtualizacao
+        );
+
+    public static RegraCompeticaoDto ParaDto(this RegraCompeticao regra)
+        => new(
+            regra.Id,
+            regra.Nome,
+            regra.Descricao,
+            regra.PontosMinimosPartida,
+            regra.DiferencaMinimaPartida,
+            regra.PermiteEmpate,
+            regra.PontosVitoria,
+            regra.PontosDerrota,
+            regra.PontosParticipacao,
+            regra.PontosPrimeiroLugar,
+            regra.PontosSegundoLugar,
+            regra.PontosTerceiroLugar,
+            regra.DataCriacao,
+            regra.DataAtualizacao
         );
 
     public static CategoriaCompeticaoDto ParaDto(this CategoriaCompeticao categoria)
         => new(
             categoria.Id,
             categoria.CompeticaoId,
+            categoria.FormatoCampeonatoId,
             categoria.Competicao?.Nome ?? string.Empty,
+            categoria.FormatoCampeonato?.Nome,
             categoria.Nome,
             categoria.Genero,
             categoria.Nivel,
@@ -82,10 +143,12 @@ internal static class MapeadorEntidades
             partida.DuplaA?.Nome ?? string.Empty,
             partida.DuplaBId,
             partida.DuplaB?.Nome ?? string.Empty,
+            partida.FaseCampeonato,
+            partida.Status,
             partida.PlacarDuplaA,
             partida.PlacarDuplaB,
             partida.DuplaVencedoraId,
-            partida.DuplaVencedora?.Nome ?? string.Empty,
+            partida.DuplaVencedora?.Nome,
             partida.CategoriaCompeticao?.PesoRanking ?? 1m,
             partida.CalcularPontosRankingVitoria(),
             partida.DataPartida,

@@ -3,7 +3,9 @@ using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
@@ -31,13 +33,16 @@ public class AtletaServico(
 
     public async Task<AtletaDto> CriarAsync(CriarAtletaDto dto, CancellationToken cancellationToken = default)
     {
-        Validar(dto.Nome);
+        var (nome, apelido) = NormalizadorNomeAtleta.NormalizarNomeEApelido(dto.Nome, dto.Apelido);
+        var dataNascimento = Validar(nome, dto.Lado, dto.DataNascimento);
 
         var atleta = new Atleta
         {
-            Nome = dto.Nome.Trim(),
-            Apelido = dto.Apelido?.Trim(),
-            Cidade = dto.Cidade?.Trim()
+            Nome = nome,
+            Apelido = apelido,
+            CadastroPendente = dto.CadastroPendente,
+            Lado = dto.Lado,
+            DataNascimento = dataNascimento
         };
 
         await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
@@ -47,16 +52,19 @@ public class AtletaServico(
 
     public async Task<AtletaDto> AtualizarAsync(Guid id, AtualizarAtletaDto dto, CancellationToken cancellationToken = default)
     {
-        Validar(dto.Nome);
+        var (nome, apelido) = NormalizadorNomeAtleta.NormalizarNomeEApelido(dto.Nome, dto.Apelido);
+        var dataNascimento = Validar(nome, dto.Lado, dto.DataNascimento);
         var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (atleta is null)
         {
             throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
         }
 
-        atleta.Nome = dto.Nome.Trim();
-        atleta.Apelido = dto.Apelido?.Trim();
-        atleta.Cidade = dto.Cidade?.Trim();
+        atleta.Nome = nome;
+        atleta.Apelido = apelido;
+        atleta.CadastroPendente = dto.CadastroPendente;
+        atleta.Lado = dto.Lado;
+        atleta.DataNascimento = dataNascimento;
         atleta.AtualizarDataModificacao();
 
         atletaRepositorio.Atualizar(atleta);
@@ -76,11 +84,29 @@ public class AtletaServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private static void Validar(string nome)
+    private static DateTime? Validar(string nome, LadoAtleta lado, DateTime? dataNascimento)
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
             throw new RegraNegocioException("Nome do atleta é obrigatório.");
         }
+
+        if (!Enum.IsDefined(lado))
+        {
+            throw new RegraNegocioException("Lado do atleta inválido.");
+        }
+
+        if (!dataNascimento.HasValue)
+        {
+            return null;
+        }
+
+        var dataNormalizada = dataNascimento.Value.Date;
+        if (dataNormalizada > DateTime.UtcNow.Date)
+        {
+            throw new RegraNegocioException("Data de nascimento não pode ser futura.");
+        }
+
+        return dataNormalizada;
     }
 }

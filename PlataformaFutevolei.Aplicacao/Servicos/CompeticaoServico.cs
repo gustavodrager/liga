@@ -11,6 +11,8 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class CompeticaoServico(
     ICompeticaoRepositorio competicaoRepositorio,
     ILigaRepositorio ligaRepositorio,
+    ILocalRepositorio localRepositorio,
+    IRegraCompeticaoRepositorio regraRepositorio,
     IUnidadeTrabalho unidadeTrabalho
 ) : ICompeticaoServico
 {
@@ -38,6 +40,8 @@ public class CompeticaoServico(
 
         Validar(dto.Nome, dataInicioUtc, dataFimUtc);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
+        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
 
         var competicao = new Competicao
         {
@@ -47,7 +51,9 @@ public class CompeticaoServico(
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             LigaId = dto.LigaId,
-            ContaRankingLiga = dto.ContaRankingLiga,
+            LocalId = dto.LocalId,
+            RegraCompeticaoId = dto.RegraCompeticaoId,
+            ContaRankingLiga = dto.LigaId.HasValue,
             InscricoesAbertas = ObterInscricoesAbertasParaCriacao(dto.Tipo, dto.InscricoesAbertas)
         };
 
@@ -64,6 +70,8 @@ public class CompeticaoServico(
 
         Validar(dto.Nome, dataInicioUtc, dataFimUtc);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
+        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
 
         var competicao = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (competicao is null)
@@ -77,7 +85,9 @@ public class CompeticaoServico(
         competicao.DataInicio = dataInicioUtc;
         competicao.DataFim = dataFimUtc;
         competicao.LigaId = dto.LigaId;
-        competicao.ContaRankingLiga = dto.ContaRankingLiga;
+        competicao.LocalId = dto.LocalId;
+        competicao.RegraCompeticaoId = dto.RegraCompeticaoId;
+        competicao.ContaRankingLiga = dto.LigaId.HasValue;
         competicao.InscricoesAbertas = ObterInscricoesAbertasParaAtualizacao(
             dto.Tipo,
             dto.InscricoesAbertas,
@@ -113,6 +123,34 @@ public class CompeticaoServico(
         if (liga is null)
         {
             throw new RegraNegocioException("A liga informada para a competição não foi encontrada.");
+        }
+    }
+
+    private async Task ValidarLocalAsync(Guid? localId, CancellationToken cancellationToken)
+    {
+        if (!localId.HasValue)
+        {
+            return;
+        }
+
+        var local = await localRepositorio.ObterPorIdAsync(localId.Value, cancellationToken);
+        if (local is null)
+        {
+            throw new RegraNegocioException("O local informado para a competição não foi encontrado.");
+        }
+    }
+
+    private async Task ValidarRegraAsync(Guid? regraCompeticaoId, CancellationToken cancellationToken)
+    {
+        if (!regraCompeticaoId.HasValue)
+        {
+            return;
+        }
+
+        var regra = await regraRepositorio.ObterPorIdAsync(regraCompeticaoId.Value, cancellationToken);
+        if (regra is null)
+        {
+            throw new RegraNegocioException("A regra informada para a competição não foi encontrada.");
         }
     }
 
@@ -159,7 +197,10 @@ public class CompeticaoServico(
         return inscricoesAbertas ?? valorAtual;
     }
 
-    private static void Validar(string nome, DateTime dataInicio, DateTime? dataFim)
+    private static void Validar(
+        string nome,
+        DateTime dataInicio,
+        DateTime? dataFim)
     {
         if (string.IsNullOrWhiteSpace(nome))
         {

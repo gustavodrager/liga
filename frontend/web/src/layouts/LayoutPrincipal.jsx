@@ -7,7 +7,12 @@ const itensMenu = [
   { caminho: '/atletas', nome: 'Atletas' },
   { caminho: '/duplas', nome: 'Duplas' },
   { caminho: '/ligas', nome: 'Ligas' },
+  { caminho: '/locais', nome: 'Locais' },
+  { caminho: '/formatos-campeonato', nome: 'Formatos' },
+  { caminho: '/regras', nome: 'Regras' },
+  { caminho: '/modelos-importacao', nome: 'Modelos' },
   { caminho: '/competicoes', nome: 'Competições' },
+  { caminho: '/ranking', nome: 'Ranking' },
   { caminho: '/categorias', nome: 'Categorias' },
   { caminho: '/inscricoes', nome: 'Inscrições' },
   { caminho: '/partidas', nome: 'Partidas' }

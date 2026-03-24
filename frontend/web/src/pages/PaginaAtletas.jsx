@@ -1,13 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { atletasServico } from '../services/atletasServico';
 import { extrairMensagemErro } from '../utils/erros';
-import { formatarData } from '../utils/formatacao';
+import { formatarData, paraInputData } from '../utils/formatacao';
+import { rolarParaElemento } from '../utils/rolagem';
 
 const estadoInicial = {
   nome: '',
   apelido: '',
-  cidade: ''
+  cadastroPendente: false,
+  lado: '3',
+  dataNascimento: ''
 };
+
+const lados = [
+  { valor: '1', rotulo: 'Direito' },
+  { valor: '2', rotulo: 'Esquerdo' },
+  { valor: '3', rotulo: 'Ambos' }
+];
 
 export function PaginaAtletas() {
   const [atletas, setAtletas] = useState([]);
@@ -16,6 +25,7 @@ export function PaginaAtletas() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const formularioRef = useRef(null);
 
   useEffect(() => {
     carregarAtletas();
@@ -44,8 +54,11 @@ export function PaginaAtletas() {
     setFormulario({
       nome: atleta.nome || '',
       apelido: atleta.apelido || '',
-      cidade: atleta.cidade || ''
+      cadastroPendente: Boolean(atleta.cadastroPendente),
+      lado: String(atleta.lado || 3),
+      dataNascimento: paraInputData(atleta.dataNascimento)
     });
+    rolarParaElemento(formularioRef.current);
   }
 
   function cancelarEdicao() {
@@ -60,8 +73,10 @@ export function PaginaAtletas() {
 
     const dados = {
       nome: formulario.nome,
-      apelido: formulario.apelido || null,
-      cidade: formulario.cidade || null
+      apelido: formulario.apelido.trim() || null,
+      cadastroPendente: Boolean(formulario.cadastroPendente),
+      lado: Number(formulario.lado),
+      dataNascimento: formulario.dataNascimento || null
     };
 
     try {
@@ -98,12 +113,12 @@ export function PaginaAtletas() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Atletas</h2>
-        <p>Cadastre atletas para formação das duplas.</p>
+        <p>Cadastre atletas com nome completo e, se necessário, informe um apelido para diferenciar o cadastro.</p>
       </div>
 
-      <form className="formulario-grid" onSubmit={aoSubmeter}>
+      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
         <label>
-          Nome
+          Nome completo
           <input
             type="text"
             value={formulario.nome}
@@ -121,12 +136,36 @@ export function PaginaAtletas() {
           />
         </label>
 
-        <label>
-          Cidade
+        <label className="campo-checkbox">
           <input
-            type="text"
-            value={formulario.cidade}
-            onChange={(evento) => atualizarCampo('cidade', evento.target.value)}
+            type="checkbox"
+            checked={formulario.cadastroPendente}
+            onChange={(evento) => atualizarCampo('cadastroPendente', evento.target.checked)}
+          />
+          <span>Cadastro pendente</span>
+        </label>
+
+        <label>
+          Lado
+          <select
+            value={formulario.lado}
+            onChange={(evento) => atualizarCampo('lado', evento.target.value)}
+            required
+          >
+            {lados.map((lado) => (
+              <option key={lado.valor} value={lado.valor}>
+                {lado.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Data de nascimento
+          <input
+            type="date"
+            value={formulario.dataNascimento}
+            onChange={(evento) => atualizarCampo('dataNascimento', evento.target.value)}
           />
         </label>
 
@@ -154,7 +193,9 @@ export function PaginaAtletas() {
               <div>
                 <h3>{atleta.nome}</h3>
                 <p>Apelido: {atleta.apelido || '-'}</p>
-                <p>Cidade: {atleta.cidade || '-'}</p>
+                <p>Status: {atleta.cadastroPendente ? 'Cadastro pendente' : 'Cadastro completo'}</p>
+                <p>Lado: {lados.find((lado) => Number(lado.valor) === atleta.lado)?.rotulo || '-'}</p>
+                <p>Nascimento: {formatarData(atleta.dataNascimento)}</p>
                 <p>Criado em: {formatarData(atleta.dataCriacao)}</p>
               </div>
 

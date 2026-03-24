@@ -29,6 +29,24 @@ public interface ICompeticaoServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IFormatoCampeonatoServico
+{
+    Task<IReadOnlyList<FormatoCampeonatoDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<FormatoCampeonatoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<FormatoCampeonatoDto> CriarAsync(CriarFormatoCampeonatoDto dto, CancellationToken cancellationToken = default);
+    Task<FormatoCampeonatoDto> AtualizarAsync(Guid id, AtualizarFormatoCampeonatoDto dto, CancellationToken cancellationToken = default);
+    Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IRegraCompeticaoServico
+{
+    Task<IReadOnlyList<RegraCompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<RegraCompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<RegraCompeticaoDto> CriarAsync(CriarRegraCompeticaoDto dto, CancellationToken cancellationToken = default);
+    Task<RegraCompeticaoDto> AtualizarAsync(Guid id, AtualizarRegraCompeticaoDto dto, CancellationToken cancellationToken = default);
+    Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
 public interface ICategoriaCompeticaoServico
 {
     Task<IReadOnlyList<CategoriaCompeticaoDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
@@ -42,6 +60,10 @@ public interface IPartidaServico
 {
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
+        Guid categoriaId,
+        GerarTabelaCategoriaDto dto,
+        CancellationToken cancellationToken = default);
     Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default);
     Task<PartidaDto> AtualizarAsync(Guid id, AtualizarPartidaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
@@ -60,5 +82,26 @@ public interface IInscricaoCampeonatoServico
     Task<InscricaoCampeonatoDto> CriarAsync(
         Guid campeonatoId,
         CriarInscricaoCampeonatoDto dto,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IRankingServico
+{
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
+        Guid ligaId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(
+        Guid competicaoId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IImportacaoServico
+{
+    Task<ImportacaoResultadoDto> ImportarAsync(
+        string tipo,
+        Stream arquivoStream,
+        string? nomeArquivo,
+        Guid? campeonatoId,
         CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Mapeamentos;
 
@@ -13,15 +14,15 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
             tabela.HasCheckConstraint("ck_partidas_duplas_diferentes", "\"dupla_a_id\" <> \"dupla_b_id\"");
             tabela.HasCheckConstraint(
                 "ck_partidas_vencedora_valida",
-                "\"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\""
+                "\"dupla_vencedora_id\" IS NULL OR \"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\""
             );
             tabela.HasCheckConstraint(
-                "ck_partidas_placar_valido",
-                "\"placar_dupla_a\" <> \"placar_dupla_b\" AND GREATEST(\"placar_dupla_a\", \"placar_dupla_b\") >= 18 AND ABS(\"placar_dupla_a\" - \"placar_dupla_b\") >= 2"
+                "ck_partidas_placar_nao_negativo",
+                "\"placar_dupla_a\" >= 0 AND \"placar_dupla_b\" >= 0"
             );
             tabela.HasCheckConstraint(
-                "ck_partidas_vencedora_coerente_placar",
-                "((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")"
+                "ck_partidas_status_e_resultado",
+                "((\"status\" = 1) AND \"dupla_vencedora_id\" IS NULL AND \"placar_dupla_a\" = 0 AND \"placar_dupla_b\" = 0) OR ((\"status\" = 2) AND (((\"placar_dupla_a\" = \"placar_dupla_b\") AND \"dupla_vencedora_id\" IS NULL) OR ((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")))"
             );
         });
 
@@ -30,10 +31,12 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.Property(x => x.CategoriaCompeticaoId).HasColumnName("categoria_competicao_id").IsRequired();
         builder.Property(x => x.DuplaAId).HasColumnName("dupla_a_id").IsRequired();
         builder.Property(x => x.DuplaBId).HasColumnName("dupla_b_id").IsRequired();
+        builder.Property(x => x.FaseCampeonato).HasColumnName("fase_campeonato").HasMaxLength(100);
+        builder.Property(x => x.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(StatusPartida.Agendada).IsRequired();
         builder.Property(x => x.PlacarDuplaA).HasColumnName("placar_dupla_a").IsRequired();
         builder.Property(x => x.PlacarDuplaB).HasColumnName("placar_dupla_b").IsRequired();
-        builder.Property(x => x.DuplaVencedoraId).HasColumnName("dupla_vencedora_id").IsRequired();
-        builder.Property(x => x.DataPartida).HasColumnName("data_partida").IsRequired();
+        builder.Property(x => x.DuplaVencedoraId).HasColumnName("dupla_vencedora_id");
+        builder.Property(x => x.DataPartida).HasColumnName("data_partida");
         builder.Property(x => x.Observacoes).HasColumnName("observacoes").HasMaxLength(1000);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();

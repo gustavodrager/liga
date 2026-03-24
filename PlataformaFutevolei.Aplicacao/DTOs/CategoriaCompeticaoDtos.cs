@@ -4,6 +4,7 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarCategoriaCompeticaoDto(
     Guid CompeticaoId,
+    Guid? FormatoCampeonatoId,
     string Nome,
     GeneroCategoria Genero,
     NivelCategoria Nivel,
@@ -11,6 +12,7 @@ public record CriarCategoriaCompeticaoDto(
 );
 
 public record AtualizarCategoriaCompeticaoDto(
+    Guid? FormatoCampeonatoId,
     string Nome,
     GeneroCategoria Genero,
     NivelCategoria Nivel,
@@ -20,7 +22,9 @@ public record AtualizarCategoriaCompeticaoDto(
 public record CategoriaCompeticaoDto(
     Guid Id,
     Guid CompeticaoId,
+    Guid? FormatoCampeonatoId,
     string NomeCompeticao,
+    string? NomeFormatoCampeonato,
     string Nome,
     GeneroCategoria Genero,
     NivelCategoria Nivel,

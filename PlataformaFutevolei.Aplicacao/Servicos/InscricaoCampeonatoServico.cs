@@ -3,6 +3,7 @@ using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -56,10 +57,10 @@ public class InscricaoCampeonatoServico(
     {
         var campeonato = await ObterCampeonatoValidoAsync(campeonatoId, cancellationToken, exigirInscricoesAbertas: true);
         var categoria = await ObterCategoriaValidaAsync(campeonatoId, dto.CategoriaId, cancellationToken);
-        var (atleta1, atleta2) = await ValidarAtletasAsync(dto.Atleta1Id, dto.Atleta2Id, cancellationToken);
-        await ValidarDuplaExistenteAsync(dto.Atleta1Id, dto.Atleta2Id, cancellationToken);
+        var (atleta1, atleta2) = await ResolverAtletasAsync(dto, cancellationToken);
+        await ObterOuCriarDuplaAsync(atleta1, atleta2, cancellationToken);
 
-        var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(dto.Atleta1Id, dto.Atleta2Id);
+        var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(atleta1.Id, atleta2.Id);
 
         var inscricaoDuplicada = await inscricaoRepositorio.ObterDuplicadaAsync(
             dto.CategoriaId,
@@ -136,6 +137,34 @@ public class InscricaoCampeonatoServico(
         return categoria;
     }
 
+    private async Task<(Atleta atleta1, Atleta atleta2)> ResolverAtletasAsync(
+        CriarInscricaoCampeonatoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var atleta1 = dto.Atleta1Id.HasValue
+            ? await ObterAtletaExistenteAsync(dto.Atleta1Id.Value, cancellationToken)
+            : await ObterOuCriarAtletaAsync(
+                dto.NomeAtleta1,
+                dto.ApelidoAtleta1,
+                dto.Atleta1CadastroPendente,
+                cancellationToken);
+
+        var atleta2 = dto.Atleta2Id.HasValue
+            ? await ObterAtletaExistenteAsync(dto.Atleta2Id.Value, cancellationToken)
+            : await ObterOuCriarAtletaAsync(
+                dto.NomeAtleta2,
+                dto.ApelidoAtleta2,
+                dto.Atleta2CadastroPendente,
+                cancellationToken);
+
+        if (atleta1.Id == atleta2.Id)
+        {
+            throw new RegraNegocioException("Um atleta não pode formar dupla com ele mesmo.");
+        }
+
+        return (atleta1, atleta2);
+    }
+
     private async Task<(Atleta atleta1, Atleta atleta2)> ValidarAtletasAsync(
         Guid atleta1Id,
         Guid atleta2Id,
@@ -161,13 +190,87 @@ public class InscricaoCampeonatoServico(
         return (atleta1, atleta2);
     }
 
-    private async Task ValidarDuplaExistenteAsync(Guid atleta1Id, Guid atleta2Id, CancellationToken cancellationToken)
+    private async Task<Atleta> ObterAtletaExistenteAsync(Guid atletaId, CancellationToken cancellationToken)
     {
-        var dupla = await duplaRepositorio.ObterPorAtletasAsync(atleta1Id, atleta2Id, cancellationToken);
-        if (dupla is null)
+        if (atletaId == Guid.Empty)
         {
-            throw new RegraNegocioException("A dupla informada precisa estar cadastrada antes da inscrição.");
+            throw new RegraNegocioException("A inscrição deve informar dois atletas válidos.");
         }
+
+        var atleta = await atletaRepositorio.ObterPorIdAsync(atletaId, cancellationToken);
+        if (atleta is null)
+        {
+            throw new RegraNegocioException("Os atletas informados para a inscrição não foram encontrados.");
+        }
+
+        return atleta;
+    }
+
+    private async Task<Atleta> ObterOuCriarAtletaAsync(
+        string? nomeInformado,
+        string? apelidoInformado,
+        bool cadastroPendente,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(nomeInformado))
+        {
+            throw new RegraNegocioException("Informe o nome completo dos dois jogadores quando a dupla não estiver cadastrada.");
+        }
+
+        var nomeBase = NormalizadorNomeAtleta.NormalizarTexto(nomeInformado);
+        var complemento = NormalizadorNomeAtleta.NormalizarTexto(apelidoInformado);
+
+        if (string.IsNullOrWhiteSpace(nomeBase))
+        {
+            throw new RegraNegocioException("Informe um nome válido para o atleta.");
+        }
+
+        if (string.IsNullOrWhiteSpace(complemento))
+        {
+            var atletaExistente = await atletaRepositorio.ObterPorNomeAsync(nomeBase, cancellationToken);
+            if (atletaExistente is not null)
+            {
+                return atletaExistente;
+            }
+        }
+
+        var (nomeFinal, apelidoFinal) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nomeBase, complemento);
+        var atletaComNomeFinal = await atletaRepositorio.ObterPorNomeAsync(nomeFinal, cancellationToken);
+        if (atletaComNomeFinal is not null)
+        {
+            return atletaComNomeFinal;
+        }
+
+        var atleta = new Atleta
+        {
+            Nome = nomeFinal,
+            Apelido = apelidoFinal,
+            CadastroPendente = cadastroPendente,
+            Lado = LadoAtleta.Ambos
+        };
+
+        await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+        return atleta;
+    }
+
+    private async Task ObterOuCriarDuplaAsync(Atleta atleta1, Atleta atleta2, CancellationToken cancellationToken)
+    {
+        var dupla = await duplaRepositorio.ObterPorAtletasAsync(atleta1.Id, atleta2.Id, cancellationToken);
+        if (dupla is not null)
+        {
+            return;
+        }
+
+        var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(atleta1.Id, atleta2.Id);
+        var atletaNormalizado1 = atleta1.Id == atletaNormalizado1Id ? atleta1 : atleta2;
+        var atletaNormalizado2 = atleta2.Id == atletaNormalizado2Id ? atleta2 : atleta1;
+
+        await duplaRepositorio.AdicionarAsync(new Dupla
+        {
+            Nome = $"{atletaNormalizado1.Nome} / {atletaNormalizado2.Nome}",
+            Atleta1Id = atletaNormalizado1Id,
+            Atleta2Id = atletaNormalizado2Id
+        }, cancellationToken);
     }
 
     private static (Guid atleta1Id, Guid atleta2Id) NormalizarAtletas(Guid atleta1Id, Guid atleta2Id)

@@ -15,6 +15,7 @@ public interface IAtletaRepositorio
 {
     Task<IReadOnlyList<Atleta>> ListarAsync(CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default);
     void Atualizar(Atleta atleta);
     void Remover(Atleta atleta);
@@ -40,6 +41,16 @@ public interface ILigaRepositorio
     void Remover(Liga liga);
 }
 
+public interface ILocalRepositorio
+{
+    Task<IReadOnlyList<Local>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<Local?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Local?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(Local local, CancellationToken cancellationToken = default);
+    void Atualizar(Local local);
+    void Remover(Local local);
+}
+
 public interface ICompeticaoRepositorio
 {
     Task<IReadOnlyList<Competicao>> ListarAsync(CancellationToken cancellationToken = default);
@@ -47,6 +58,26 @@ public interface ICompeticaoRepositorio
     Task AdicionarAsync(Competicao competicao, CancellationToken cancellationToken = default);
     void Atualizar(Competicao competicao);
     void Remover(Competicao competicao);
+}
+
+public interface IFormatoCampeonatoRepositorio
+{
+    Task<IReadOnlyList<FormatoCampeonato>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<FormatoCampeonato?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<FormatoCampeonato?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(FormatoCampeonato formato, CancellationToken cancellationToken = default);
+    void Atualizar(FormatoCampeonato formato);
+    void Remover(FormatoCampeonato formato);
+}
+
+public interface IRegraCompeticaoRepositorio
+{
+    Task<IReadOnlyList<RegraCompeticao>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<RegraCompeticao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<RegraCompeticao?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(RegraCompeticao regra, CancellationToken cancellationToken = default);
+    void Atualizar(RegraCompeticao regra);
+    void Remover(RegraCompeticao regra);
 }
 
 public interface ICategoriaCompeticaoRepositorio
@@ -61,6 +92,8 @@ public interface ICategoriaCompeticaoRepositorio
 public interface IPartidaRepositorio
 {
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default);
     void Atualizar(Partida partida);

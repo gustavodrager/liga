@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { atletasServico } from '../services/atletasServico';
 import { duplasServico } from '../services/duplasServico';
 import { extrairMensagemErro } from '../utils/erros';
+import { rolarParaElemento } from '../utils/rolagem';
 
 const estadoInicial = {
   nome: '',
@@ -17,6 +18,7 @@ export function PaginaDuplas() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const formularioRef = useRef(null);
 
   useEffect(() => {
     carregarDados();
@@ -48,6 +50,7 @@ export function PaginaDuplas() {
       atleta1Id: dupla.atleta1Id,
       atleta2Id: dupla.atleta2Id
     });
+    rolarParaElemento(formularioRef.current);
   }
 
   function cancelarEdicao() {
@@ -102,7 +105,7 @@ export function PaginaDuplas() {
         <p>Cada dupla precisa ter exatamente dois atletas diferentes.</p>
       </div>
 
-      <form className="formulario-grid" onSubmit={aoSubmeter}>
+      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
         <label>
           Nome da dupla (opcional)
           <input
@@ -123,7 +126,7 @@ export function PaginaDuplas() {
             <option value="">Selecione</option>
             {atletas.map((atleta) => (
               <option key={atleta.id} value={atleta.id}>
-                {atleta.nome}
+                {atleta.nome}{atleta.cadastroPendente ? ' (pendente)' : ''}
               </option>
             ))}
           </select>
@@ -139,7 +142,7 @@ export function PaginaDuplas() {
             <option value="">Selecione</option>
             {atletas.map((atleta) => (
               <option key={atleta.id} value={atleta.id}>
-                {atleta.nome}
+                {atleta.nome}{atleta.cadastroPendente ? ' (pendente)' : ''}
               </option>
             ))}
           </select>

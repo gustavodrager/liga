@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { extrairMensagemErro } from '../utils/erros';
+import { rolarParaElemento } from '../utils/rolagem';
 
 const estadoInicial = {
   competicaoId: '',
   nome: '',
   genero: '1',
-  nivel: '1'
+  nivel: '1',
+  pesoRanking: ''
 };
 
 const opcoesGenero = [
@@ -34,6 +36,7 @@ export function PaginaCategorias() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const formularioRef = useRef(null);
 
   const [params, setParams] = useSearchParams();
   const navegar = useNavigate();
@@ -96,9 +99,11 @@ export function PaginaCategorias() {
       competicaoId: categoria.competicaoId,
       nome: categoria.nome,
       genero: String(categoria.genero),
-      nivel: String(categoria.nivel)
+      nivel: String(categoria.nivel),
+      pesoRanking: String(categoria.pesoRanking)
     });
     setParams({ competicaoId: categoria.competicaoId });
+    rolarParaElemento(formularioRef.current);
   }
 
   function cancelarEdicao() {
@@ -123,14 +128,16 @@ export function PaginaCategorias() {
         await categoriasServico.atualizar(categoriaEdicaoId, {
           nome: formulario.nome,
           genero: Number(formulario.genero),
-          nivel: Number(formulario.nivel)
+          nivel: Number(formulario.nivel),
+          pesoRanking: formulario.pesoRanking === '' ? null : Number(formulario.pesoRanking)
         });
       } else {
         await categoriasServico.criar({
           competicaoId: formulario.competicaoId,
           nome: formulario.nome,
           genero: Number(formulario.genero),
-          nivel: Number(formulario.nivel)
+          nivel: Number(formulario.nivel),
+          pesoRanking: formulario.pesoRanking === '' ? null : Number(formulario.pesoRanking)
         });
       }
 
@@ -163,7 +170,7 @@ export function PaginaCategorias() {
         <p>Cada categoria pertence a uma competição e define gênero e nível técnico.</p>
       </div>
 
-      <form className="formulario-grid" onSubmit={aoSubmeter}>
+      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
         <label>
           Competição
           <select
@@ -221,6 +228,18 @@ export function PaginaCategorias() {
           </select>
         </label>
 
+        <label>
+          Peso no ranking
+          <input
+            type="number"
+            min={0.01}
+            step="0.01"
+            value={formulario.pesoRanking}
+            onChange={(evento) => atualizarCampo('pesoRanking', evento.target.value)}
+            placeholder="Padrão: 1"
+          />
+        </label>
+
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
             {salvando ? 'Salvando...' : categoriaEdicaoId ? 'Atualizar categoria' : 'Cadastrar categoria'}
@@ -246,6 +265,7 @@ export function PaginaCategorias() {
                 <h3>{categoria.nome}</h3>
                 <p>Gênero: {opcoesGenero.find((item) => item.valor === categoria.genero)?.rotulo}</p>
                 <p>Nível: {opcoesNivel.find((item) => item.valor === categoria.nivel)?.rotulo}</p>
+                <p>Peso no ranking: {categoria.pesoRanking}</p>
               </div>
 
               <div className="acoes-item">

@@ -1,13 +1,16 @@
+using PlataformaFutevolei.Dominio.Enums;
+
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarPartidaDto(
     Guid CategoriaCompeticaoId,
     Guid DuplaAId,
     Guid DuplaBId,
-    int PlacarDuplaA,
-    int PlacarDuplaB,
-    Guid DuplaVencedoraId,
-    DateTime DataPartida,
+    string? FaseCampeonato,
+    StatusPartida Status,
+    int? PlacarDuplaA,
+    int? PlacarDuplaB,
+    DateTime? DataPartida,
     string? Observacoes
 );
 
@@ -15,11 +18,25 @@ public record AtualizarPartidaDto(
     Guid CategoriaCompeticaoId,
     Guid DuplaAId,
     Guid DuplaBId,
-    int PlacarDuplaA,
-    int PlacarDuplaB,
-    Guid DuplaVencedoraId,
-    DateTime DataPartida,
+    string? FaseCampeonato,
+    StatusPartida Status,
+    int? PlacarDuplaA,
+    int? PlacarDuplaB,
+    DateTime? DataPartida,
     string? Observacoes
+);
+
+public record GerarTabelaCategoriaDto(
+    bool SubstituirTabelaExistente = false
+);
+
+public record GeracaoTabelaCategoriaDto(
+    Guid CategoriaId,
+    string NomeCategoria,
+    int QuantidadePartidasGeradas,
+    bool SubstituiuTabelaExistente,
+    string Resumo,
+    IReadOnlyList<PartidaDto> Partidas
 );
 
 public record PartidaDto(
@@ -30,13 +47,15 @@ public record PartidaDto(
     string NomeDuplaA,
     Guid DuplaBId,
     string NomeDuplaB,
+    string? FaseCampeonato,
+    StatusPartida Status,
     int PlacarDuplaA,
     int PlacarDuplaB,
-    Guid DuplaVencedoraId,
-    string NomeDuplaVencedora,
+    Guid? DuplaVencedoraId,
+    string? NomeDuplaVencedora,
     decimal PesoRankingCategoria,
     decimal PontosRankingVitoria,
-    DateTime DataPartida,
+    DateTime? DataPartida,
     string? Observacoes,
     DateTime DataCriacao,
     DateTime DataAtualizacao

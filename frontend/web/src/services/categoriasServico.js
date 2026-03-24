@@ -23,5 +23,10 @@ export const categoriasServico = {
 
   async remover(id) {
     await http.delete(`/categorias/${id}`);
+  },
+
+  async gerarTabelaPartidas(id, dados) {
+    const resposta = await http.post(`/categorias/${id}/partidas/gerar-tabela`, dados);
+    return resposta.data;
   }
 };

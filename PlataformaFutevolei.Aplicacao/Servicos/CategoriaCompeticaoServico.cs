@@ -4,12 +4,14 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class CategoriaCompeticaoServico(
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
+    IFormatoCampeonatoRepositorio formatoRepositorio,
     IUnidadeTrabalho unidadeTrabalho
 ) : ICategoriaCompeticaoServico
 {
@@ -39,9 +41,15 @@ public class CategoriaCompeticaoServico(
             throw new RegraNegocioException("Toda categoria deve pertencer a uma competição existente.");
         }
 
+        var formatoCampeonatoId = await ValidarFormatoCampeonatoAsync(
+            competicao,
+            dto.FormatoCampeonatoId,
+            cancellationToken);
+
         var categoria = new CategoriaCompeticao
         {
             CompeticaoId = dto.CompeticaoId,
+            FormatoCampeonatoId = formatoCampeonatoId,
             Nome = dto.Nome.Trim(),
             Genero = dto.Genero,
             Nivel = dto.Nivel,
@@ -63,6 +71,12 @@ public class CategoriaCompeticaoServico(
             throw new EntidadeNaoEncontradaException("Categoria não encontrada.");
         }
 
+        var formatoCampeonatoId = await ValidarFormatoCampeonatoAsync(
+            categoria.Competicao,
+            dto.FormatoCampeonatoId,
+            cancellationToken);
+
+        categoria.FormatoCampeonatoId = formatoCampeonatoId;
         categoria.Nome = dto.Nome.Trim();
         categoria.Genero = dto.Genero;
         categoria.Nivel = dto.Nivel;
@@ -98,5 +112,29 @@ public class CategoriaCompeticaoServico(
         {
             throw new RegraNegocioException("Peso de ranking da categoria deve ser maior que zero.");
         }
+    }
+
+    private async Task<Guid?> ValidarFormatoCampeonatoAsync(
+        Competicao competicao,
+        Guid? formatoCampeonatoId,
+        CancellationToken cancellationToken)
+    {
+        if (!formatoCampeonatoId.HasValue)
+        {
+            return null;
+        }
+
+        if (competicao.Tipo != TipoCompeticao.Campeonato)
+        {
+            throw new RegraNegocioException("Formato de campeonato só pode ser vinculado a categorias de campeonatos.");
+        }
+
+        var formato = await formatoRepositorio.ObterPorIdAsync(formatoCampeonatoId.Value, cancellationToken);
+        if (formato is null)
+        {
+            throw new RegraNegocioException("O formato de campeonato informado não foi encontrado.");
+        }
+
+        return formato.Id;
     }
 }

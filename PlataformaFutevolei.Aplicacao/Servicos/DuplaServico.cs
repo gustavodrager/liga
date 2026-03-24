@@ -32,9 +32,10 @@ public class DuplaServico(
 
     public async Task<DuplaDto> CriarAsync(CriarDuplaDto dto, CancellationToken cancellationToken = default)
     {
-        var (atleta1, atleta2) = await ValidarAtletasAsync(dto.Atleta1Id, dto.Atleta2Id, cancellationToken);
+        var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(dto.Atleta1Id, dto.Atleta2Id);
+        var (atleta1, atleta2) = await ValidarAtletasAsync(atletaNormalizado1Id, atletaNormalizado2Id, cancellationToken);
 
-        var existente = await duplaRepositorio.ObterPorAtletasAsync(dto.Atleta1Id, dto.Atleta2Id, cancellationToken);
+        var existente = await duplaRepositorio.ObterPorAtletasAsync(atletaNormalizado1Id, atletaNormalizado2Id, cancellationToken);
         if (existente is not null)
         {
             throw new RegraNegocioException("Já existe uma dupla cadastrada com estes atletas.");
@@ -43,8 +44,8 @@ public class DuplaServico(
         var dupla = new Dupla
         {
             Nome = ObterNomeDupla(dto.Nome, atleta1.Nome, atleta2.Nome),
-            Atleta1Id = dto.Atleta1Id,
-            Atleta2Id = dto.Atleta2Id
+            Atleta1Id = atletaNormalizado1Id,
+            Atleta2Id = atletaNormalizado2Id
         };
 
         await duplaRepositorio.AdicionarAsync(dupla, cancellationToken);
@@ -61,16 +62,17 @@ public class DuplaServico(
             throw new EntidadeNaoEncontradaException("Dupla não encontrada.");
         }
 
-        var (atleta1, atleta2) = await ValidarAtletasAsync(dto.Atleta1Id, dto.Atleta2Id, cancellationToken);
+        var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(dto.Atleta1Id, dto.Atleta2Id);
+        var (atleta1, atleta2) = await ValidarAtletasAsync(atletaNormalizado1Id, atletaNormalizado2Id, cancellationToken);
 
-        var existente = await duplaRepositorio.ObterPorAtletasAsync(dto.Atleta1Id, dto.Atleta2Id, cancellationToken);
+        var existente = await duplaRepositorio.ObterPorAtletasAsync(atletaNormalizado1Id, atletaNormalizado2Id, cancellationToken);
         if (existente is not null && existente.Id != dupla.Id)
         {
             throw new RegraNegocioException("Já existe uma dupla cadastrada com estes atletas.");
         }
 
-        dupla.Atleta1Id = dto.Atleta1Id;
-        dupla.Atleta2Id = dto.Atleta2Id;
+        dupla.Atleta1Id = atletaNormalizado1Id;
+        dupla.Atleta2Id = atletaNormalizado2Id;
         dupla.Nome = ObterNomeDupla(dto.Nome, atleta1.Nome, atleta2.Nome);
         dupla.AtualizarDataModificacao();
 
@@ -123,5 +125,12 @@ public class DuplaServico(
         }
 
         return $"{nomeAtleta1} / {nomeAtleta2}";
+    }
+
+    private static (Guid atleta1Id, Guid atleta2Id) NormalizarAtletas(Guid atleta1Id, Guid atleta2Id)
+    {
+        return atleta1Id.CompareTo(atleta2Id) <= 0
+            ? (atleta1Id, atleta2Id)
+            : (atleta2Id, atleta1Id);
     }
 }

@@ -9,7 +9,8 @@ public record CriarCompeticaoDto(
     DateTime DataInicio,
     DateTime? DataFim,
     Guid? LigaId,
-    bool ContaRankingLiga,
+    Guid? LocalId,
+    Guid? RegraCompeticaoId,
     bool? InscricoesAbertas
 );
 
@@ -20,7 +21,8 @@ public record AtualizarCompeticaoDto(
     DateTime DataInicio,
     DateTime? DataFim,
     Guid? LigaId,
-    bool ContaRankingLiga,
+    Guid? LocalId,
+    Guid? RegraCompeticaoId,
     bool? InscricoesAbertas
 );
 
@@ -32,9 +34,19 @@ public record CompeticaoDto(
     DateTime DataInicio,
     DateTime? DataFim,
     Guid? LigaId,
+    Guid? LocalId,
+    Guid? RegraCompeticaoId,
     string? NomeLiga,
+    string? NomeLocal,
+    string? NomeRegraCompeticao,
     bool ContaRankingLiga,
     bool InscricoesAbertas,
+    int PontosMinimosPartidaEfetivo,
+    int DiferencaMinimaPartidaEfetiva,
+    bool PermiteEmpateEfetivo,
+    decimal PontosVitoriaEfetivo,
+    decimal PontosDerrotaEfetivo,
+    decimal PontosParticipacaoEfetivo,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

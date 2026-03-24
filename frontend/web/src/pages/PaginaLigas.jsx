@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ligasServico } from '../services/ligasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
+import { rolarParaElemento } from '../utils/rolagem';
 
 const estadoInicial = {
   nome: '',
@@ -15,6 +16,7 @@ export function PaginaLigas() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const formularioRef = useRef(null);
 
   useEffect(() => {
     carregarLigas();
@@ -44,6 +46,7 @@ export function PaginaLigas() {
       nome: liga.nome || '',
       descricao: liga.descricao || ''
     });
+    rolarParaElemento(formularioRef.current);
   }
 
   function cancelarEdicao() {
@@ -98,7 +101,7 @@ export function PaginaLigas() {
         <p>Cadastre, edite e consulte as ligas usadas para organizar as competições.</p>
       </div>
 
-      <form className="formulario-grid" onSubmit={aoSubmeter}>
+      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
         <label>
           Nome
           <input
