@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -11,10 +12,21 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class AtletasController(IAtletaServico atletaServico) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(IReadOnlyList<AtletaDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Listar(CancellationToken cancellationToken)
+    public async Task<IActionResult> Listar(
+        [FromQuery] bool somenteInscritosMinhasCompeticoes = false,
+        CancellationToken cancellationToken = default)
     {
-        var atletas = await atletaServico.ListarAsync(cancellationToken);
+        var atletas = await atletaServico.ListarAsync(somenteInscritosMinhasCompeticoes, cancellationToken);
+        return Ok(atletas);
+    }
+
+    [HttpGet("busca")]
+    [ProducesResponseType(typeof(IReadOnlyList<AtletaResumoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Buscar([FromQuery] string? termo, CancellationToken cancellationToken)
+    {
+        var atletas = await atletaServico.BuscarAsync(termo, cancellationToken);
         return Ok(atletas);
     }
 
@@ -43,6 +55,7 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {

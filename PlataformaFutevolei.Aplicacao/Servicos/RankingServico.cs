@@ -3,6 +3,7 @@ using System.Text;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
@@ -12,13 +13,21 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class RankingServico(
     ILigaRepositorio ligaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
-    IPartidaRepositorio partidaRepositorio
+    IPartidaRepositorio partidaRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
 {
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
         CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
+        }
+
         var liga = await ligaRepositorio.ObterPorIdAsync(ligaId, cancellationToken);
         if (liga is null)
         {
@@ -33,10 +42,34 @@ public class RankingServico(
         Guid competicaoId,
         CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
         if (competicao is null)
         {
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            if (competicao.Tipo != TipoCompeticao.Grupo)
+            {
+                throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
+            }
+
+            if (!usuario.AtletaId.HasValue)
+            {
+                throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar o ranking do grupo.");
+            }
+
+            var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
+                competicaoId,
+                usuario.AtletaId.Value,
+                cancellationToken);
+
+            if (grupoAtleta is null)
+            {
+                throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
+            }
         }
 
         var partidas = await partidaRepositorio.ListarParaRankingPorCompeticaoAsync(competicaoId, cancellationToken);

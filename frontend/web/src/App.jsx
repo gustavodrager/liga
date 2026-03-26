@@ -15,6 +15,9 @@ import { PaginaRanking } from './pages/PaginaRanking';
 import { PaginaCategorias } from './pages/PaginaCategorias';
 import { PaginaInscricoesCampeonato } from './pages/PaginaInscricoesCampeonato';
 import { PaginaPartidas } from './pages/PaginaPartidas';
+import { PaginaMeuPerfil } from './pages/PaginaMeuPerfil';
+import { PaginaUsuarios } from './pages/PaginaUsuarios';
+import { PERFIS_USUARIO } from './utils/perfis';
 
 export default function App() {
   return (
@@ -30,18 +33,103 @@ export default function App() {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<PaginaDashboard />} />
-        <Route path="/atletas" element={<PaginaAtletas />} />
-        <Route path="/duplas" element={<PaginaDuplas />} />
-        <Route path="/ligas" element={<PaginaLigas />} />
-        <Route path="/locais" element={<PaginaLocais />} />
-        <Route path="/formatos-campeonato" element={<PaginaFormatosCampeonato />} />
-        <Route path="/regras" element={<PaginaRegrasCompeticao />} />
-        <Route path="/modelos-importacao" element={<PaginaModelosImportacao />} />
-        <Route path="/competicoes" element={<PaginaCompeticoes />} />
-        <Route path="/ranking" element={<PaginaRanking />} />
-        <Route path="/categorias" element={<PaginaCategorias />} />
-        <Route path="/inscricoes" element={<PaginaInscricoesCampeonato />} />
-        <Route path="/partidas" element={<PaginaPartidas />} />
+        <Route path="/meu-perfil" element={<PaginaMeuPerfil />} />
+        <Route
+          path="/atletas"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador]}>
+              <PaginaAtletas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/duplas"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador]}>
+              <PaginaDuplas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/ligas"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
+              <PaginaLigas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/locais"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador]}>
+              <PaginaLocais />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/formatos-campeonato"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
+              <PaginaFormatosCampeonato />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/regras"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador]}>
+              <PaginaRegrasCompeticao />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/modelos-importacao"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
+              <PaginaModelosImportacao />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/competicoes"
+          element={<PaginaCompeticoes />}
+        />
+        <Route
+          path="/ranking"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador, PERFIS_USUARIO.atleta]}>
+              <PaginaRanking />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/categorias"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador]}>
+              <PaginaCategorias />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/inscricoes"
+          element={<PaginaInscricoesCampeonato />}
+        />
+        <Route
+          path="/partidas"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador, PERFIS_USUARIO.atleta]}>
+              <PaginaPartidas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/usuarios"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
+              <PaginaUsuarios />
+            </RotaProtegida>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

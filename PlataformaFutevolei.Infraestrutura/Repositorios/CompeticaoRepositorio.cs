@@ -14,6 +14,7 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .Include(x => x.Liga)
             .Include(x => x.Local)
             .Include(x => x.RegraCompeticao)
+            .Include(x => x.UsuarioOrganizador)
             .OrderByDescending(x => x.DataInicio)
             .ToListAsync(cancellationToken);
     }
@@ -24,6 +25,7 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .Include(x => x.Liga)
             .Include(x => x.Local)
             .Include(x => x.RegraCompeticao)
+            .Include(x => x.UsuarioOrganizador)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 

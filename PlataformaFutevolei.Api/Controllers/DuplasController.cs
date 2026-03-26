@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -11,14 +12,26 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class DuplasController(IDuplaServico duplaServico) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(IReadOnlyList<DuplaDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Listar(CancellationToken cancellationToken)
+    public async Task<IActionResult> Listar(
+        [FromQuery] bool somenteInscritasMinhasCompeticoes = false,
+        CancellationToken cancellationToken = default)
     {
-        var duplas = await duplaServico.ListarAsync(cancellationToken);
+        var duplas = await duplaServico.ListarAsync(somenteInscritasMinhasCompeticoes, cancellationToken);
+        return Ok(duplas);
+    }
+
+    [HttpGet("por-atleta/{id:guid}")]
+    [ProducesResponseType(typeof(IReadOnlyList<DuplaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarPorAtleta(Guid id, CancellationToken cancellationToken)
+    {
+        var duplas = await duplaServico.ListarPorAtletaAsync(id, cancellationToken);
         return Ok(duplas);
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(DuplaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {
@@ -27,6 +40,7 @@ public class DuplasController(IDuplaServico duplaServico) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(DuplaDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarDuplaDto dto, CancellationToken cancellationToken)
     {
@@ -35,6 +49,7 @@ public class DuplasController(IDuplaServico duplaServico) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(DuplaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarDuplaDto dto, CancellationToken cancellationToken)
     {
@@ -43,6 +58,7 @@ public class DuplasController(IDuplaServico duplaServico) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {

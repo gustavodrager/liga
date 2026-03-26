@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarData, paraInputData } from '../utils/formatacao';
 import { rolarParaElemento } from '../utils/rolagem';
+import { ehOrganizador } from '../utils/perfis';
 
 const estadoInicial = {
   nome: '',
   apelido: '',
+  telefone: '',
+  email: '',
+  instagram: '',
+  cpf: '',
   cadastroPendente: false,
   lado: '3',
   dataNascimento: ''
@@ -19,6 +26,9 @@ const lados = [
 ];
 
 export function PaginaAtletas() {
+  const { usuario } = useAutenticacao();
+  const usuarioOrganizador = ehOrganizador(usuario);
+  const [params] = useSearchParams();
   const [atletas, setAtletas] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
   const [atletaEdicaoId, setAtletaEdicaoId] = useState(null);
@@ -29,14 +39,28 @@ export function PaginaAtletas() {
 
   useEffect(() => {
     carregarAtletas();
-  }, []);
+  }, [usuarioOrganizador]);
+
+  useEffect(() => {
+    const atletaId = params.get('atletaId');
+    if (!atletaId || atletas.length === 0) {
+      return;
+    }
+
+    const atleta = atletas.find((item) => item.id === atletaId);
+    if (atleta) {
+      iniciarEdicao(atleta);
+    }
+  }, [atletas, params]);
 
   async function carregarAtletas() {
     setCarregando(true);
     setErro('');
 
     try {
-      const lista = await atletasServico.listar();
+      const lista = await atletasServico.listar({
+        somenteInscritosMinhasCompeticoes: usuarioOrganizador
+      });
       setAtletas(lista);
     } catch (error) {
       setErro(extrairMensagemErro(error));
@@ -54,6 +78,10 @@ export function PaginaAtletas() {
     setFormulario({
       nome: atleta.nome || '',
       apelido: atleta.apelido || '',
+      telefone: atleta.telefone || '',
+      email: atleta.email || '',
+      instagram: atleta.instagram || '',
+      cpf: atleta.cpf || '',
       cadastroPendente: Boolean(atleta.cadastroPendente),
       lado: String(atleta.lado || 3),
       dataNascimento: paraInputData(atleta.dataNascimento)
@@ -74,6 +102,10 @@ export function PaginaAtletas() {
     const dados = {
       nome: formulario.nome,
       apelido: formulario.apelido.trim() || null,
+      telefone: formulario.telefone.trim() || null,
+      email: formulario.email.trim() || null,
+      instagram: formulario.instagram.trim() || null,
+      cpf: formulario.cpf.trim() || null,
       cadastroPendente: Boolean(formulario.cadastroPendente),
       lado: Number(formulario.lado),
       dataNascimento: formulario.dataNascimento || null
@@ -113,7 +145,11 @@ export function PaginaAtletas() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Atletas</h2>
-        <p>Cadastre atletas com nome completo e, se necessário, informe um apelido para diferenciar o cadastro.</p>
+        <p>
+          {usuarioOrganizador
+            ? 'Veja os atletas com inscrição ativa em competições criadas por você.'
+            : 'Cadastre atletas com nome completo. Quando o cadastro não estiver pendente, informe ao menos um identificador.'}
+        </p>
       </div>
 
       <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
@@ -133,6 +169,42 @@ export function PaginaAtletas() {
             type="text"
             value={formulario.apelido}
             onChange={(evento) => atualizarCampo('apelido', evento.target.value)}
+          />
+        </label>
+
+        <label>
+          Telefone
+          <input
+            type="text"
+            value={formulario.telefone}
+            onChange={(evento) => atualizarCampo('telefone', evento.target.value)}
+          />
+        </label>
+
+        <label>
+          E-mail
+          <input
+            type="email"
+            value={formulario.email}
+            onChange={(evento) => atualizarCampo('email', evento.target.value)}
+          />
+        </label>
+
+        <label>
+          Instagram
+          <input
+            type="text"
+            value={formulario.instagram}
+            onChange={(evento) => atualizarCampo('instagram', evento.target.value)}
+          />
+        </label>
+
+        <label>
+          CPF
+          <input
+            type="text"
+            value={formulario.cpf}
+            onChange={(evento) => atualizarCampo('cpf', evento.target.value)}
           />
         </label>
 
@@ -169,7 +241,7 @@ export function PaginaAtletas() {
           />
         </label>
 
-        <div className="acoes-formulario">
+        <div className="acoes-formulario campo-largo">
           <button type="submit" className="botao-primario" disabled={salvando}>
             {salvando ? 'Salvando...' : atletaEdicaoId ? 'Atualizar atleta' : 'Cadastrar atleta'}
           </button>
@@ -193,6 +265,10 @@ export function PaginaAtletas() {
               <div>
                 <h3>{atleta.nome}</h3>
                 <p>Apelido: {atleta.apelido || '-'}</p>
+                <p>Telefone: {atleta.telefone || '-'}</p>
+                <p>E-mail: {atleta.email || '-'}</p>
+                <p>Instagram: {atleta.instagram || '-'}</p>
+                <p>CPF: {atleta.cpf || '-'}</p>
                 <p>Status: {atleta.cadastroPendente ? 'Cadastro pendente' : 'Cadastro completo'}</p>
                 <p>Lado: {lados.find((lado) => Number(lado.valor) === atleta.lado)?.rotulo || '-'}</p>
                 <p>Nascimento: {formatarData(atleta.dataNascimento)}</p>
@@ -210,7 +286,9 @@ export function PaginaAtletas() {
             </article>
           ))}
 
-          {atletas.length === 0 && <p>Nenhum atleta cadastrado.</p>}
+          {atletas.length === 0 && (
+            <p>{usuarioOrganizador ? 'Nenhum atleta inscrito em competições criadas por você.' : 'Nenhum atleta cadastrado.'}</p>
+          )}
         </div>
       )}
     </section>

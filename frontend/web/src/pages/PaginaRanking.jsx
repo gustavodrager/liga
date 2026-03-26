@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { competicoesServico } from '../services/competicoesServico';
+import { grupoAtletasServico } from '../services/grupoAtletasServico';
 import { ligasServico } from '../services/ligasServico';
 import { rankingServico } from '../services/rankingServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
+import { ehAtleta } from '../utils/perfis';
 
 const tiposConsulta = [
   { valor: 'liga', rotulo: 'Ranking da liga' },
@@ -42,9 +45,11 @@ function normalizarRanking(lista, tipoConsulta) {
 }
 
 export function PaginaRanking() {
+  const { usuario } = useAutenticacao();
+  const usuarioAtleta = ehAtleta(usuario);
   const [ligas, setLigas] = useState([]);
   const [competicoes, setCompeticoes] = useState([]);
-  const [tipoConsulta, setTipoConsulta] = useState('liga');
+  const [tipoConsulta, setTipoConsulta] = useState(usuarioAtleta ? 'competicao' : 'liga');
   const [ligaId, setLigaId] = useState('');
   const [competicaoId, setCompeticaoId] = useState('');
   const [ranking, setRanking] = useState([]);
@@ -77,25 +82,46 @@ export function PaginaRanking() {
     setErro('');
 
     try {
-      const [listaLigas, listaCompeticoes] = await Promise.all([
-        ligasServico.listar(),
-        competicoesServico.listar()
-      ]);
+      const listaCompeticoes = await competicoesServico.listar();
+      const listaLigas = usuarioAtleta ? [] : await ligasServico.listar();
+
+      let competicoesDisponiveis = listaCompeticoes;
+      if (usuarioAtleta) {
+        if (!usuario?.atletaId) {
+          competicoesDisponiveis = [];
+        } else {
+          const grupos = listaCompeticoes.filter((competicao) => competicao.tipo === 3);
+          const gruposParticipando = await Promise.all(
+            grupos.map(async (competicao) => {
+              try {
+                const atletasGrupo = await grupoAtletasServico.listarPorCompeticao(competicao.id);
+                return atletasGrupo.some((item) => item.atletaId === usuario.atletaId) ? competicao : null;
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          competicoesDisponiveis = gruposParticipando.filter(Boolean);
+        }
+      }
 
       setLigas(listaLigas);
-      setCompeticoes(listaCompeticoes);
+      setCompeticoes(competicoesDisponiveis);
 
       const tipoUrl = params.get('tipo');
-      const tipoInicial = tipoUrl === 'competicao' ? 'competicao' : 'liga';
+      const tipoInicial = usuarioAtleta
+        ? 'competicao'
+        : tipoUrl === 'competicao' ? 'competicao' : 'liga';
       const ligaUrl = params.get('ligaId');
       const competicaoUrl = params.get('competicaoId');
 
       const ligaInicial = ligaUrl && listaLigas.some((liga) => liga.id === ligaUrl)
         ? ligaUrl
         : listaLigas[0]?.id || '';
-      const competicaoInicial = competicaoUrl && listaCompeticoes.some((competicao) => competicao.id === competicaoUrl)
+      const competicaoInicial = competicaoUrl && competicoesDisponiveis.some((competicao) => competicao.id === competicaoUrl)
         ? competicaoUrl
-        : listaCompeticoes[0]?.id || '';
+        : competicoesDisponiveis[0]?.id || '';
 
       setTipoConsulta(tipoInicial);
       setLigaId(ligaInicial);
@@ -143,6 +169,10 @@ export function PaginaRanking() {
   }
 
   function selecionarTipoConsulta(valor) {
+    if (usuarioAtleta) {
+      return;
+    }
+
     setTipoConsulta(valor);
     atualizarParametros(valor, ligaId, competicaoId);
   }
@@ -166,21 +196,27 @@ export function PaginaRanking() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Ranking</h2>
-        <p>Consulte o ranking consolidado da liga ou o ranking da competição.</p>
-        <p>No ranking da liga, os pontos somam todas as competições vinculadas à liga.</p>
+        <p>
+          {usuarioAtleta
+            ? 'Consulte o ranking dos grupos em que seu atleta participa.'
+            : 'Consulte o ranking consolidado da liga ou o ranking da competição.'}
+        </p>
+        {!usuarioAtleta && <p>No ranking da liga, os pontos somam todas as competições vinculadas à liga.</p>}
       </div>
 
       <div className="formulario-grid">
-        <label>
-          Tipo
-          <select value={tipoConsulta} onChange={(evento) => selecionarTipoConsulta(evento.target.value)}>
-            {tiposConsulta.map((tipo) => (
-              <option key={tipo.valor} value={tipo.valor}>
-                {tipo.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!usuarioAtleta && (
+          <label>
+            Tipo
+            <select value={tipoConsulta} onChange={(evento) => selecionarTipoConsulta(evento.target.value)}>
+              {tiposConsulta.map((tipo) => (
+                <option key={tipo.valor} value={tipo.valor}>
+                  {tipo.rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {tipoConsulta === 'liga' ? (
           <label>
@@ -215,6 +251,8 @@ export function PaginaRanking() {
         <p>Carregando ranking...</p>
       ) : tipoConsulta === 'liga' && ligas.length === 0 ? (
         <p>Nenhuma liga cadastrada.</p>
+      ) : usuarioAtleta && competicoes.length === 0 ? (
+        <p>Seu atleta ainda não participa de nenhum grupo com ranking disponível.</p>
       ) : tipoConsulta === 'competicao' && competicoes.length === 0 ? (
         <p>Nenhuma competição cadastrada.</p>
       ) : carregandoRanking ? (

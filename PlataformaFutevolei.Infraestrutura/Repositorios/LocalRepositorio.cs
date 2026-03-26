@@ -11,13 +11,16 @@ public class LocalRepositorio(PlataformaFutevoleiDbContext dbContext) : ILocalRe
     {
         return await dbContext.Locais
             .AsNoTracking()
+            .Include(x => x.UsuarioCriador)
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
     }
 
     public Task<Local?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return dbContext.Locais.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return dbContext.Locais
+            .Include(x => x.UsuarioCriador)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public Task<Local?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default)

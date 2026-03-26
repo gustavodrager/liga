@@ -4,8 +4,12 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarPartidaDto(
     Guid CategoriaCompeticaoId,
-    Guid DuplaAId,
-    Guid DuplaBId,
+    Guid? DuplaAId,
+    Guid? DuplaBId,
+    Guid? DuplaAAtleta1Id,
+    Guid? DuplaAAtleta2Id,
+    Guid? DuplaBAtleta1Id,
+    Guid? DuplaBAtleta2Id,
     string? FaseCampeonato,
     StatusPartida Status,
     int? PlacarDuplaA,
@@ -16,8 +20,12 @@ public record CriarPartidaDto(
 
 public record AtualizarPartidaDto(
     Guid CategoriaCompeticaoId,
-    Guid DuplaAId,
-    Guid DuplaBId,
+    Guid? DuplaAId,
+    Guid? DuplaBId,
+    Guid? DuplaAAtleta1Id,
+    Guid? DuplaAAtleta2Id,
+    Guid? DuplaBAtleta1Id,
+    Guid? DuplaBAtleta2Id,
     string? FaseCampeonato,
     StatusPartida Status,
     int? PlacarDuplaA,
@@ -39,14 +47,29 @@ public record GeracaoTabelaCategoriaDto(
     IReadOnlyList<PartidaDto> Partidas
 );
 
+public record RemocaoTabelaCategoriaDto(
+    Guid CategoriaId,
+    string NomeCategoria,
+    int QuantidadePartidasRemovidas,
+    string Resumo
+);
+
 public record PartidaDto(
     Guid Id,
     Guid CategoriaCompeticaoId,
     string NomeCategoria,
     Guid DuplaAId,
     string NomeDuplaA,
+    Guid DuplaAAtleta1Id,
+    string NomeDuplaAAtleta1,
+    Guid DuplaAAtleta2Id,
+    string NomeDuplaAAtleta2,
     Guid DuplaBId,
     string NomeDuplaB,
+    Guid DuplaBAtleta1Id,
+    string NomeDuplaBAtleta1,
+    Guid DuplaBAtleta2Id,
+    string NomeDuplaBAtleta2,
     string? FaseCampeonato,
     StatusPartida Status,
     int PlacarDuplaA,

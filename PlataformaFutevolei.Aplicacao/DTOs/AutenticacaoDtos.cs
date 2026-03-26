@@ -6,7 +6,7 @@ public record RegistrarUsuarioRequisicaoDto(
     string Nome,
     string Email,
     string Senha,
-    PerfilUsuario Perfil = PerfilUsuario.Usuario
+    PerfilUsuario Perfil = PerfilUsuario.Atleta
 );
 
 public record LoginRequisicaoDto(
@@ -33,7 +33,38 @@ public record UsuarioLogadoDto(
     Guid Id,
     string Nome,
     string Email,
-    PerfilUsuario Perfil
+    PerfilUsuario Perfil,
+    bool Ativo,
+    Guid? AtletaId,
+    AtletaResumoDto? Atleta
+);
+
+public record UsuarioDto(
+    Guid Id,
+    string Nome,
+    string Email,
+    PerfilUsuario Perfil,
+    bool Ativo,
+    Guid? AtletaId,
+    AtletaResumoDto? Atleta,
+    DateTime DataCriacao,
+    DateTime DataAtualizacao
+);
+
+public record AtualizarMeuUsuarioDto(
+    string Nome
+);
+
+public record VincularAtletaUsuarioDto(
+    Guid AtletaId
+);
+
+public record AtualizarUsuarioDto(
+    string Nome,
+    string Email,
+    PerfilUsuario Perfil,
+    bool Ativo,
+    Guid? AtletaId
 );
 
 public record RespostaAutenticacaoDto(

@@ -16,8 +16,10 @@ public class InscricaoCampeonatoRepositorio(PlataformaFutevoleiDbContext dbConte
             .AsNoTracking()
             .Include(x => x.Competicao)
             .Include(x => x.CategoriaCompeticao)
-            .Include(x => x.Atleta1)
-            .Include(x => x.Atleta2)
+            .Include(x => x.Dupla)
+                .ThenInclude(x => x.Atleta1)
+            .Include(x => x.Dupla)
+                .ThenInclude(x => x.Atleta2)
             .Where(x => x.CompeticaoId == campeonatoId);
 
         if (categoriaId.HasValue)
@@ -27,8 +29,7 @@ public class InscricaoCampeonatoRepositorio(PlataformaFutevoleiDbContext dbConte
 
         return await query
             .OrderBy(x => x.CategoriaCompeticao.Nome)
-            .ThenBy(x => x.Atleta1.Nome)
-            .ThenBy(x => x.Atleta2.Nome)
+            .ThenBy(x => x.Dupla.Nome)
             .ToListAsync(cancellationToken);
     }
 
@@ -37,27 +38,37 @@ public class InscricaoCampeonatoRepositorio(PlataformaFutevoleiDbContext dbConte
         return dbContext.InscricoesCampeonato
             .Include(x => x.Competicao)
             .Include(x => x.CategoriaCompeticao)
-            .Include(x => x.Atleta1)
-            .Include(x => x.Atleta2)
+            .Include(x => x.Dupla)
+                .ThenInclude(x => x.Atleta1)
+            .Include(x => x.Dupla)
+                .ThenInclude(x => x.Atleta2)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public Task<InscricaoCampeonato?> ObterDuplicadaAsync(
         Guid categoriaId,
-        Guid atleta1Id,
-        Guid atleta2Id,
+        Guid duplaId,
         CancellationToken cancellationToken = default)
     {
         return dbContext.InscricoesCampeonato
             .FirstOrDefaultAsync(
                 x => x.CategoriaCompeticaoId == categoriaId &&
-                     x.Atleta1Id == atleta1Id &&
-                     x.Atleta2Id == atleta2Id,
+                     x.DuplaId == duplaId,
                 cancellationToken);
     }
 
     public async Task AdicionarAsync(InscricaoCampeonato inscricao, CancellationToken cancellationToken = default)
     {
         await dbContext.InscricoesCampeonato.AddAsync(inscricao, cancellationToken);
+    }
+
+    public void Atualizar(InscricaoCampeonato inscricao)
+    {
+        dbContext.InscricoesCampeonato.Update(inscricao);
+    }
+
+    public void Remover(InscricaoCampeonato inscricao)
+    {
+        dbContext.InscricoesCampeonato.Remove(inscricao);
     }
 }

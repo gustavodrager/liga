@@ -26,11 +26,12 @@ export const modelosImportacao = [
     observacoes: [
       'Lado: 1=Direito, 2=Esquerdo, 3=Ambos.',
       'CadastroPendente: true ou false.',
-      'Data de nascimento no formato AAAA-MM-DD.'
+      'Data de nascimento no formato AAAA-MM-DD.',
+      'Se CadastroPendente for false, informe ao menos um identificador.'
     ],
     csv: gerarCsv(
-      ['nome', 'apelido', 'cadastroPendente', 'lado', 'dataNascimento'],
-      ['Maria Silva', 'Mari', false, 3, '1998-04-12']
+      ['nome', 'apelido', 'telefone', 'email', 'instagram', 'cpf', 'cadastroPendente', 'lado', 'dataNascimento'],
+      ['Maria Silva', 'Mari', '(11)99999-8888', 'maria@email.com', '@mari.silva', '12345678900', false, 3, '1998-04-12']
     )
   },
   {
@@ -163,12 +164,13 @@ export const modelosImportacao = [
     arquivo: 'modelo-inscricoes.csv',
     descricao: 'Modelo para importar inscrições em campeonatos.',
     observacoes: [
-      'Use campeonatoId, categoriaId e IDs de atletas já existentes.',
+      'Use duplaId quando a dupla já existir.',
+      'Se não houver duplaId, informe atleta1Id e atleta2Id.',
       'A categoria deve pertencer ao campeonato informado.'
     ],
     csv: gerarCsv(
-      ['campeonatoId', 'categoriaId', 'atleta1Id', 'atleta2Id', 'observacao'],
-      ['GUID_CAMPEONATO', 'GUID_CATEGORIA', 'GUID_ATLETA_1', 'GUID_ATLETA_2', 'Inscrição confirmada']
+      ['campeonatoId', 'categoriaId', 'duplaId', 'atleta1Id', 'atleta2Id', 'pago', 'observacao'],
+      ['GUID_CAMPEONATO', 'GUID_CATEGORIA', 'GUID_DUPLA', '', '', true, 'Inscrição confirmada']
     )
   },
   {

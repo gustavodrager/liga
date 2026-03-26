@@ -14,6 +14,7 @@ public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDb
     public DbSet<FormatoCampeonato> FormatosCampeonato => Set<FormatoCampeonato>();
     public DbSet<RegraCompeticao> RegrasCompeticao => Set<RegraCompeticao>();
     public DbSet<Competicao> Competicoes => Set<Competicao>();
+    public DbSet<GrupoAtleta> GruposAtletas => Set<GrupoAtleta>();
     public DbSet<CategoriaCompeticao> CategoriasCompeticao => Set<CategoriaCompeticao>();
     public DbSet<InscricaoCampeonato> InscricoesCampeonato => Set<InscricaoCampeonato>();
     public DbSet<Partida> Partidas => Set<Partida>();

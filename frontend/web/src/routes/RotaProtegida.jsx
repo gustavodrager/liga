@@ -1,8 +1,9 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import { temPerfil } from '../utils/perfis';
 
-export function RotaProtegida({ children }) {
-  const { token, carregando } = useAutenticacao();
+export function RotaProtegida({ children, perfisPermitidos }) {
+  const { token, carregando, usuario } = useAutenticacao();
   const localizacao = useLocation();
 
   if (carregando) {
@@ -16,6 +17,10 @@ export function RotaProtegida({ children }) {
 
   if (!token) {
     return <Navigate to="/login" replace state={{ origem: localizacao }} />;
+  }
+
+  if (!temPerfil(usuario, perfisPermitidos)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

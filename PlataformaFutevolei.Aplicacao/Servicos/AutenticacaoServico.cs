@@ -4,7 +4,9 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 using System.Security.Cryptography;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
@@ -32,9 +34,20 @@ public class AutenticacaoServico(
             Nome = dto.Nome.Trim(),
             Email = emailNormalizado,
             SenhaHash = senhaServico.GerarHash(dto.Senha),
-            Perfil = dto.Perfil,
+            Perfil = PerfilUsuario.Atleta,
             Ativo = true
         };
+        var (nomeAtleta, apelidoAtleta) = NormalizadorNomeAtleta.NormalizarNomeEApelido(usuario.Nome, null);
+        var atleta = new Atleta
+        {
+            Nome = nomeAtleta,
+            Apelido = apelidoAtleta,
+            Email = usuario.Email,
+            CadastroPendente = true,
+            Lado = LadoAtleta.Ambos
+        };
+        usuario.AtletaId = atleta.Id;
+        usuario.Atleta = atleta;
 
         await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);

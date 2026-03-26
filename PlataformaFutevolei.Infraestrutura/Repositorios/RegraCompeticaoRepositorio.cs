@@ -11,13 +11,16 @@ public class RegraCompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) 
     {
         return await dbContext.RegrasCompeticao
             .AsNoTracking()
+            .Include(x => x.UsuarioCriador)
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
     }
 
     public Task<RegraCompeticao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return dbContext.RegrasCompeticao.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return dbContext.RegrasCompeticao
+            .Include(x => x.UsuarioCriador)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public Task<RegraCompeticao?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default)

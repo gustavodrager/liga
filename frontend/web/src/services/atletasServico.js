@@ -1,8 +1,24 @@
 import { http } from './http';
 
 export const atletasServico = {
-  async listar() {
-    const resposta = await http.get('/atletas');
+  async listar(filtros = {}) {
+    const resposta = await http.get('/atletas', {
+      params: filtros.somenteInscritosMinhasCompeticoes
+        ? { somenteInscritosMinhasCompeticoes: true }
+        : undefined
+    });
+    return resposta.data;
+  },
+
+  async buscar(termo) {
+    const resposta = await http.get('/atletas/busca', {
+      params: termo ? { termo } : undefined
+    });
+    return resposta.data;
+  },
+
+  async obterPorId(id) {
+    const resposta = await http.get(`/atletas/${id}`);
     return resposta.data;
   },
 

@@ -36,4 +36,24 @@ public class InscricoesCampeonatoController(IInscricaoCampeonatoServico inscrica
         var inscricao = await inscricaoServico.CriarAsync(campeonatoId, dto, cancellationToken);
         return CreatedAtAction(nameof(ObterPorId), new { campeonatoId, id = inscricao.Id }, inscricao);
     }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(InscricaoCampeonatoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Atualizar(
+        Guid campeonatoId,
+        Guid id,
+        [FromBody] CriarInscricaoCampeonatoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var inscricao = await inscricaoServico.AtualizarAsync(campeonatoId, id, dto, cancellationToken);
+        return Ok(inscricao);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Remover(Guid campeonatoId, Guid id, CancellationToken cancellationToken)
+    {
+        await inscricaoServico.RemoverAsync(campeonatoId, id, cancellationToken);
+        return NoContent();
+    }
 }

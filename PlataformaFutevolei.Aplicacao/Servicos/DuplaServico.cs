@@ -1,26 +1,59 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class DuplaServico(
     IDuplaRepositorio duplaRepositorio,
     IAtletaRepositorio atletaRepositorio,
-    IUnidadeTrabalho unidadeTrabalho
+    IUnidadeTrabalho unidadeTrabalho,
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IDuplaServico
 {
-    public async Task<IReadOnlyList<DuplaDto>> ListarAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DuplaDto>> ListarAsync(
+        bool somenteInscritasMinhasCompeticoes = false,
+        CancellationToken cancellationToken = default)
     {
-        var duplas = await duplaRepositorio.ListarAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
+        {
+            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
+        }
+
+        var duplas = somenteInscritasMinhasCompeticoes && usuario.Perfil == PerfilUsuario.Organizador
+            ? await duplaRepositorio.ListarInscritasPorOrganizadorAsync(usuario.Id, cancellationToken)
+            : await duplaRepositorio.ListarAsync(cancellationToken);
+
+        return duplas.Select(x => x.ParaDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<DuplaDto>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            await autorizacaoUsuarioServico.GarantirAcessoAtletaAsync(atletaId, cancellationToken);
+        }
+
+        var duplas = await duplaRepositorio.ListarPorAtletaAsync(atletaId, cancellationToken);
         return duplas.Select(x => x.ParaDto()).ToList();
     }
 
     public async Task<DuplaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        GarantirPerfilGestor(usuario);
+        if (usuario.Perfil == PerfilUsuario.Organizador)
+        {
+            await GarantirAcessoOrganizadorAsync(id, usuario.Id, cancellationToken);
+        }
+
         var dupla = await duplaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (dupla is null)
         {
@@ -32,13 +65,14 @@ public class DuplaServico(
 
     public async Task<DuplaDto> CriarAsync(CriarDuplaDto dto, CancellationToken cancellationToken = default)
     {
+        await autorizacaoUsuarioServico.GarantirAdminOuOrganizadorAsync(cancellationToken);
         var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(dto.Atleta1Id, dto.Atleta2Id);
         var (atleta1, atleta2) = await ValidarAtletasAsync(atletaNormalizado1Id, atletaNormalizado2Id, cancellationToken);
 
         var existente = await duplaRepositorio.ObterPorAtletasAsync(atletaNormalizado1Id, atletaNormalizado2Id, cancellationToken);
         if (existente is not null)
         {
-            throw new RegraNegocioException("Já existe uma dupla cadastrada com estes atletas.");
+            return existente.ParaDto();
         }
 
         var dupla = new Dupla
@@ -56,6 +90,13 @@ public class DuplaServico(
 
     public async Task<DuplaDto> AtualizarAsync(Guid id, AtualizarDuplaDto dto, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        GarantirPerfilGestor(usuario);
+        if (usuario.Perfil == PerfilUsuario.Organizador)
+        {
+            await GarantirAcessoOrganizadorAsync(id, usuario.Id, cancellationToken);
+        }
+
         var dupla = await duplaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (dupla is null)
         {
@@ -84,6 +125,13 @@ public class DuplaServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        GarantirPerfilGestor(usuario);
+        if (usuario.Perfil == PerfilUsuario.Organizador)
+        {
+            await GarantirAcessoOrganizadorAsync(id, usuario.Id, cancellationToken);
+        }
+
         var dupla = await duplaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (dupla is null)
         {
@@ -92,6 +140,23 @@ public class DuplaServico(
 
         duplaRepositorio.Remover(dupla);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private static void GarantirPerfilGestor(Usuario usuario)
+    {
+        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
+        {
+            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
+        }
+    }
+
+    private async Task GarantirAcessoOrganizadorAsync(Guid duplaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken)
+    {
+        var pertenceAoOrganizador = await duplaRepositorio.PertenceAoOrganizadorAsync(duplaId, usuarioOrganizadorId, cancellationToken);
+        if (!pertenceAoOrganizador)
+        {
+            throw new RegraNegocioException("O organizador só pode alterar duplas inscritas em competições vinculadas ao próprio usuário.");
+        }
     }
 
     private async Task<(Atleta atleta1, Atleta atleta2)> ValidarAtletasAsync(Guid atleta1Id, Guid atleta2Id, CancellationToken cancellationToken)

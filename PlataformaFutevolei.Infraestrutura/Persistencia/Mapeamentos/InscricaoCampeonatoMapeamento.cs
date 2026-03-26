@@ -8,17 +8,14 @@ public class InscricaoCampeonatoMapeamento : IEntityTypeConfiguration<InscricaoC
 {
     public void Configure(EntityTypeBuilder<InscricaoCampeonato> builder)
     {
-        builder.ToTable("inscricoes_campeonato", tabela =>
-        {
-            tabela.HasCheckConstraint("ck_inscricoes_campeonato_atletas_diferentes", "\"atleta1_id\" <> \"atleta2_id\"");
-        });
+        builder.ToTable("inscricoes_campeonato");
 
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.CompeticaoId).HasColumnName("competicao_id").IsRequired();
         builder.Property(x => x.CategoriaCompeticaoId).HasColumnName("categoria_competicao_id").IsRequired();
-        builder.Property(x => x.Atleta1Id).HasColumnName("atleta1_id").IsRequired();
-        builder.Property(x => x.Atleta2Id).HasColumnName("atleta2_id").IsRequired();
+        builder.Property(x => x.DuplaId).HasColumnName("dupla_id").IsRequired();
+        builder.Property(x => x.Pago).HasColumnName("pago").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.DataInscricaoUtc).HasColumnName("data_inscricao_utc").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").IsRequired();
         builder.Property(x => x.Observacao).HasColumnName("observacao").HasMaxLength(1000);
@@ -35,20 +32,14 @@ public class InscricaoCampeonatoMapeamento : IEntityTypeConfiguration<InscricaoC
             .HasForeignKey(x => x.CategoriaCompeticaoId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(x => x.Atleta1)
-            .WithMany(x => x.InscricoesComoAtleta1)
-            .HasForeignKey(x => x.Atleta1Id)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(x => x.Atleta2)
-            .WithMany(x => x.InscricoesComoAtleta2)
-            .HasForeignKey(x => x.Atleta2Id)
+        builder.HasOne(x => x.Dupla)
+            .WithMany()
+            .HasForeignKey(x => x.DuplaId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.CompeticaoId);
         builder.HasIndex(x => x.CategoriaCompeticaoId);
-        builder.HasIndex(x => x.Atleta1Id);
-        builder.HasIndex(x => x.Atleta2Id);
-        builder.HasIndex(x => new { x.CategoriaCompeticaoId, x.Atleta1Id, x.Atleta2Id }).IsUnique();
+        builder.HasIndex(x => x.DuplaId);
+        builder.HasIndex(x => new { x.CategoriaCompeticaoId, x.DuplaId }).IsUnique();
     }
 }

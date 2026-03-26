@@ -1,6 +1,7 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Dominio.Entidades;
@@ -10,7 +11,8 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class LocalServico(
     ILocalRepositorio localRepositorio,
-    IUnidadeTrabalho unidadeTrabalho
+    IUnidadeTrabalho unidadeTrabalho,
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : ILocalServico
 {
     public async Task<IReadOnlyList<LocalDto>> ListarAsync(CancellationToken cancellationToken = default)
@@ -32,6 +34,7 @@ public class LocalServico(
 
     public async Task<LocalDto> CriarAsync(CriarLocalDto dto, CancellationToken cancellationToken = default)
     {
+        var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var nome = ValidarNome(dto.Nome);
         ValidarTipo(dto.Tipo);
         ValidarQuantidadeQuadras(dto.QuantidadeQuadras);
@@ -41,7 +44,8 @@ public class LocalServico(
         {
             Nome = nome,
             Tipo = dto.Tipo,
-            QuantidadeQuadras = dto.QuantidadeQuadras
+            QuantidadeQuadras = dto.QuantidadeQuadras,
+            UsuarioCriadorId = usuario.Id
         };
 
         await localRepositorio.AdicionarAsync(local, cancellationToken);
@@ -51,11 +55,14 @@ public class LocalServico(
 
     public async Task<LocalDto> AtualizarAsync(Guid id, AtualizarLocalDto dto, CancellationToken cancellationToken = default)
     {
+        var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var local = await localRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (local is null)
         {
             throw new EntidadeNaoEncontradaException("Local não encontrado.");
         }
+
+        GarantirGestaoPermitida(usuario, local.UsuarioCriadorId, "O organizador só pode alterar locais criados pelo próprio usuário.");
 
         var nome = ValidarNome(dto.Nome);
         ValidarTipo(dto.Tipo);
@@ -79,14 +86,41 @@ public class LocalServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var local = await localRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (local is null)
         {
             throw new EntidadeNaoEncontradaException("Local não encontrado.");
         }
 
+        GarantirGestaoPermitida(usuario, local.UsuarioCriadorId, "O organizador só pode excluir locais criados pelo próprio usuário.");
+
         localRepositorio.Remover(local);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private async Task<Usuario> ObterUsuarioGestorAsync(CancellationToken cancellationToken)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
+        {
+            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
+        }
+
+        return usuario;
+    }
+
+    private static void GarantirGestaoPermitida(Usuario usuario, Guid? usuarioCriadorId, string mensagem)
+    {
+        if (usuario.Perfil == PerfilUsuario.Administrador)
+        {
+            return;
+        }
+
+        if (usuarioCriadorId != usuario.Id)
+        {
+            throw new RegraNegocioException(mensagem);
+        }
     }
 
     private async Task ValidarDuplicidadeAsync(string nome, CancellationToken cancellationToken)

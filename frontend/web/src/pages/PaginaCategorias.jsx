@@ -54,6 +54,18 @@ export function PaginaCategorias() {
     carregarCategorias(formulario.competicaoId);
   }, [formulario.competicaoId]);
 
+  useEffect(() => {
+    const categoriaId = params.get('categoriaId');
+    if (!categoriaId || categorias.length === 0) {
+      return;
+    }
+
+    const categoria = categorias.find((item) => item.id === categoriaId);
+    if (categoria && categoriaEdicaoId !== categoria.id) {
+      iniciarEdicao(categoria);
+    }
+  }, [categorias, categoriaEdicaoId, params]);
+
   async function carregarCompeticoes() {
     setErro('');
     setCarregando(true);
@@ -67,7 +79,7 @@ export function PaginaCategorias() {
 
       setFormulario((anterior) => ({ ...anterior, competicaoId: competicaoPadrao }));
       if (competicaoPadrao) {
-        setParams({ competicaoId: competicaoPadrao });
+        atualizarParametros(competicaoPadrao, params.get('categoriaId') || '');
       }
     } catch (error) {
       setErro(extrairMensagemErro(error));
@@ -89,8 +101,23 @@ export function PaginaCategorias() {
     setFormulario((anterior) => ({ ...anterior, [campo]: valor }));
 
     if (campo === 'competicaoId') {
-      setParams({ competicaoId: valor });
+      setCategoriaEdicaoId(null);
+      atualizarParametros(valor, '');
     }
+  }
+
+  function atualizarParametros(competicaoId, categoriaId = '') {
+    const proximosParams = {};
+
+    if (competicaoId) {
+      proximosParams.competicaoId = competicaoId;
+    }
+
+    if (categoriaId) {
+      proximosParams.categoriaId = categoriaId;
+    }
+
+    setParams(proximosParams);
   }
 
   function iniciarEdicao(categoria) {
@@ -102,7 +129,7 @@ export function PaginaCategorias() {
       nivel: String(categoria.nivel),
       pesoRanking: String(categoria.pesoRanking)
     });
-    setParams({ competicaoId: categoria.competicaoId });
+    atualizarParametros(categoria.competicaoId, categoria.id);
     rolarParaElemento(formularioRef.current);
   }
 
@@ -112,6 +139,7 @@ export function PaginaCategorias() {
       ...estadoInicial,
       competicaoId: anterior.competicaoId || ''
     }));
+    atualizarParametros(formulario.competicaoId, '');
   }
 
   async function aoSubmeter(evento) {
@@ -276,7 +304,7 @@ export function PaginaCategorias() {
                 >
                   Partidas
                 </button>
-                {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo === 1 && (
+                {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
                   <button
                     type="button"
                     className="botao-terciario"

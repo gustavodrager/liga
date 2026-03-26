@@ -17,3 +17,12 @@ public interface IUsuarioContexto
 {
     Guid? UsuarioId { get; }
 }
+
+public interface IAutorizacaoUsuarioServico
+{
+    Task<Usuario> ObterUsuarioAtualObrigatorioAsync(CancellationToken cancellationToken = default);
+    Task GarantirAdministradorAsync(CancellationToken cancellationToken = default);
+    Task GarantirAdminOuOrganizadorAsync(CancellationToken cancellationToken = default);
+    Task GarantirAcessoAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task GarantirGestaoCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+}

@@ -429,6 +429,377 @@ button {
   flex-wrap: wrap;
 }
 
+.chave-visualizacao {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  background:
+    radial-gradient(circle at top left, rgba(255, 180, 0, 0.16), transparent 28%),
+    linear-gradient(180deg, #fffdf8 0%, #fff8e8 100%);
+  border: 1px solid var(--cor-borda);
+  color: var(--cor-texto);
+  box-shadow: var(--sombra);
+}
+
+.barra-visualizacao-partidas {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.barra-visualizacao-partidas strong {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6e5200;
+}
+
+.barra-visualizacao-partidas p {
+  margin: 0.35rem 0 0;
+}
+
+.chave-visualizacao-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 0.4rem;
+}
+
+.chave-visualizacao-cabecalho p {
+  margin: 0.3rem 0 0;
+  color: #6e5200;
+}
+
+.chave-jogos-wrapper {
+  overflow-x: auto;
+  padding: 0.2rem 0.4rem 0.6rem;
+}
+
+.chave-jogos-grade {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(240px, auto) minmax(320px, 1fr);
+  gap: 2rem;
+  align-items: start;
+  min-width: max-content;
+}
+
+.chave-jogos-lado {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.chave-jogos-lado.esquerda {
+  justify-content: flex-start;
+}
+
+.chave-jogos-lado.direita {
+  justify-content: flex-end;
+}
+
+.chave-jogos-centro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 240px;
+}
+
+.chave-jogos-setor-cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  background: var(--cor-terciaria);
+  border: 1px solid var(--cor-borda);
+  color: var(--cor-texto-fundo-escuro);
+}
+
+.chave-jogos-setor-cabecalho.centro {
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.chave-jogos-setor-cabecalho span {
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chave-jogos-setor-cabecalho small {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffe6a8;
+}
+
+.chave-jogos-centro-vazio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 1.25rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  color: var(--cor-texto);
+}
+
+.chave-jogos-centro-vazio strong {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chave-jogos-centro-vazio p {
+  margin: 0;
+  max-width: 220px;
+  color: #6e5200;
+}
+
+.chave-jogos {
+  display: flex;
+  align-items: stretch;
+  gap: 1.75rem;
+  min-width: max-content;
+}
+
+.chave-coluna {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 280px;
+}
+
+.chave-coluna-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(255, 180, 0, 0.12);
+  border: 1px solid var(--cor-borda);
+}
+
+.chave-coluna-cabecalho h4 {
+  font-size: 1rem;
+  color: var(--cor-texto);
+}
+
+.chave-coluna-cabecalho span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #8a6800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chave-coluna-jogos {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 1.15rem;
+  min-height: 100%;
+}
+
+.chave-jogo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.15rem;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--cor-texto);
+  text-align: left;
+}
+
+.chave-jogo.interativo {
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.chave-jogo.interativo:hover {
+  transform: translateY(-2px);
+  filter: none;
+}
+
+.chave-jogo:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.chave-coluna.lado-esquerda:not(.ultima) .chave-jogo::after,
+.chave-coluna.lado-direita:not(.primeira) .chave-jogo::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 1.2rem;
+  border-top: 2px solid rgba(255, 180, 0, 0.85);
+  transform: translateY(-50%);
+}
+
+.chave-coluna.lado-esquerda:not(.ultima) .chave-jogo::after {
+  right: -1.2rem;
+}
+
+.chave-coluna.lado-direita:not(.primeira) .chave-jogo::after {
+  left: -1.2rem;
+}
+
+.chave-coluna.lado-esquerda:not(.ultima) .chave-jogo:nth-child(odd)::before,
+.chave-coluna.lado-esquerda:not(.ultima) .chave-jogo:nth-child(even)::before,
+.chave-coluna.lado-direita:not(.primeira) .chave-jogo:nth-child(odd)::before,
+.chave-coluna.lado-direita:not(.primeira) .chave-jogo:nth-child(even)::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  height: calc(100% + 1.15rem);
+  border-right: 2px solid rgba(255, 180, 0, 0.85);
+}
+
+.chave-coluna.lado-esquerda:not(.ultima) .chave-jogo:nth-child(odd)::before {
+  right: -1.2rem;
+}
+
+.chave-coluna.lado-esquerda:not(.ultima) .chave-jogo:nth-child(even)::before {
+  right: -1.2rem;
+  transform: translateY(-100%);
+}
+
+.chave-coluna.lado-direita:not(.primeira) .chave-jogo:nth-child(odd)::before {
+  left: -1.2rem;
+}
+
+.chave-coluna.lado-direita:not(.primeira) .chave-jogo:nth-child(even)::before {
+  left: -1.2rem;
+  transform: translateY(-100%);
+}
+
+.chave-jogo-cabecalho,
+.chave-jogo-rodape {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  color: #8a6800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chave-jogo-indice {
+  font-weight: 700;
+}
+
+.chave-jogo-status {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 180, 0, 0.14);
+  color: #8a6800;
+}
+
+.chave-jogo-status.status-encerrada {
+  background: rgba(33, 122, 33, 0.14);
+  color: #1f7a1f;
+}
+
+.chave-jogo-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  background: var(--cor-superficie);
+  border: 1px solid #f0dba0;
+  box-shadow: 0 6px 16px rgba(255, 180, 0, 0.1);
+}
+
+.chave-jogo-linha strong {
+  font-size: 0.98rem;
+  color: var(--cor-texto);
+  font-weight: 700;
+}
+
+.chave-jogo-linha span {
+  min-width: 2.8rem;
+  text-align: right;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--cor-texto);
+}
+
+.chave-jogo-linha.vencedora {
+  background: linear-gradient(180deg, #fff7df 0%, #ffefbf 100%);
+  border-color: var(--cor-primaria);
+}
+
+.chave-jogo-linha.vencedora span {
+  color: #8a6800;
+}
+
+.chave-jogo small {
+  color: #8a6800;
+  font-weight: 600;
+}
+
+.chave-jogo-rodape .botao-terciario {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.72rem;
+}
+
+.lancamento-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(255, 180, 0, 0.08);
+  border: 1px solid rgba(255, 180, 0, 0.24);
+}
+
+.lancamento-resultado label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lancamento-resultado span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+
+.lancamento-resultado input {
+  width: 5.5rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.lancamento-resultado-chave .botao-primario,
+.lancamento-resultado-lista .botao-primario {
+  width: 100%;
+}
+
+.lancamento-resultado-lista {
+  margin: 0.5rem 0 0;
+}
+
 .acoes-importacao {
   display: flex;
   flex-direction: column;
@@ -589,5 +960,49 @@ button {
 
   .cartao-lista {
     padding: 0.85rem;
+  }
+
+  .chave-visualizacao-cabecalho {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .barra-visualizacao-partidas {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chave-jogos-grade {
+    grid-template-columns: 1fr;
+    min-width: 100%;
+  }
+
+  .chave-jogos-lado,
+  .chave-jogos-centro {
+    width: 100%;
+  }
+
+  .chave-jogos-setor-cabecalho.centro {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .chave-jogos {
+    flex-direction: column;
+    min-width: 100%;
+  }
+
+  .chave-coluna {
+    min-width: 100%;
+  }
+
+  .chave-coluna .chave-jogo::after,
+  .chave-coluna .chave-jogo::before {
+    display: none;
+  }
+
+  .chave-jogos-centro-vazio {
+    width: 100%;
+    min-height: auto;
   }
 }

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { definirManipuladorNaoAutorizado, definirTokenAutorizacao } from '../services/http';
 import { autenticacaoServico } from '../services/autenticacaoServico';
+import { PERFIS_USUARIO } from '../utils/perfis';
 
 const CHAVE_ARMAZENAMENTO = 'plataforma_futevolei_autenticacao';
 
@@ -52,6 +53,22 @@ export function ProvedorAutenticacao({ children }) {
     localStorage.removeItem(CHAVE_ARMAZENAMENTO);
   }, []);
 
+  const atualizarUsuarioLocal = useCallback((proximoUsuario) => {
+    setUsuario(proximoUsuario);
+    setToken((tokenAtual) => {
+      if (!tokenAtual) {
+        return tokenAtual;
+      }
+
+      localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify({
+        token: tokenAtual,
+        usuario: proximoUsuario
+      }));
+
+      return tokenAtual;
+    });
+  }, []);
+
   useEffect(() => {
     const conteudo = localStorage.getItem(CHAVE_ARMAZENAMENTO);
     if (!conteudo) {
@@ -88,11 +105,17 @@ export function ProvedorAutenticacao({ children }) {
       nome,
       email,
       senha,
-      perfil: 1
+      perfil: PERFIS_USUARIO.atleta
     });
     salvarAutenticacao(resposta);
     return resposta;
   }, [salvarAutenticacao]);
+
+  const recarregarUsuario = useCallback(async () => {
+    const usuarioAtual = await autenticacaoServico.me();
+    atualizarUsuarioLocal(usuarioAtual);
+    return usuarioAtual;
+  }, [atualizarUsuarioLocal]);
 
   useEffect(() => {
     definirManipuladorNaoAutorizado(sair);
@@ -102,8 +125,17 @@ export function ProvedorAutenticacao({ children }) {
   }, [sair]);
 
   const valor = useMemo(
-    () => ({ token, usuario, carregando, entrar, registrar, sair }),
-    [token, usuario, carregando, entrar, registrar, sair]
+    () => ({
+      token,
+      usuario,
+      carregando,
+      entrar,
+      registrar,
+      sair,
+      recarregarUsuario,
+      atualizarUsuarioLocal
+    }),
+    [token, usuario, carregando, entrar, registrar, sair, recarregarUsuario, atualizarUsuarioLocal]
   );
 
   return <AutenticacaoContexto.Provider value={valor}>{children}</AutenticacaoContexto.Provider>;

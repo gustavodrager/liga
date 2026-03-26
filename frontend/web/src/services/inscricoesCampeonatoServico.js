@@ -11,5 +11,14 @@ export const inscricoesCampeonatoServico = {
   async criar(campeonatoId, dados) {
     const resposta = await http.post(`/campeonatos/${campeonatoId}/inscricoes`, dados);
     return resposta.data;
+  },
+
+  async atualizar(campeonatoId, inscricaoId, dados) {
+    const resposta = await http.put(`/campeonatos/${campeonatoId}/inscricoes/${inscricaoId}`, dados);
+    return resposta.data;
+  },
+
+  async remover(campeonatoId, inscricaoId) {
+    await http.delete(`/campeonatos/${campeonatoId}/inscricoes/${inscricaoId}`);
   }
 };

@@ -90,6 +90,21 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
 
     public void Remover(Partida partida)
     {
-        dbContext.Partidas.Remove(partida);
+        var partidaPersistida = dbContext.ChangeTracker
+            .Entries<Partida>()
+            .FirstOrDefault(x => x.Entity.Id == partida.Id)?
+            .Entity;
+
+        if (partidaPersistida is not null)
+        {
+            dbContext.Partidas.Remove(partidaPersistida);
+            return;
+        }
+
+        partida.CategoriaCompeticao = null!;
+        partida.DuplaA = null!;
+        partida.DuplaB = null!;
+        partida.DuplaVencedora = null;
+        dbContext.Entry(partida).State = EntityState.Deleted;
     }
 }

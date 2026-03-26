@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { regrasCompeticaoServico } from '../services/regrasCompeticaoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
 import { rolarParaElemento } from '../utils/rolagem';
+import { ehAdministrador } from '../utils/perfis';
 
 const estadoInicial = {
   nome: '',
@@ -18,6 +20,8 @@ const estadoInicial = {
 };
 
 export function PaginaRegrasCompeticao() {
+  const { usuario } = useAutenticacao();
+  const usuarioAdministrador = ehAdministrador(usuario);
   const [regras, setRegras] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
   const [regraEdicaoId, setRegraEdicaoId] = useState(null);
@@ -61,6 +65,11 @@ export function PaginaRegrasCompeticao() {
   }
 
   function iniciarEdicao(regra) {
+    if (!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id) {
+      setErro('Você só pode editar regras criadas pelo próprio usuário.');
+      return;
+    }
+
     setRegraEdicaoId(regra.id);
     setFormulario({
       nome: regra.nome,
@@ -123,6 +132,12 @@ export function PaginaRegrasCompeticao() {
   }
 
   async function removerRegra(id) {
+    const regra = regras.find((item) => item.id === id);
+    if (regra && !usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id) {
+      setErro('Você só pode excluir regras criadas pelo próprio usuário.');
+      return;
+    }
+
     if (!window.confirm('Deseja remover esta regra?')) {
       return;
     }
@@ -331,14 +346,25 @@ export function PaginaRegrasCompeticao() {
                   Jogo: vitória {regra.pontosVitoria} / derrota {regra.pontosDerrota} / participação{' '}
                   {regra.pontosParticipacao}
                 </p>
+                <p>Criada por: {regra.nomeUsuarioCriador || 'Registro legado'}</p>
                 <p>Criada em: {formatarDataHora(regra.dataCriacao)}</p>
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(regra)}>
+                <button
+                  type="button"
+                  className="botao-secundario"
+                  onClick={() => iniciarEdicao(regra)}
+                  disabled={!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id}
+                >
                   Editar
                 </button>
-                <button type="button" className="botao-perigo" onClick={() => removerRegra(regra.id)}>
+                <button
+                  type="button"
+                  className="botao-perigo"
+                  onClick={() => removerRegra(regra.id)}
+                  disabled={!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id}
+                >
                   Excluir
                 </button>
               </div>

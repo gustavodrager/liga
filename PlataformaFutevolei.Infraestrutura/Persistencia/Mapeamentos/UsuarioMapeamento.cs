@@ -21,10 +21,17 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
         builder.Property(x => x.CodigoRedefinicaoSenhaExpiraEmUtc)
             .HasColumnName("codigo_redefinicao_senha_expira_em_utc");
         builder.Property(x => x.Perfil).HasColumnName("perfil").IsRequired();
+        builder.Property(x => x.AtletaId).HasColumnName("atleta_id");
         builder.Property(x => x.Ativo).HasColumnName("ativo").IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
         builder.HasIndex(x => x.Email).IsUnique();
+        builder.HasIndex(x => x.AtletaId).IsUnique();
+
+        builder.HasOne(x => x.Atleta)
+            .WithOne(x => x.Usuario)
+            .HasForeignKey<Usuario>(x => x.AtletaId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

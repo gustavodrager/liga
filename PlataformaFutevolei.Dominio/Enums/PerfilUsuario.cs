@@ -3,5 +3,6 @@ namespace PlataformaFutevolei.Dominio.Enums;
 public enum PerfilUsuario
 {
     Administrador = 1,
-    Usuario = 2
+    Organizador = 2,
+    Atleta = 3
 }

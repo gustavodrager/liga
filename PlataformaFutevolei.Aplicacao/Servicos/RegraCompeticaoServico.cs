@@ -1,15 +1,18 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class RegraCompeticaoServico(
     IRegraCompeticaoRepositorio regraRepositorio,
-    IUnidadeTrabalho unidadeTrabalho
+    IUnidadeTrabalho unidadeTrabalho,
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRegraCompeticaoServico
 {
     public async Task<IReadOnlyList<RegraCompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default)
@@ -31,6 +34,7 @@ public class RegraCompeticaoServico(
 
     public async Task<RegraCompeticaoDto> CriarAsync(CriarRegraCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
+        var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var nome = await ValidarAsync(
             dto.Nome,
             dto.PontosMinimosPartida,
@@ -56,7 +60,8 @@ public class RegraCompeticaoServico(
             PontosParticipacao = dto.PontosParticipacao,
             PontosPrimeiroLugar = dto.PontosPrimeiroLugar,
             PontosSegundoLugar = dto.PontosSegundoLugar,
-            PontosTerceiroLugar = dto.PontosTerceiroLugar
+            PontosTerceiroLugar = dto.PontosTerceiroLugar,
+            UsuarioCriadorId = usuario.Id
         };
 
         await regraRepositorio.AdicionarAsync(regra, cancellationToken);
@@ -66,11 +71,14 @@ public class RegraCompeticaoServico(
 
     public async Task<RegraCompeticaoDto> AtualizarAsync(Guid id, AtualizarRegraCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
+        var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var regra = await regraRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (regra is null)
         {
             throw new EntidadeNaoEncontradaException("Regra não encontrada.");
         }
+
+        GarantirGestaoPermitida(usuario, regra.UsuarioCriadorId, "O organizador só pode alterar regras criadas pelo próprio usuário.");
 
         regra.Nome = await ValidarAsync(
             dto.Nome,
@@ -103,14 +111,41 @@ public class RegraCompeticaoServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var regra = await regraRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (regra is null)
         {
             throw new EntidadeNaoEncontradaException("Regra não encontrada.");
         }
 
+        GarantirGestaoPermitida(usuario, regra.UsuarioCriadorId, "O organizador só pode excluir regras criadas pelo próprio usuário.");
+
         regraRepositorio.Remover(regra);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private async Task<Usuario> ObterUsuarioGestorAsync(CancellationToken cancellationToken)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
+        {
+            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
+        }
+
+        return usuario;
+    }
+
+    private static void GarantirGestaoPermitida(Usuario usuario, Guid? usuarioCriadorId, string mensagem)
+    {
+        if (usuario.Perfil == PerfilUsuario.Administrador)
+        {
+            return;
+        }
+
+        if (usuarioCriadorId != usuario.Id)
+        {
+            throw new RegraNegocioException(mensagem);
+        }
     }
 
     private async Task<string> ValidarAsync(

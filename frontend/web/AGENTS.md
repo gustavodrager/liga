@@ -15,6 +15,11 @@ Seguir o `AGENTS.md` da raiz. Neste diretório, além disso:
 - `Competições` já concentra atalhos para categorias e inscrições; preservar esse papel antes de criar navegação paralela
 - `Locais` é cadastro próprio e `Competições` apenas referencia o local escolhido
 - `Inscrições` aceita dupla existente ou criação no fluxo a partir de `Jogador 1` e `Jogador 2`
-- `Partidas` deve exibir a tabela de jogos da categoria; administrador pode gerar/alterar jogos e usuário comum apenas visualizar jogos e resultados
+- `Meu Perfil` existe para qualquer usuário e concentra vínculo `Usuario` ↔ `Atleta`
+- Usuário comum (`Atleta`) não vincula atleta existente; cria apenas o próprio atleta com o mesmo nome e e-mail do usuário
+- `Competições` para atleta funciona como vitrine de campeonatos com inscrições abertas; para gestor continua sendo tela de gestão
+- `Inscrições` para atleta permite escolher campeonato/categoria e se inscrever com dupla própria ou parceiro ainda pendente
+- `Usuários` existe apenas para administrador; esconder rota e menu fora desse perfil
+- `Partidas` deve exibir a tabela de jogos da categoria; administrador e organizador podem gerar/alterar jogos, respeitando ownership da competição
 - `Ranking` já possui modos de liga e competição; o da liga é consolidado e o da competição segue separado por categoria
 - `Modelos de importação` já oferece download e upload CSV por tipo de cadastro

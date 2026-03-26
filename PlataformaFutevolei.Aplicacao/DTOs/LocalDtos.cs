@@ -19,6 +19,8 @@ public record LocalDto(
     string Nome,
     TipoLocal Tipo,
     int QuantidadeQuadras,
+    Guid? UsuarioCriadorId,
+    string? NomeUsuarioCriador,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

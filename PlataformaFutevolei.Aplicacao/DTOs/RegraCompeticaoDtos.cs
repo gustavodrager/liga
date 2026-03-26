@@ -41,6 +41,8 @@ public record RegraCompeticaoDto(
     decimal PontosPrimeiroLugar,
     decimal PontosSegundoLugar,
     decimal PontosTerceiroLugar,
+    Guid? UsuarioCriadorId,
+    string? NomeUsuarioCriador,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

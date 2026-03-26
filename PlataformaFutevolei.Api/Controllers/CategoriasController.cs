@@ -43,6 +43,15 @@ public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, 
         return NoContent();
     }
 
+    [HttpPost("{id:guid}/partidas/aprovar")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
+    [ProducesResponseType(typeof(CategoriaCompeticaoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AprovarTabelaPartidas(Guid id, CancellationToken cancellationToken)
+    {
+        var categoria = await categoriaServico.AprovarTabelaJogosAsync(id, cancellationToken);
+        return Ok(categoria);
+    }
+
     [HttpGet("{id:guid}/partidas")]
     [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarPartidas(Guid id, CancellationToken cancellationToken)
@@ -52,7 +61,7 @@ public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, 
     }
 
     [HttpPost("{id:guid}/partidas/gerar-tabela")]
-    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(GeracaoTabelaCategoriaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GerarTabelaPartidas(
         Guid id,
@@ -60,6 +69,15 @@ public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, 
         CancellationToken cancellationToken)
     {
         var resultado = await partidaServico.GerarTabelaCategoriaAsync(id, dto, cancellationToken);
+        return Ok(resultado);
+    }
+
+    [HttpDelete("{id:guid}/partidas")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
+    [ProducesResponseType(typeof(RemocaoTabelaCategoriaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoverTabelaPartidas(Guid id, CancellationToken cancellationToken)
+    {
+        var resultado = await partidaServico.RemoverTabelaCategoriaAsync(id, cancellationToken);
         return Ok(resultado);
     }
 }

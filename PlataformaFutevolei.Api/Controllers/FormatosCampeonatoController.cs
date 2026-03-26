@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -11,6 +12,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class FormatosCampeonatoController(IFormatoCampeonatoServico formatoServico) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(IReadOnlyList<FormatoCampeonatoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(CancellationToken cancellationToken)
     {
@@ -19,6 +21,7 @@ public class FormatosCampeonatoController(IFormatoCampeonatoServico formatoServi
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(FormatoCampeonatoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {
@@ -27,6 +30,7 @@ public class FormatosCampeonatoController(IFormatoCampeonatoServico formatoServi
     }
 
     [HttpPost]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(typeof(FormatoCampeonatoDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarFormatoCampeonatoDto dto, CancellationToken cancellationToken)
     {
@@ -35,6 +39,7 @@ public class FormatosCampeonatoController(IFormatoCampeonatoServico formatoServi
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(typeof(FormatoCampeonatoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarFormatoCampeonatoDto dto, CancellationToken cancellationToken)
     {
@@ -43,6 +48,7 @@ public class FormatosCampeonatoController(IFormatoCampeonatoServico formatoServi
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {

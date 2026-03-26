@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
@@ -13,6 +14,69 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
         return await dbContext.Atletas
             .AsNoTracking()
             .OrderBy(x => x.Nome)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Atleta>> ListarInscritosPorOrganizadorAsync(
+        Guid usuarioOrganizadorId,
+        CancellationToken cancellationToken = default)
+    {
+        var atleta1Ids = dbContext.InscricoesCampeonato
+            .AsNoTracking()
+            .Where(x =>
+                x.Status == StatusInscricaoCampeonato.Ativa &&
+                x.Competicao.UsuarioOrganizadorId == usuarioOrganizadorId)
+            .Select(x => x.Dupla.Atleta1Id);
+
+        var atleta2Ids = dbContext.InscricoesCampeonato
+            .AsNoTracking()
+            .Where(x =>
+                x.Status == StatusInscricaoCampeonato.Ativa &&
+                x.Competicao.UsuarioOrganizadorId == usuarioOrganizadorId)
+            .Select(x => x.Dupla.Atleta2Id);
+
+        return await dbContext.Atletas
+            .AsNoTracking()
+            .Where(x => atleta1Ids.Contains(x.Id) || atleta2Ids.Contains(x.Id))
+            .OrderBy(x => x.Nome)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<bool> PertenceAoOrganizadorAsync(
+        Guid atletaId,
+        Guid usuarioOrganizadorId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.InscricoesCampeonato
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.Status == StatusInscricaoCampeonato.Ativa &&
+                     x.Competicao.UsuarioOrganizadorId == usuarioOrganizadorId &&
+                     (x.Dupla.Atleta1Id == atletaId || x.Dupla.Atleta2Id == atletaId),
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Atleta>> BuscarAsync(string? termo, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Atletas
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(termo))
+        {
+            var termoNormalizado = termo.Trim().ToLowerInvariant();
+            query = query.Where(x =>
+                x.Nome.ToLower().Contains(termoNormalizado) ||
+                (x.Apelido != null && x.Apelido.ToLower().Contains(termoNormalizado)) ||
+                (x.Email != null && x.Email.ToLower().Contains(termoNormalizado)) ||
+                (x.Telefone != null && x.Telefone.ToLower().Contains(termoNormalizado)) ||
+                (x.Cpf != null && x.Cpf.ToLower().Contains(termoNormalizado)) ||
+                (x.Instagram != null && x.Instagram.ToLower().Contains(termoNormalizado)));
+        }
+
+        return await query
+            .OrderBy(x => x.Nome)
+            .Take(20)
             .ToListAsync(cancellationToken);
     }
 

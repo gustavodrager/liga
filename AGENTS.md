@@ -10,8 +10,15 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Preservar nomes, mensagens e convenções já usadas no projeto, incluindo o padrão em português
 
 ## Regras de domínio essenciais
+- Usuario representa autenticação e autorização; Atleta representa identidade esportiva
+- Nem todo atleta possui usuário; um usuário pode estar vinculado a um atleta
+- Perfis de usuário: Administrador, Organizador e Atleta
+- Usuário comum (`Atleta`) só pode criar o próprio atleta, usando o mesmo nome e e-mail do usuário
+- Atleta pode se inscrever em campeonatos com inscrições abertas, usando dupla própria já cadastrada ou criando a dupla no fluxo da inscrição
 - Partidas são sempre 2x2
 - Cada dupla possui exatamente 2 atletas
+- A mesma composição de dois atletas representa a mesma dupla, independente da ordem
+- Participação em competição/categoria ocorre pela inscrição da dupla
 - Partida pode estar vinculada a uma categoria
 - Partida de campeonato pode existir como jogo agendado antes do resultado
 - Categoria pertence a uma competição
@@ -25,6 +32,9 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Na inscrição de campeonato, a dupla pode vir de um cadastro existente ou ser criada no fluxo da inscrição a partir dos dois atletas
 - Se um atleta com o mesmo nome completo já existir, reutilizar o cadastro quando for a mesma pessoa; se for outra pessoa, diferenciar com apelido/complemento
 - Dupla e inscrição de campeonato devem tratar a ordem dos dois atletas de forma normalizada; não assumir que a ordem digitada será a ordem persistida
+- Organizador só pode alterar competição vinculada ao próprio usuário
+- Atleta só pode acessar e alterar os próprios dados vinculados
+- Atleta pode visualizar campeonatos com inscrições abertas e as categorias disponíveis para inscrição
 - Competição com liga vinculada conta automaticamente no ranking da liga
 - Ranking da liga soma os pontos de todas as competições da liga; ranking da competição continua separado por categoria
 - Modelos de importação CSV existentes devem refletir os campos reais da API e reaproveitar os serviços já existentes no backend

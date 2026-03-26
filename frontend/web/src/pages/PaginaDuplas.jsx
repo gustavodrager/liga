@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { duplasServico } from '../services/duplasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { rolarParaElemento } from '../utils/rolagem';
+import { ehOrganizador } from '../utils/perfis';
 
 const estadoInicial = {
   nome: '',
@@ -11,6 +14,9 @@ const estadoInicial = {
 };
 
 export function PaginaDuplas() {
+  const { usuario } = useAutenticacao();
+  const usuarioOrganizador = ehOrganizador(usuario);
+  const [params] = useSearchParams();
   const [duplas, setDuplas] = useState([]);
   const [atletas, setAtletas] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
@@ -22,14 +28,33 @@ export function PaginaDuplas() {
 
   useEffect(() => {
     carregarDados();
-  }, []);
+  }, [usuarioOrganizador]);
+
+  useEffect(() => {
+    const duplaId = params.get('duplaId');
+    if (!duplaId || duplas.length === 0) {
+      return;
+    }
+
+    const dupla = duplas.find((item) => item.id === duplaId);
+    if (dupla) {
+      iniciarEdicao(dupla);
+    }
+  }, [duplas, params]);
 
   async function carregarDados() {
     setErro('');
     setCarregando(true);
 
     try {
-      const [listaDuplas, listaAtletas] = await Promise.all([duplasServico.listar(), atletasServico.listar()]);
+      const [listaDuplas, listaAtletas] = await Promise.all([
+        duplasServico.listar({
+          somenteInscritasMinhasCompeticoes: usuarioOrganizador
+        }),
+        atletasServico.listar({
+          somenteInscritosMinhasCompeticoes: usuarioOrganizador
+        })
+      ]);
       setDuplas(listaDuplas);
       setAtletas(listaAtletas);
     } catch (error) {
@@ -102,7 +127,11 @@ export function PaginaDuplas() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Duplas</h2>
-        <p>Cada dupla precisa ter exatamente dois atletas diferentes.</p>
+        <p>
+          {usuarioOrganizador
+            ? 'Veja as duplas com inscrição ativa em competições criadas por você.'
+            : 'Cada dupla precisa ter exatamente dois atletas diferentes.'}
+        </p>
       </div>
 
       <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
@@ -185,7 +214,9 @@ export function PaginaDuplas() {
             </article>
           ))}
 
-          {duplas.length === 0 && <p>Nenhuma dupla cadastrada.</p>}
+          {duplas.length === 0 && (
+            <p>{usuarioOrganizador ? 'Nenhuma dupla inscrita em competições criadas por você.' : 'Nenhuma dupla cadastrada.'}</p>
+          )}
         </div>
       )}
     </section>

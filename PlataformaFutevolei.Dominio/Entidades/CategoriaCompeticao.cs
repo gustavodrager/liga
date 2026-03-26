@@ -6,6 +6,8 @@ public class CategoriaCompeticao : EntidadeBase
 {
     public Guid CompeticaoId { get; set; }
     public Guid? FormatoCampeonatoId { get; set; }
+    public Guid? TabelaJogosAprovadaPorUsuarioId { get; set; }
+    public DateTime? TabelaJogosAprovadaEmUtc { get; set; }
     public string Nome { get; set; } = string.Empty;
     public GeneroCategoria Genero { get; set; }
     public NivelCategoria Nivel { get; set; }
@@ -15,4 +17,20 @@ public class CategoriaCompeticao : EntidadeBase
     public FormatoCampeonato? FormatoCampeonato { get; set; }
     public ICollection<Partida> Partidas { get; set; } = new List<Partida>();
     public ICollection<InscricaoCampeonato> Inscricoes { get; set; } = new List<InscricaoCampeonato>();
+
+    public bool TabelaJogosAprovada => TabelaJogosAprovadaEmUtc.HasValue;
+
+    public void AprovarTabelaJogos(Guid usuarioId, DateTime dataAprovacaoUtc)
+    {
+        TabelaJogosAprovadaPorUsuarioId = usuarioId;
+        TabelaJogosAprovadaEmUtc = dataAprovacaoUtc;
+        AtualizarDataModificacao();
+    }
+
+    public void LimparAprovacaoTabelaJogos()
+    {
+        TabelaJogosAprovadaPorUsuarioId = null;
+        TabelaJogosAprovadaEmUtc = null;
+        AtualizarDataModificacao();
+    }
 }

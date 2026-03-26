@@ -9,6 +9,9 @@ public class Usuario : EntidadeBase
     public string SenhaHash { get; set; } = string.Empty;
     public string? CodigoRedefinicaoSenhaHash { get; set; }
     public DateTime? CodigoRedefinicaoSenhaExpiraEmUtc { get; set; }
-    public PerfilUsuario Perfil { get; set; } = PerfilUsuario.Usuario;
+    public PerfilUsuario Perfil { get; set; } = PerfilUsuario.Atleta;
+    public Guid? AtletaId { get; set; }
     public bool Ativo { get; set; } = true;
+
+    public Atleta? Atleta { get; set; }
 }

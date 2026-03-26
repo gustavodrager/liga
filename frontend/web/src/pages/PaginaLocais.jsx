@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { locaisServico } from '../services/locaisServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
 import { rolarParaElemento } from '../utils/rolagem';
+import { ehAdministrador } from '../utils/perfis';
 
 const estadoInicial = {
   nome: '',
@@ -18,6 +20,8 @@ const tiposLocal = [
 ];
 
 export function PaginaLocais() {
+  const { usuario } = useAutenticacao();
+  const usuarioAdministrador = ehAdministrador(usuario);
   const [locais, setLocais] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
   const [localEdicaoId, setLocalEdicaoId] = useState(null);
@@ -49,6 +53,11 @@ export function PaginaLocais() {
   }
 
   function iniciarEdicao(local) {
+    if (!usuarioAdministrador && local.usuarioCriadorId !== usuario?.id) {
+      setErro('Você só pode editar locais criados pelo próprio usuário.');
+      return;
+    }
+
     setLocalEdicaoId(local.id);
     setFormulario({
       nome: local.nome || '',
@@ -91,6 +100,12 @@ export function PaginaLocais() {
   }
 
   async function removerLocal(id) {
+    const local = locais.find((item) => item.id === id);
+    if (local && !usuarioAdministrador && local.usuarioCriadorId !== usuario?.id) {
+      setErro('Você só pode excluir locais criados pelo próprio usuário.');
+      return;
+    }
+
     const confirmar = window.confirm('Deseja realmente remover este local?');
     if (!confirmar) {
       return;
@@ -174,15 +189,26 @@ export function PaginaLocais() {
                 <h3>{local.nome}</h3>
                 <p>Tipo: {tiposLocal.find((item) => item.valor === local.tipo)?.rotulo || '-'}</p>
                 <p>Quadras: {local.quantidadeQuadras}</p>
+                <p>Criado por: {local.nomeUsuarioCriador || 'Registro legado'}</p>
                 <p>Criado em: {formatarDataHora(local.dataCriacao)}</p>
                 <p>Atualizado em: {formatarDataHora(local.dataAtualizacao)}</p>
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(local)}>
+                <button
+                  type="button"
+                  className="botao-secundario"
+                  onClick={() => iniciarEdicao(local)}
+                  disabled={!usuarioAdministrador && local.usuarioCriadorId !== usuario?.id}
+                >
                   Editar
                 </button>
-                <button type="button" className="botao-perigo" onClick={() => removerLocal(local.id)}>
+                <button
+                  type="button"
+                  className="botao-perigo"
+                  onClick={() => removerLocal(local.id)}
+                  disabled={!usuarioAdministrador && local.usuarioCriadorId !== usuario?.id}
+                >
                   Excluir
                 </button>
               </div>

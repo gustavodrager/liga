@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Roles = nameof(PerfilUsuario.Administrador))]
 [Route("api/importacoes")]
 public class ImportacoesController(IImportacaoServico importacaoServico) : ControllerBase
 {

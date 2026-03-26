@@ -1,25 +1,30 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
-
-const itensMenu = [
-  { caminho: '/dashboard', nome: 'Dashboard' },
-  { caminho: '/atletas', nome: 'Atletas' },
-  { caminho: '/duplas', nome: 'Duplas' },
-  { caminho: '/ligas', nome: 'Ligas' },
-  { caminho: '/locais', nome: 'Locais' },
-  { caminho: '/formatos-campeonato', nome: 'Formatos' },
-  { caminho: '/regras', nome: 'Regras' },
-  { caminho: '/modelos-importacao', nome: 'Modelos' },
-  { caminho: '/competicoes', nome: 'Competições' },
-  { caminho: '/ranking', nome: 'Ranking' },
-  { caminho: '/categorias', nome: 'Categorias' },
-  { caminho: '/inscricoes', nome: 'Inscrições' },
-  { caminho: '/partidas', nome: 'Partidas' }
-];
+import { ehAdministrador, ehAtleta, ehGestorCompeticao, nomePerfil } from '../utils/perfis';
 
 export function LayoutPrincipal() {
   const { usuario, sair } = useAutenticacao();
+  const administrador = ehAdministrador(usuario);
+  const gestorCompeticao = ehGestorCompeticao(usuario);
+  const atleta = ehAtleta(usuario);
+  const itensMenu = [
+    { caminho: '/dashboard', nome: 'Dashboard', visivel: true },
+    { caminho: '/meu-perfil', nome: 'Meu Perfil', visivel: true },
+    { caminho: '/atletas', nome: 'Atletas', visivel: gestorCompeticao },
+    { caminho: '/duplas', nome: 'Duplas', visivel: gestorCompeticao },
+    { caminho: '/ligas', nome: 'Ligas', visivel: administrador },
+    { caminho: '/locais', nome: 'Locais', visivel: gestorCompeticao },
+    { caminho: '/formatos-campeonato', nome: 'Formatos', visivel: administrador },
+    { caminho: '/regras', nome: 'Regras', visivel: gestorCompeticao },
+    { caminho: '/modelos-importacao', nome: 'Modelos', visivel: administrador },
+    { caminho: '/competicoes', nome: 'Competições', visivel: true },
+    { caminho: '/ranking', nome: 'Ranking', visivel: gestorCompeticao || atleta },
+    { caminho: '/categorias', nome: 'Categorias', visivel: gestorCompeticao },
+    { caminho: '/inscricoes', nome: 'Inscrições', visivel: true },
+    { caminho: '/partidas', nome: 'Partidas', visivel: gestorCompeticao || atleta },
+    { caminho: '/usuarios', nome: 'Usuários', visivel: administrador }
+  ].filter((item) => item.visivel);
 
   return (
     <div className="layout-app">
@@ -33,7 +38,7 @@ export function LayoutPrincipal() {
         </div>
 
         <div className="usuario-topo">
-          <span>{usuario?.nome}</span>
+          <span>{usuario?.nome} · {nomePerfil(usuario?.perfil)}</span>
           <button type="button" className="botao-secundario" onClick={sair}>
             Sair
           </button>

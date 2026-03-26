@@ -1,6 +1,7 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Dominio.Entidades;
@@ -10,24 +11,65 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class CompeticaoServico(
     ICompeticaoRepositorio competicaoRepositorio,
+    ICategoriaCompeticaoRepositorio categoriaRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
     ILigaRepositorio ligaRepositorio,
     ILocalRepositorio localRepositorio,
     IRegraCompeticaoRepositorio regraRepositorio,
-    IUnidadeTrabalho unidadeTrabalho
+    IUnidadeTrabalho unidadeTrabalho,
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : ICompeticaoServico
 {
     public async Task<IReadOnlyList<CompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var competicoes = await competicaoRepositorio.ListarAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            competicoes = competicoes
+                .Where(x => (AceitaInscricoes(x.Tipo) && x.InscricoesAbertas) || x.Tipo == TipoCompeticao.Grupo)
+                .OrderBy(x => x.DataInicio)
+                .ThenBy(x => x.Nome)
+                .ToList();
+
+            return competicoes.Select(x => x.ParaDto()).ToList();
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Organizador)
+        {
+            competicoes = competicoes.Where(x => x.UsuarioOrganizadorId == usuario.Id).ToList();
+        }
+
         return competicoes.Select(x => x.ParaDto()).ToList();
     }
 
     public async Task<CompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var competicao = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (competicao is null)
         {
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            if (competicao.Tipo == TipoCompeticao.Grupo)
+            {
+                return competicao.ParaDto();
+            }
+
+            if (!AceitaInscricoes(competicao.Tipo) || !competicao.InscricoesAbertas)
+            {
+                throw new RegraNegocioException("Atletas só podem visualizar grupos e competições com inscrições abertas.");
+            }
+
+            return competicao.ParaDto();
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Organizador && competicao.UsuarioOrganizadorId != usuario.Id)
+        {
+            throw new RegraNegocioException("O organizador só pode acessar competições vinculadas ao próprio usuário.");
         }
 
         return competicao.ParaDto();
@@ -35,6 +77,19 @@ public class CompeticaoServico(
 
     public async Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            if (dto.Tipo != TipoCompeticao.Grupo)
+            {
+                throw new RegraNegocioException("Usuário com perfil atleta só pode criar grupos.");
+            }
+        }
+        else if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
+        {
+            throw new RegraNegocioException("Apenas administradores, organizadores ou atletas para grupos podem criar competições.");
+        }
+
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
 
@@ -53,11 +108,34 @@ public class CompeticaoServico(
             LigaId = dto.LigaId,
             LocalId = dto.LocalId,
             RegraCompeticaoId = dto.RegraCompeticaoId,
+            UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta ? usuario.Id : null,
             ContaRankingLiga = dto.LigaId.HasValue,
             InscricoesAbertas = ObterInscricoesAbertasParaCriacao(dto.Tipo, dto.InscricoesAbertas)
         };
 
         await competicaoRepositorio.AdicionarAsync(competicao, cancellationToken);
+
+        if (dto.Tipo == TipoCompeticao.Grupo)
+        {
+            await categoriaRepositorio.AdicionarAsync(new CategoriaCompeticao
+            {
+                CompeticaoId = competicao.Id,
+                Nome = "Geral",
+                Genero = GeneroCategoria.Misto,
+                Nivel = NivelCategoria.Livre,
+                PesoRanking = 1m
+            }, cancellationToken);
+
+            if (usuario.AtletaId.HasValue && await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(competicao.Id, usuario.AtletaId.Value, cancellationToken) is null)
+            {
+                await grupoAtletaRepositorio.AdicionarAsync(new GrupoAtleta
+                {
+                    CompeticaoId = competicao.Id,
+                    AtletaId = usuario.AtletaId.Value
+                }, cancellationToken);
+            }
+        }
+
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         var competicaoCriada = await competicaoRepositorio.ObterPorIdAsync(competicao.Id, cancellationToken);
         return competicaoCriada!.ParaDto();
@@ -65,6 +143,13 @@ public class CompeticaoServico(
 
     public async Task<CompeticaoDto> AtualizarAsync(Guid id, AtualizarCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
+        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(id, cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta && dto.Tipo != TipoCompeticao.Grupo)
+        {
+            throw new RegraNegocioException("Usuário com perfil atleta só pode manter competições do tipo grupo.");
+        }
+
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
 
@@ -102,6 +187,7 @@ public class CompeticaoServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(id, cancellationToken);
         var competicao = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (competicao is null)
         {
@@ -166,11 +252,11 @@ public class CompeticaoServico(
 
     private static bool ObterInscricoesAbertasParaCriacao(TipoCompeticao tipo, bool? inscricoesAbertas)
     {
-        if (tipo != TipoCompeticao.Campeonato)
+        if (!AceitaInscricoes(tipo))
         {
             if (inscricoesAbertas is true)
             {
-                throw new RegraNegocioException("Apenas campeonatos podem ter inscrições abertas.");
+                throw new RegraNegocioException("Apenas campeonatos e eventos podem ter inscrições abertas.");
             }
 
             return false;
@@ -184,17 +270,22 @@ public class CompeticaoServico(
         bool? inscricoesAbertas,
         bool valorAtual)
     {
-        if (tipo != TipoCompeticao.Campeonato)
+        if (!AceitaInscricoes(tipo))
         {
             if (inscricoesAbertas is true)
             {
-                throw new RegraNegocioException("Apenas campeonatos podem ter inscrições abertas.");
+                throw new RegraNegocioException("Apenas campeonatos e eventos podem ter inscrições abertas.");
             }
 
             return false;
         }
 
         return inscricoesAbertas ?? valorAtual;
+    }
+
+    private static bool AceitaInscricoes(TipoCompeticao tipo)
+    {
+        return tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento;
     }
 
     private static void Validar(

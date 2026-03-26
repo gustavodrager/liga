@@ -22,14 +22,17 @@ public class Competicao : EntidadeBase
     public Guid? LigaId { get; set; }
     public Guid? LocalId { get; set; }
     public Guid? RegraCompeticaoId { get; set; }
+    public Guid? UsuarioOrganizadorId { get; set; }
     public bool ContaRankingLiga { get; set; }
     public bool InscricoesAbertas { get; set; }
 
     public Liga? Liga { get; set; }
     public Local? Local { get; set; }
     public RegraCompeticao? RegraCompeticao { get; set; }
+    public Usuario? UsuarioOrganizador { get; set; }
     public ICollection<CategoriaCompeticao> Categorias { get; set; } = new List<CategoriaCompeticao>();
     public ICollection<InscricaoCampeonato> Inscricoes { get; set; } = new List<InscricaoCampeonato>();
+    public ICollection<GrupoAtleta> GrupoAtletas { get; set; } = new List<GrupoAtleta>();
 
     public int ObterPontosMinimosPartida() => RegraCompeticao?.PontosMinimosPartida ?? PontosMinimosPartidaPadrao;
 

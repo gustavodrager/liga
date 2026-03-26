@@ -4,9 +4,12 @@ namespace PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 
 public interface IUsuarioRepositorio
 {
+    Task<IReadOnlyList<Usuario>> ListarAsync(string? nome, string? email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Usuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Usuario?> ObterPorAtletaIdAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Usuario usuario, CancellationToken cancellationToken = default);
     void Atualizar(Usuario usuario);
 }
@@ -14,6 +17,9 @@ public interface IUsuarioRepositorio
 public interface IAtletaRepositorio
 {
     Task<IReadOnlyList<Atleta>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> ListarInscritosPorOrganizadorAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
+    Task<bool> PertenceAoOrganizadorAsync(Guid atletaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default);
@@ -24,6 +30,9 @@ public interface IAtletaRepositorio
 public interface IDuplaRepositorio
 {
     Task<IReadOnlyList<Dupla>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Dupla>> ListarInscritasPorOrganizadorAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
+    Task<bool> PertenceAoOrganizadorAsync(Guid duplaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Dupla>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<Dupla?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Dupla?> ObterPorAtletasAsync(Guid atleta1Id, Guid atleta2Id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Dupla dupla, CancellationToken cancellationToken = default);
@@ -58,6 +67,15 @@ public interface ICompeticaoRepositorio
     Task AdicionarAsync(Competicao competicao, CancellationToken cancellationToken = default);
     void Atualizar(Competicao competicao);
     void Remover(Competicao competicao);
+}
+
+public interface IGrupoAtletaRepositorio
+{
+    Task<IReadOnlyList<GrupoAtleta>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<GrupoAtleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GrupoAtleta?> ObterPorCompeticaoEAtletaAsync(Guid competicaoId, Guid atletaId, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(GrupoAtleta grupoAtleta, CancellationToken cancellationToken = default);
+    void Remover(GrupoAtleta grupoAtleta);
 }
 
 public interface IFormatoCampeonatoRepositorio
@@ -109,10 +127,11 @@ public interface IInscricaoCampeonatoRepositorio
     Task<InscricaoCampeonato?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<InscricaoCampeonato?> ObterDuplicadaAsync(
         Guid categoriaId,
-        Guid atleta1Id,
-        Guid atleta2Id,
+        Guid duplaId,
         CancellationToken cancellationToken = default);
     Task AdicionarAsync(InscricaoCampeonato inscricao, CancellationToken cancellationToken = default);
+    void Atualizar(InscricaoCampeonato inscricao);
+    void Remover(InscricaoCampeonato inscricao);
 }
 
 public interface IUnidadeTrabalho

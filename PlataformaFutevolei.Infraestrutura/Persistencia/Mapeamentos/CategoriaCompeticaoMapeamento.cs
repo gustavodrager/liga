@@ -14,6 +14,8 @@ public class CategoriaCompeticaoMapeamento : IEntityTypeConfiguration<CategoriaC
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.CompeticaoId).HasColumnName("competicao_id").IsRequired();
         builder.Property(x => x.FormatoCampeonatoId).HasColumnName("formato_campeonato_id");
+        builder.Property(x => x.TabelaJogosAprovadaPorUsuarioId).HasColumnName("tabela_jogos_aprovada_por_usuario_id");
+        builder.Property(x => x.TabelaJogosAprovadaEmUtc).HasColumnName("tabela_jogos_aprovada_em_utc");
         builder.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(150).IsRequired();
         builder.Property(x => x.Genero).HasColumnName("genero").IsRequired();
         builder.Property(x => x.Nivel).HasColumnName("nivel").IsRequired();
@@ -33,5 +35,6 @@ public class CategoriaCompeticaoMapeamento : IEntityTypeConfiguration<CategoriaC
 
         builder.HasIndex(x => x.CompeticaoId);
         builder.HasIndex(x => x.FormatoCampeonatoId);
+        builder.HasIndex(x => x.TabelaJogosAprovadaPorUsuarioId);
     }
 }

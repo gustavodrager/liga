@@ -13,6 +13,8 @@ public class RegraCompeticao : EntidadeBase
     public decimal PontosPrimeiroLugar { get; set; }
     public decimal PontosSegundoLugar { get; set; }
     public decimal PontosTerceiroLugar { get; set; }
+    public Guid? UsuarioCriadorId { get; set; }
 
+    public Usuario? UsuarioCriador { get; set; }
     public ICollection<Competicao> Competicoes { get; set; } = new List<Competicao>();
 }
