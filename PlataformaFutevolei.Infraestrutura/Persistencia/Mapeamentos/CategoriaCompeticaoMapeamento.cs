@@ -20,6 +20,8 @@ public class CategoriaCompeticaoMapeamento : IEntityTypeConfiguration<CategoriaC
         builder.Property(x => x.Genero).HasColumnName("genero").IsRequired();
         builder.Property(x => x.Nivel).HasColumnName("nivel").IsRequired();
         builder.Property(x => x.PesoRanking).HasColumnName("peso_ranking").HasPrecision(10, 2).HasDefaultValue(1m).IsRequired();
+        builder.Property(x => x.QuantidadeMaximaDuplas).HasColumnName("quantidade_maxima_duplas");
+        builder.Property(x => x.InscricoesEncerradas).HasColumnName("inscricoes_encerradas").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 

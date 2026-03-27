@@ -23,30 +23,43 @@ public class PartidaServico(
     private const string MarcadorMetadadosRodada = "[[rodada:";
     private const string NomeFaseFinal = "Final";
     private const string NomeFaseTerceiroLugar = "Disputa de 3º lugar";
+    private const string NomeFaseFinalReset = "Final de reset";
+    private const string NomeFaseChaveVencedores = "Chave dos vencedores";
+    private const string NomeFaseChavePerdedores = "Chave dos perdedores";
+    private const string SecaoChaveVencedores = "VENCEDORES";
+    private const string SecaoChavePerdedores = "PERDEDORES";
+    private const string SecaoChaveFinal = "FINAL";
+    private const string SecaoChaveReset = "RESET";
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var categoria = await categoriaRepositorio.ObterPorIdAsync(categoriaId, cancellationToken);
-        if (categoria is null)
-        {
-            throw new EntidadeNaoEncontradaException("Categoria não encontrada.");
-        }
-
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            if (categoria.Competicao.Tipo != TipoCompeticao.Grupo)
-            {
-                throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
-            }
-        }
-        else
-        {
-            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(categoria.CompeticaoId, cancellationToken);
-        }
-
+        await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
         return partidas.Select(x => x.ParaDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
+    {
+        var categoria = await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
+        var partidas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
+        return MontarEstruturaRodadasCategoria(categoria, partidas);
+    }
+
+    public async Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
+    {
+        var categoria = await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
+        if (!EhCategoriaComChaveDuplaEliminacao(categoria))
+        {
+            throw new RegraNegocioException("A situação das duplas está disponível apenas para categorias com chave de dupla eliminação.");
+        }
+
+        var inscricoes = await inscricaoRepositorio.ListarPorCampeonatoAsync(
+            categoria.CompeticaoId,
+            categoriaId,
+            cancellationToken);
+        var duplasInscritas = await ResolverDuplasInscritasAsync(inscricoes, cancellationToken);
+        var partidasCategoria = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
+        return await MontarSituacaoDuplasChaveDuplaEliminacaoAsync(categoria, duplasInscritas, partidasCategoria, cancellationToken);
     }
 
     public async Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -71,6 +84,30 @@ public class PartidaServico(
         }
 
         return partida.ParaDto();
+    }
+
+    private async Task<CategoriaCompeticao> ObterCategoriaComAcessoParaConsultaAsync(Guid categoriaId, CancellationToken cancellationToken)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var categoria = await categoriaRepositorio.ObterPorIdAsync(categoriaId, cancellationToken);
+        if (categoria is null)
+        {
+            throw new EntidadeNaoEncontradaException("Categoria não encontrada.");
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            if (categoria.Competicao.Tipo != TipoCompeticao.Grupo)
+            {
+                throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
+            }
+        }
+        else
+        {
+            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(categoria.CompeticaoId, cancellationToken);
+        }
+
+        return categoria;
     }
 
     public async Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
@@ -126,7 +163,7 @@ public class PartidaServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         var partidasAtualizadas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
-        var formato = categoria.FormatoCampeonato;
+        var formato = ObterFormatoCampeonatoEfetivo(categoria);
         return new GeracaoTabelaCategoriaDto(
             categoria.Id,
             categoria.Nome,
@@ -227,6 +264,16 @@ public class PartidaServico(
         }
 
         await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
+        var categoriaOriginalId = partida.CategoriaCompeticaoId;
+        var duplaOriginalAId = partida.DuplaAId;
+        var duplaOriginalBId = partida.DuplaBId;
+        var faseOriginal = NormalizarFaseCampeonato(partida.FaseCampeonato);
+        var statusOriginal = partida.Status;
+        var placarOriginalA = partida.PlacarDuplaA;
+        var placarOriginalB = partida.PlacarDuplaB;
+        var vencedorOriginalId = partida.DuplaVencedoraId;
+        var metadadosChave = ExtrairMetadadosChave(partida.Observacoes);
+        var metadadosRodada = ExtrairMetadadosRodada(partida.Observacoes);
 
         var (categoria, duplaA, duplaB) = await ValidarRelacionamentosAsync(
             dto.CategoriaCompeticaoId,
@@ -239,14 +286,33 @@ public class PartidaServico(
             cancellationToken
         );
 
+        var faseAtualizada = NormalizarFaseCampeonato(dto.FaseCampeonato);
+        await ValidarEdicaoPartidaGerenciadaPorChaveDuplaEliminacaoAsync(
+            partida,
+            categoria,
+            categoriaOriginalId,
+            duplaOriginalAId,
+            duplaOriginalBId,
+            faseOriginal,
+            statusOriginal,
+            placarOriginalA,
+            placarOriginalB,
+            vencedorOriginalId,
+            faseAtualizada,
+            dto.Status,
+            dto.PlacarDuplaA,
+            dto.PlacarDuplaB,
+            duplaA,
+            duplaB,
+            metadadosChave,
+            cancellationToken);
+
         partida.CategoriaCompeticaoId = dto.CategoriaCompeticaoId;
         partida.DuplaAId = duplaA.Id;
         partida.DuplaBId = duplaB.Id;
-        partida.FaseCampeonato = NormalizarFaseCampeonato(dto.FaseCampeonato);
+        partida.FaseCampeonato = faseAtualizada;
         partida.Status = dto.Status;
         partida.DataPartida = dto.DataPartida.HasValue ? NormalizarParaUtc(dto.DataPartida.Value) : null;
-        var metadadosChave = ExtrairMetadadosChave(partida.Observacoes);
-        var metadadosRodada = ExtrairMetadadosRodada(partida.Observacoes);
         partida.Observacoes = dto.Observacoes?.Trim();
         partida.CategoriaCompeticao = categoria;
         partida.DuplaA = duplaA;
@@ -489,14 +555,15 @@ public class PartidaServico(
 
     private static void ValidarPartida(Partida partida, Competicao competicao)
     {
-        if (competicao.Tipo == TipoCompeticao.Campeonato && string.IsNullOrWhiteSpace(partida.FaseCampeonato))
+        var exigeFaseCampeonato = ExigeFaseCampeonato(partida, competicao);
+        if (exigeFaseCampeonato && string.IsNullOrWhiteSpace(partida.FaseCampeonato))
         {
-            throw new RegraNegocioException("Informe a fase da partida para jogos de campeonato.");
+            throw new RegraNegocioException("Informe a fase da partida para jogos de campeonato ou evento com formato vinculado.");
         }
 
-        if (competicao.Tipo != TipoCompeticao.Campeonato && !string.IsNullOrWhiteSpace(partida.FaseCampeonato))
+        if (!exigeFaseCampeonato && !string.IsNullOrWhiteSpace(partida.FaseCampeonato))
         {
-            throw new RegraNegocioException("Fase da partida só deve ser informada para jogos de campeonato.");
+            throw new RegraNegocioException("Fase da partida só deve ser informada para jogos de campeonato ou evento com formato vinculado.");
         }
 
         if (partida.Status == StatusPartida.Agendada)
@@ -555,6 +622,18 @@ public class PartidaServico(
         }
     }
 
+    private static bool ExigeFaseCampeonato(Partida partida, Competicao competicao)
+    {
+        if (competicao.Tipo == TipoCompeticao.Campeonato)
+        {
+            return true;
+        }
+
+        return competicao.Tipo == TipoCompeticao.Evento &&
+               partida.CategoriaCompeticao is not null &&
+               ObterFormatoCampeonatoEfetivo(partida.CategoriaCompeticao) is not null;
+    }
+
     private async Task<IReadOnlyList<Dupla>> ResolverDuplasInscritasAsync(
         IReadOnlyList<InscricaoCampeonato> inscricoes,
         CancellationToken cancellationToken)
@@ -585,12 +664,12 @@ public class PartidaServico(
             .OrderBy(_ => Random.Shared.Next())
             .ToList();
 
-        var formato = categoria.FormatoCampeonato;
-        if (categoria.Competicao.Tipo == TipoCompeticao.Campeonato && formato is not null)
+        var formato = ObterFormatoCampeonatoEfetivo(categoria);
+        if (categoria.Competicao.Tipo != TipoCompeticao.Grupo && formato is not null)
         {
             if (!formato.Ativo)
             {
-                throw new RegraNegocioException("O formato vinculado à categoria está inativo.");
+                throw new RegraNegocioException("O formato vinculado à categoria ou à competição está inativo.");
             }
 
             return formato.TipoFormato switch
@@ -648,6 +727,11 @@ public class PartidaServico(
         IReadOnlyList<Dupla> duplas,
         FormatoCampeonato formato)
     {
+        if (formato.QuantidadeDerrotasParaEliminacao == 2)
+        {
+            return GerarPartidasChaveDuplaEliminacao(categoria, duplas);
+        }
+
         var (chaveA, chaveB) = DistribuirDuplasEmDuasChaves(duplas);
 
         if (chaveA.Count < 2 || chaveB.Count < 2)
@@ -659,6 +743,18 @@ public class PartidaServico(
         partidas.AddRange(GerarPartidasRodadaChave(categoria, chaveA, "A", 1));
         partidas.AddRange(GerarPartidasRodadaChave(categoria, chaveB, "B", 1));
         return partidas;
+    }
+
+    private static List<Partida> GerarPartidasChaveDuplaEliminacao(
+        CategoriaCompeticao categoria,
+        IReadOnlyList<Dupla> duplas)
+    {
+        return GerarPartidasRodadaEliminatoria(
+            categoria,
+            duplas,
+            SecaoChaveVencedores,
+            1,
+            MontarNomeFaseChaveDuplaEliminacao(SecaoChaveVencedores, 1));
     }
 
     private static (List<Dupla> chaveA, List<Dupla> chaveB) DistribuirDuplasEmDuasChaves(IReadOnlyList<Dupla> duplas)
@@ -794,7 +890,7 @@ public class PartidaServico(
     {
         if (string.IsNullOrWhiteSpace(nomeFaseBase))
         {
-            return categoria.Competicao.Tipo == TipoCompeticao.Campeonato
+            return categoria.Competicao.Tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento
                 ? $"Rodada {numeroRodada:00}"
                 : null;
         }
@@ -834,7 +930,7 @@ public class PartidaServico(
         int quantidadeDuplas,
         IReadOnlyList<Partida> partidasGeradas)
     {
-        if (categoria.Competicao.Tipo == TipoCompeticao.Evento || formato is null)
+        if (formato is null)
         {
             return $"Jogos iniciais sorteados com {partidasGeradas.Count} confronto(s) para {quantidadeDuplas} duplas na categoria {categoria.Nome}. As próximas rodadas serão abertas conforme os resultados.";
         }
@@ -846,7 +942,9 @@ public class PartidaServico(
 
         if (formato.TipoFormato == TipoFormatoCampeonato.Chave && formato.QuantidadeDerrotasParaEliminacao == 2)
         {
-            return $"Jogos iniciais sorteados em duas chaves para {quantidadeDuplas} duplas na categoria {categoria.Nome}. As próximas partidas serão abertas conforme os resultados.";
+            return categoria.Competicao.PossuiFinalReset
+                ? $"Jogos iniciais sorteados na chave dos vencedores para {quantidadeDuplas} duplas na categoria {categoria.Nome}. A chave dos perdedores, a final e o eventual reset serão abertos conforme os resultados."
+                : $"Jogos iniciais sorteados na chave dos vencedores para {quantidadeDuplas} duplas na categoria {categoria.Nome}. A chave dos perdedores e a final serão abertas conforme os resultados.";
         }
 
         if (formato.TipoFormato == TipoFormatoCampeonato.Chave)
@@ -891,7 +989,7 @@ public class PartidaServico(
 
     private async Task ProcessarAvancoRodadasAsync(CategoriaCompeticao categoria, CancellationToken cancellationToken)
     {
-        var formato = categoria.FormatoCampeonato;
+        var formato = ObterFormatoCampeonatoEfetivo(categoria);
         if (categoria.Competicao.Tipo == TipoCompeticao.Grupo ||
             formato?.TipoFormato == TipoFormatoCampeonato.Chave)
         {
@@ -958,11 +1056,17 @@ public class PartidaServico(
 
     private async Task ProcessarAvancoChaveAsync(CategoriaCompeticao categoria, CancellationToken cancellationToken)
     {
-        var formato = categoria.FormatoCampeonato;
-        if (categoria.Competicao.Tipo != TipoCompeticao.Campeonato ||
+        var formato = ObterFormatoCampeonatoEfetivo(categoria);
+        if (categoria.Competicao.Tipo == TipoCompeticao.Grupo ||
             formato is null ||
             formato.TipoFormato != TipoFormatoCampeonato.Chave)
         {
+            return;
+        }
+
+        if (formato.QuantidadeDerrotasParaEliminacao == 2)
+        {
+            await ProcessarAvancoChaveDuplaEliminacaoAsync(categoria, cancellationToken);
             return;
         }
 
@@ -1118,6 +1222,1081 @@ public class PartidaServico(
         return duplas.SingleOrDefault();
     }
 
+    private async Task ProcessarAvancoChaveDuplaEliminacaoAsync(
+        CategoriaCompeticao categoria,
+        CancellationToken cancellationToken)
+    {
+        var partidasCategoria = await partidaRepositorio.ListarPorCategoriaAsync(categoria.Id, cancellationToken);
+        var partidasChave = partidasCategoria
+            .Select(partida => new { Partida = partida, Metadados = ExtrairMetadadosChave(partida.Observacoes) })
+            .Where(x => x.Metadados is not null)
+            .Select(x => new PartidaChave(x.Partida, x.Metadados!))
+            .ToList();
+
+        var participantesIniciais = ObterParticipantesIniciaisChaveDuplaEliminacao(partidasChave);
+        if (participantesIniciais.Count == 0)
+        {
+            return;
+        }
+
+        var controleDuplas = ConstruirControleDuplasChaveDuplaEliminacao(participantesIniciais, partidasChave);
+        ValidarIntegridadeControleDuplasChaveDuplaEliminacao(controleDuplas);
+
+        var quantidadeRodadasVencedores = CalcularQuantidadeRodadasChave(participantesIniciais.Count);
+        var quantidadeRodadasPerdedores = Math.Max(0, (quantidadeRodadasVencedores * 2) - 2);
+
+        var estadosVencedores = new Dictionary<int, EstadoRodadaChave>();
+        var participantesRodadaVencedores = participantesIniciais;
+
+        for (var rodada = 1; rodada <= quantidadeRodadasVencedores; rodada++)
+        {
+            var estado = AvaliarRodadaChave(
+                SecaoChaveVencedores,
+                rodada,
+                participantesRodadaVencedores,
+                ObterPartidasChavePorSecaoERodada(partidasChave, SecaoChaveVencedores, rodada));
+
+            estadosVencedores[rodada] = estado;
+
+            if (!estado.Concluida)
+            {
+                break;
+            }
+
+            participantesRodadaVencedores = estado.Classificados;
+        }
+
+        var estadosPerdedores = new Dictionary<int, EstadoRodadaChave>();
+
+        for (var rodada = 1; rodada <= quantidadeRodadasPerdedores; rodada++)
+        {
+            IReadOnlyList<Guid>? participantesRodadaPerdedores = rodada switch
+            {
+                1 => estadosVencedores.GetValueOrDefault(1)?.Concluida == true
+                    ? estadosVencedores[1].Derrotados
+                    : null,
+                _ when rodada % 2 != 0 => estadosPerdedores.GetValueOrDefault(rodada - 1)?.Concluida == true
+                    ? estadosPerdedores[rodada - 1].Classificados
+                    : null,
+                _ => estadosPerdedores.GetValueOrDefault(rodada - 1)?.Concluida == true &&
+                     estadosVencedores.GetValueOrDefault((rodada / 2) + 1)?.Concluida == true
+                    ? estadosPerdedores[rodada - 1].Classificados
+                        .Concat(estadosVencedores[(rodada / 2) + 1].Derrotados)
+                        .ToList()
+                    : null
+            };
+
+            if (participantesRodadaPerdedores is null)
+            {
+                break;
+            }
+
+            var estado = AvaliarRodadaChave(
+                SecaoChavePerdedores,
+                rodada,
+                participantesRodadaPerdedores,
+                ObterPartidasChavePorSecaoERodada(partidasChave, SecaoChavePerdedores, rodada));
+
+            estadosPerdedores[rodada] = estado;
+
+            if (!estado.Concluida)
+            {
+                break;
+            }
+        }
+
+        var novasPartidas = new List<Partida>();
+        var duplasComPartidaPendente = controleDuplas.Values
+            .Where(x => x.PartidasPendentesIds.Count > 0)
+            .Select(x => x.DuplaId)
+            .ToHashSet();
+
+        foreach (var estado in estadosVencedores.Values.OrderBy(x => x.Rodada))
+        {
+            novasPartidas.AddRange(await CriarPartidasPendentesRodadaChaveAsync(
+                categoria,
+                estado,
+                controleDuplas,
+                duplasComPartidaPendente,
+                cancellationToken));
+        }
+
+        foreach (var estado in estadosPerdedores.Values.OrderBy(x => x.Rodada))
+        {
+            novasPartidas.AddRange(await CriarPartidasPendentesRodadaChaveAsync(
+                categoria,
+                estado,
+                controleDuplas,
+                duplasComPartidaPendente,
+                cancellationToken));
+        }
+
+        var campeaoChaveVencedoresId = ObterCampeaoSecao(estadosVencedores, quantidadeRodadasVencedores);
+        var campeaoChavePerdedoresId = ObterCampeaoSecao(estadosPerdedores, quantidadeRodadasPerdedores);
+
+        var finalExistente = ObterPartidaUnicaPorSecao(partidasChave, SecaoChaveFinal);
+        var resetExistente = ObterPartidaUnicaPorSecao(partidasChave, SecaoChaveReset);
+
+        if (campeaoChaveVencedoresId.HasValue &&
+            campeaoChavePerdedoresId.HasValue &&
+            finalExistente is null &&
+            partidasCategoria.All(x => !string.Equals(x.FaseCampeonato, NomeFaseFinal, StringComparison.OrdinalIgnoreCase)) &&
+            novasPartidas.All(x => !string.Equals(x.FaseCampeonato, NomeFaseFinal, StringComparison.OrdinalIgnoreCase)))
+        {
+            ValidarDuplaDisponivelParaNovaPartida(controleDuplas, duplasComPartidaPendente, campeaoChaveVencedoresId.Value, NomeFaseFinal);
+            ValidarDuplaDisponivelParaNovaPartida(controleDuplas, duplasComPartidaPendente, campeaoChavePerdedoresId.Value, NomeFaseFinal);
+            var duplasFinal = await ResolverDuplasPorIdsAsync(
+                [campeaoChaveVencedoresId.Value, campeaoChavePerdedoresId.Value],
+                cancellationToken);
+
+            var duplasPorId = duplasFinal.ToDictionary(x => x.Id);
+            novasPartidas.Add(CriarPartidaAgendada(
+                categoria,
+                duplasPorId[campeaoChaveVencedoresId.Value],
+                duplasPorId[campeaoChavePerdedoresId.Value],
+                NomeFaseFinal,
+                new MetadadosChave(SecaoChaveFinal, 1, 1, [campeaoChaveVencedoresId.Value])));
+            duplasComPartidaPendente.Add(campeaoChaveVencedoresId.Value);
+            duplasComPartidaPendente.Add(campeaoChavePerdedoresId.Value);
+        }
+
+        if (categoria.Competicao.PossuiFinalReset &&
+            finalExistente?.Partida.Status == StatusPartida.Encerrada &&
+            finalExistente.Partida.DuplaVencedoraId.HasValue &&
+            resetExistente is null &&
+            partidasCategoria.All(x => !string.Equals(x.FaseCampeonato, NomeFaseFinalReset, StringComparison.OrdinalIgnoreCase)) &&
+            novasPartidas.All(x => !string.Equals(x.FaseCampeonato, NomeFaseFinalReset, StringComparison.OrdinalIgnoreCase)))
+        {
+            var duplaInvictaId = finalExistente.Metadados.DuplasEmEspera.FirstOrDefault();
+
+            if (duplaInvictaId == Guid.Empty)
+            {
+                duplaInvictaId = finalExistente.Partida.DuplaAId;
+            }
+
+            if (finalExistente.Partida.DuplaVencedoraId.Value != duplaInvictaId)
+            {
+                ValidarDuplaDisponivelParaNovaPartida(controleDuplas, duplasComPartidaPendente, finalExistente.Partida.DuplaAId, NomeFaseFinalReset);
+                ValidarDuplaDisponivelParaNovaPartida(controleDuplas, duplasComPartidaPendente, finalExistente.Partida.DuplaBId, NomeFaseFinalReset);
+                var duplasReset = await ResolverDuplasPorIdsAsync(
+                    [finalExistente.Partida.DuplaAId, finalExistente.Partida.DuplaBId],
+                    cancellationToken);
+                var duplasResetPorId = duplasReset.ToDictionary(x => x.Id);
+
+                novasPartidas.Add(CriarPartidaAgendada(
+                    categoria,
+                    duplasResetPorId[finalExistente.Partida.DuplaAId],
+                    duplasResetPorId[finalExistente.Partida.DuplaBId],
+                    NomeFaseFinalReset,
+                    new MetadadosChave(SecaoChaveReset, 1, 1, [duplaInvictaId])));
+                duplasComPartidaPendente.Add(finalExistente.Partida.DuplaAId);
+                duplasComPartidaPendente.Add(finalExistente.Partida.DuplaBId);
+            }
+        }
+
+        if (novasPartidas.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var novaPartida in novasPartidas)
+        {
+            await partidaRepositorio.AdicionarAsync(novaPartida, cancellationToken);
+        }
+
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<Partida>> CriarPartidasPendentesRodadaChaveAsync(
+        CategoriaCompeticao categoria,
+        EstadoRodadaChave estado,
+        IReadOnlyDictionary<Guid, EstadoDuplaChaveDuplaEliminacao> controleDuplas,
+        ISet<Guid> duplasComPartidaPendente,
+        CancellationToken cancellationToken)
+    {
+        if (estado.Participantes.Count <= 1 || estado.Planejamento.Confrontos.Count == 0)
+        {
+            return [];
+        }
+
+        var ordensExistentes = estado.Partidas
+            .Select(x => x.Metadados.Ordem)
+            .ToHashSet();
+        var confrontosPendentes = estado.Planejamento.Confrontos
+            .Where(x => !ordensExistentes.Contains(x.Ordem))
+            .ToList();
+
+        if (confrontosPendentes.Count == 0)
+        {
+            return [];
+        }
+
+        var idsNecessarios = confrontosPendentes
+            .SelectMany(x => new[] { x.DuplaAId, x.DuplaBId })
+            .Distinct()
+            .ToList();
+        var duplas = await ResolverDuplasPorIdsAsync(idsNecessarios, cancellationToken);
+        var duplasPorId = duplas.ToDictionary(x => x.Id);
+        var nomeFase = MontarNomeFaseChaveDuplaEliminacao(estado.Secao, estado.Rodada);
+        var partidasNovas = new List<Partida>();
+
+        foreach (var confronto in confrontosPendentes)
+        {
+            ValidarDuplaDisponivelParaNovaPartida(controleDuplas, duplasComPartidaPendente, confronto.DuplaAId, nomeFase);
+            ValidarDuplaDisponivelParaNovaPartida(controleDuplas, duplasComPartidaPendente, confronto.DuplaBId, nomeFase);
+
+            partidasNovas.Add(CriarPartidaAgendada(
+                categoria,
+                duplasPorId[confronto.DuplaAId],
+                duplasPorId[confronto.DuplaBId],
+                nomeFase,
+                new MetadadosChave(estado.Secao, estado.Rodada, confronto.Ordem, estado.Planejamento.DuplasEmEspera)));
+
+            duplasComPartidaPendente.Add(confronto.DuplaAId);
+            duplasComPartidaPendente.Add(confronto.DuplaBId);
+        }
+
+        return partidasNovas;
+    }
+
+    private static IReadOnlyList<Guid> ObterParticipantesIniciaisChaveDuplaEliminacao(
+        IReadOnlyList<PartidaChave> partidasChave)
+    {
+        var partidasIniciais = ObterPartidasChavePorSecaoERodada(partidasChave, SecaoChaveVencedores, 1);
+        if (partidasIniciais.Count == 0)
+        {
+            return [];
+        }
+
+        var participantes = new List<Guid>();
+
+        foreach (var idDupla in partidasIniciais.SelectMany(x => x.Metadados.DuplasEmEspera))
+        {
+            if (!participantes.Contains(idDupla))
+            {
+                participantes.Add(idDupla);
+            }
+        }
+
+        foreach (var partida in partidasIniciais)
+        {
+            if (!participantes.Contains(partida.Partida.DuplaAId))
+            {
+                participantes.Add(partida.Partida.DuplaAId);
+            }
+
+            if (!participantes.Contains(partida.Partida.DuplaBId))
+            {
+                participantes.Add(partida.Partida.DuplaBId);
+            }
+        }
+
+        return participantes;
+    }
+
+    private async Task ValidarEdicaoPartidaGerenciadaPorChaveDuplaEliminacaoAsync(
+        Partida partida,
+        CategoriaCompeticao categoriaAtualizada,
+        Guid categoriaOriginalId,
+        Guid duplaOriginalAId,
+        Guid duplaOriginalBId,
+        string? faseOriginal,
+        StatusPartida statusOriginal,
+        int placarOriginalA,
+        int placarOriginalB,
+        Guid? vencedorOriginalId,
+        string? faseAtualizada,
+        StatusPartida statusAtualizado,
+        int? placarAtualizadoA,
+        int? placarAtualizadoB,
+        Dupla duplaAtualizadaA,
+        Dupla duplaAtualizadaB,
+        MetadadosChave? metadadosChave,
+        CancellationToken cancellationToken)
+    {
+        if (!(EhCategoriaComChaveDuplaEliminacao(partida.CategoriaCompeticao) ||
+              EhCategoriaComChaveDuplaEliminacao(categoriaAtualizada)) ||
+            metadadosChave is null ||
+            !EhSecaoChaveDuplaEliminacao(metadadosChave.Lado))
+        {
+            return;
+        }
+
+        if (categoriaOriginalId != categoriaAtualizada.Id)
+        {
+            throw new RegraNegocioException("Partidas gerenciadas automaticamente na chave com dupla eliminação não podem mudar de categoria.");
+        }
+
+        if (duplaOriginalAId != duplaAtualizadaA.Id || duplaOriginalBId != duplaAtualizadaB.Id)
+        {
+            throw new RegraNegocioException("Partidas gerenciadas automaticamente na chave com dupla eliminação não permitem troca manual de duplas.");
+        }
+
+        if (!string.Equals(faseOriginal, faseAtualizada, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RegraNegocioException("Partidas gerenciadas automaticamente na chave com dupla eliminação não permitem troca manual de fase.");
+        }
+
+        var mudouResultado = statusOriginal != statusAtualizado ||
+                            placarOriginalA != (placarAtualizadoA ?? 0) ||
+                            placarOriginalB != (placarAtualizadoB ?? 0) ||
+                            vencedorOriginalId != CalcularVencedorPorPlacar(partida, placarAtualizadoA, placarAtualizadoB, statusAtualizado);
+
+        if (statusOriginal == StatusPartida.Encerrada && statusAtualizado != StatusPartida.Encerrada)
+        {
+            throw new RegraNegocioException("Partidas encerradas da chave com dupla eliminação não podem voltar para agendada.");
+        }
+
+        if (!mudouResultado || statusOriginal != StatusPartida.Encerrada)
+        {
+            return;
+        }
+
+        var partidasCategoria = await partidaRepositorio.ListarPorCategoriaAsync(categoriaAtualizada.Id, cancellationToken);
+        var possuiDependenciaPosterior = partidasCategoria
+            .Where(x => x.Id != partida.Id)
+            .Select(x => new { Partida = x, Metadados = ExtrairMetadadosChave(x.Observacoes) })
+            .Where(x => x.Metadados is not null && EhSecaoChaveDuplaEliminacao(x.Metadados!.Lado))
+            .Any(x => EhPartidaPosteriorNaChaveDuplaEliminacao(metadadosChave, x.Metadados!));
+
+        if (possuiDependenciaPosterior)
+        {
+            throw new RegraNegocioException("Não é permitido alterar manualmente o resultado de uma partida da chave com dupla eliminação após a geração de fases dependentes.");
+        }
+    }
+
+    private static Guid? CalcularVencedorPorPlacar(
+        Partida partida,
+        int? placarDuplaA,
+        int? placarDuplaB,
+        StatusPartida status)
+    {
+        if (status != StatusPartida.Encerrada || !placarDuplaA.HasValue || !placarDuplaB.HasValue)
+        {
+            return null;
+        }
+
+        if (placarDuplaA.Value == placarDuplaB.Value)
+        {
+            return null;
+        }
+
+        return placarDuplaA.Value > placarDuplaB.Value ? partida.DuplaAId : partida.DuplaBId;
+    }
+
+    private static bool EhCategoriaComChaveDuplaEliminacao(CategoriaCompeticao categoria)
+    {
+        var formato = ObterFormatoCampeonatoEfetivo(categoria);
+        return categoria.Competicao.Tipo != TipoCompeticao.Grupo &&
+               formato?.TipoFormato == TipoFormatoCampeonato.Chave &&
+               formato.QuantidadeDerrotasParaEliminacao == 2;
+    }
+
+    private static FormatoCampeonato? ObterFormatoCampeonatoEfetivo(CategoriaCompeticao categoria)
+    {
+        return categoria.ObterFormatoCampeonatoEfetivo();
+    }
+
+    private static bool EhSecaoChaveDuplaEliminacao(string secao)
+    {
+        return string.Equals(secao, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(secao, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(secao, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(secao, SecaoChaveReset, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EhPartidaPosteriorNaChaveDuplaEliminacao(MetadadosChave atual, MetadadosChave comparada)
+    {
+        if (string.Equals(comparada.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.Equals(atual.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (string.Equals(comparada.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.Equals(atual.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(atual.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (string.Equals(atual.Lado, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.Equals(comparada.Lado, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase) ||
+                   comparada.Rodada > atual.Rodada;
+        }
+
+        if (string.Equals(atual.Lado, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return (string.Equals(comparada.Lado, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase) &&
+                    comparada.Rodada > atual.Rodada) ||
+                   string.Equals(comparada.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(comparada.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (string.Equals(atual.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(comparada.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyDictionary<Guid, EstadoDuplaChaveDuplaEliminacao> ConstruirControleDuplasChaveDuplaEliminacao(
+        IReadOnlyList<Guid> participantesIniciais,
+        IReadOnlyList<PartidaChave> partidasChave)
+    {
+        var derrotasPorDupla = participantesIniciais.ToDictionary(id => id, _ => 0);
+        var partidasPendentesPorDupla = participantesIniciais.ToDictionary(id => id, _ => new List<Guid>());
+        var posicaoAtualPorDupla = participantesIniciais.ToDictionary(id => id, _ => NomeFaseChaveVencedores);
+
+        foreach (var partidaChave in partidasChave.Where(x => EhSecaoChaveDuplaEliminacao(x.Metadados.Lado)))
+        {
+            GarantirDuplaConhecidaNaChave(derrotasPorDupla, partidaChave.Partida.DuplaAId);
+            GarantirDuplaConhecidaNaChave(derrotasPorDupla, partidaChave.Partida.DuplaBId);
+
+            if (partidaChave.Partida.Status == StatusPartida.Encerrada && partidaChave.Partida.DuplaVencedoraId.HasValue)
+            {
+                var duplaPerdedoraId = ObterDuplaPerdedoraId(partidaChave.Partida);
+                derrotasPorDupla[duplaPerdedoraId]++;
+            }
+            else
+            {
+                partidasPendentesPorDupla[partidaChave.Partida.DuplaAId].Add(partidaChave.Partida.Id);
+                partidasPendentesPorDupla[partidaChave.Partida.DuplaBId].Add(partidaChave.Partida.Id);
+
+                var posicao = ObterNomePosicaoAtualChaveDuplaEliminacao(partidaChave.Metadados.Lado);
+                posicaoAtualPorDupla[partidaChave.Partida.DuplaAId] = posicao;
+                posicaoAtualPorDupla[partidaChave.Partida.DuplaBId] = posicao;
+            }
+        }
+
+        var estados = new Dictionary<Guid, EstadoDuplaChaveDuplaEliminacao>();
+        foreach (var duplaId in participantesIniciais)
+        {
+            var derrotas = derrotasPorDupla[duplaId];
+            var eliminada = derrotas >= 2;
+            var partidasPendentesIds = partidasPendentesPorDupla[duplaId];
+            var posicaoAtual = eliminada
+                ? "Eliminada"
+                : partidasPendentesIds.Count > 0
+                    ? posicaoAtualPorDupla[duplaId]
+                    : derrotas == 0
+                        ? NomeFaseChaveVencedores
+                        : NomeFaseChavePerdedores;
+
+            estados[duplaId] = new EstadoDuplaChaveDuplaEliminacao(
+                duplaId,
+                derrotas,
+                eliminada ? StatusDuplaChaveDuplaEliminacao.Eliminada : StatusDuplaChaveDuplaEliminacao.Ativa,
+                posicaoAtual,
+                partidasPendentesIds);
+        }
+
+        return estados;
+    }
+
+    private static void ValidarIntegridadeControleDuplasChaveDuplaEliminacao(
+        IReadOnlyDictionary<Guid, EstadoDuplaChaveDuplaEliminacao> controleDuplas)
+    {
+        foreach (var estado in controleDuplas.Values)
+        {
+            if (estado.QuantidadeDerrotas > 2)
+            {
+                throw new RegraNegocioException("A chave com dupla eliminação ficou inconsistente: uma dupla acumulou derrotas acima do permitido.");
+            }
+
+            if (estado.Status == StatusDuplaChaveDuplaEliminacao.Eliminada && estado.PartidasPendentesIds.Count > 0)
+            {
+                throw new RegraNegocioException("A chave com dupla eliminação ficou inconsistente: existe dupla eliminada vinculada a partida futura.");
+            }
+
+            if (estado.PartidasPendentesIds.Count > 1)
+            {
+                throw new RegraNegocioException("A chave com dupla eliminação ficou inconsistente: uma dupla foi vinculada a mais de uma partida futura ao mesmo tempo.");
+            }
+        }
+    }
+
+    private static void ValidarDuplaDisponivelParaNovaPartida(
+        IReadOnlyDictionary<Guid, EstadoDuplaChaveDuplaEliminacao> controleDuplas,
+        ISet<Guid> duplasComPartidaPendente,
+        Guid duplaId,
+        string faseDestino)
+    {
+        if (!controleDuplas.TryGetValue(duplaId, out var estado))
+        {
+            throw new RegraNegocioException("A chave com dupla eliminação ficou inconsistente: dupla não encontrada no controle interno da competição.");
+        }
+
+        if (estado.Status == StatusDuplaChaveDuplaEliminacao.Eliminada)
+        {
+            throw new RegraNegocioException($"A dupla eliminada não pode ser vinculada à fase {faseDestino}.");
+        }
+
+        if (duplasComPartidaPendente.Contains(duplaId))
+        {
+            throw new RegraNegocioException($"A dupla já possui partida pendente e não pode ser vinculada novamente à fase {faseDestino}.");
+        }
+    }
+
+    private static void GarantirDuplaConhecidaNaChave(
+        IDictionary<Guid, int> derrotasPorDupla,
+        Guid duplaId)
+    {
+        if (!derrotasPorDupla.ContainsKey(duplaId))
+        {
+            throw new RegraNegocioException("A chave com dupla eliminação ficou inconsistente: existe partida com dupla fora da estrutura inicial do campeonato.");
+        }
+    }
+
+    private static string ObterNomePosicaoAtualChaveDuplaEliminacao(string secao)
+    {
+        if (string.Equals(secao, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return NomeFaseChaveVencedores;
+        }
+
+        if (string.Equals(secao, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return NomeFaseChavePerdedores;
+        }
+
+        if (string.Equals(secao, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return NomeFaseFinal;
+        }
+
+        if (string.Equals(secao, SecaoChaveReset, StringComparison.OrdinalIgnoreCase))
+        {
+            return NomeFaseFinalReset;
+        }
+
+        return "Chave";
+    }
+
+    private static IReadOnlyList<PartidaChave> ObterPartidasChavePorSecaoERodada(
+        IReadOnlyList<PartidaChave> partidasChave,
+        string secao,
+        int rodada)
+    {
+        return partidasChave
+            .Where(x => string.Equals(x.Metadados.Lado, secao, StringComparison.OrdinalIgnoreCase) &&
+                        x.Metadados.Rodada == rodada)
+            .OrderBy(x => x.Metadados.Ordem)
+            .ToList();
+    }
+
+    private static PartidaChave? ObterPartidaUnicaPorSecao(
+        IReadOnlyList<PartidaChave> partidasChave,
+        string secao)
+    {
+        return partidasChave
+            .Where(x => string.Equals(x.Metadados.Lado, secao, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Metadados.Rodada)
+            .ThenBy(x => x.Metadados.Ordem)
+            .FirstOrDefault();
+    }
+
+    private static IReadOnlyList<RodadaEstruturaCompeticaoDto> MontarEstruturaRodadasCategoria(
+        CategoriaCompeticao categoria,
+        IReadOnlyList<Partida> partidas)
+    {
+        if (partidas.Count == 0)
+        {
+            return [];
+        }
+
+        if (EhCategoriaComChaveDuplaEliminacao(categoria))
+        {
+            return MontarEstruturaRodadasChaveDuplaEliminacao(partidas);
+        }
+
+        return MontarEstruturaRodadasPadrao(partidas);
+    }
+
+    private static IReadOnlyList<RodadaEstruturaCompeticaoDto> MontarEstruturaRodadasChaveDuplaEliminacao(IReadOnlyList<Partida> partidas)
+    {
+        var partidasComMetadados = partidas
+            .Select(partida => new { Partida = partida, Metadados = ExtrairMetadadosChave(partida.Observacoes) })
+            .Where(x => x.Metadados is not null && EhSecaoChaveDuplaEliminacao(x.Metadados.Lado))
+            .Select(x => new PartidaChave(x.Partida, x.Metadados!))
+            .ToList();
+
+        if (partidasComMetadados.Count == 0)
+        {
+            return MontarEstruturaRodadasPadrao(partidas);
+        }
+
+        var maiorRodadaBase = partidasComMetadados
+            .Where(x => !string.Equals(x.Metadados.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(x.Metadados.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase))
+            .Select(x => ObterNumeroRodadaExibicaoChave(x.Metadados))
+            .DefaultIfEmpty(1)
+            .Max();
+
+        return partidasComMetadados
+            .Select(x => new
+            {
+                x.Partida,
+                NumeroRodada = ObterNumeroRodadaExibicaoChave(x.Metadados, maiorRodadaBase),
+                OrdemJogo = x.Metadados.Ordem,
+                OrdemTipo = ObterOrdemTipoJogoChave(x.Metadados),
+                TipoJogo = ObterTipoJogoChave(x.Metadados),
+                NomeRodada = $"Rodada {ObterNumeroRodadaExibicaoChave(x.Metadados, maiorRodadaBase):00}"
+            })
+            .OrderBy(x => x.NumeroRodada)
+            .ThenBy(x => x.OrdemTipo)
+            .ThenBy(x => x.OrdemJogo)
+            .GroupBy(x => new { x.NumeroRodada, x.NomeRodada })
+            .Select(grupo => new RodadaEstruturaCompeticaoDto(
+                grupo.Key.NumeroRodada,
+                grupo.Key.NomeRodada,
+                grupo.Select(x => CriarJogoRodadaCompeticaoDto(x.Partida, x.OrdemJogo, x.TipoJogo)).ToList()))
+            .ToList();
+    }
+
+    private static IReadOnlyList<RodadaEstruturaCompeticaoDto> MontarEstruturaRodadasPadrao(IReadOnlyList<Partida> partidas)
+    {
+        return partidas
+            .Select((partida, indice) => new
+            {
+                Partida = partida,
+                NumeroRodada = ExtrairNumeroRodadaDaFase(partida.FaseCampeonato),
+                NomeRodada = $"Rodada {ExtrairNumeroRodadaDaFase(partida.FaseCampeonato):00}",
+                OrdemJogo = indice + 1,
+                TipoJogo = ObterTipoJogoPadrao(partida.FaseCampeonato)
+            })
+            .OrderBy(x => x.NumeroRodada)
+            .ThenBy(x => x.OrdemJogo)
+            .GroupBy(x => new { x.NumeroRodada, x.NomeRodada })
+            .Select(grupo => new RodadaEstruturaCompeticaoDto(
+                grupo.Key.NumeroRodada,
+                grupo.Key.NomeRodada,
+                grupo.Select(x => CriarJogoRodadaCompeticaoDto(x.Partida, x.OrdemJogo, x.TipoJogo)).ToList()))
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> MontarSituacaoDuplasChaveDuplaEliminacaoAsync(
+        CategoriaCompeticao categoria,
+        IReadOnlyList<Dupla> duplasInscritas,
+        IReadOnlyList<Partida> partidasCategoria,
+        CancellationToken cancellationToken)
+    {
+        var partidasChave = partidasCategoria
+            .Select(partida => new { Partida = partida, Metadados = ExtrairMetadadosChave(partida.Observacoes) })
+            .Where(x => x.Metadados is not null && EhSecaoChaveDuplaEliminacao(x.Metadados.Lado))
+            .Select(x => new PartidaChave(x.Partida, x.Metadados!))
+            .ToList();
+
+        var participantesIniciais = partidasChave.Count > 0
+            ? ObterParticipantesIniciaisChaveDuplaEliminacao(partidasChave)
+            : duplasInscritas.Select(x => x.Id).Distinct().ToList();
+
+        if (participantesIniciais.Count == 0)
+        {
+            return [];
+        }
+
+        var controleDuplas = ConstruirControleDuplasChaveDuplaEliminacao(participantesIniciais, partidasChave);
+        ValidarIntegridadeControleDuplasChaveDuplaEliminacao(controleDuplas);
+
+        var duplasPorId = duplasInscritas
+            .Where(x => participantesIniciais.Contains(x.Id))
+            .ToDictionary(x => x.Id);
+
+        var idsDuplasFaltantes = participantesIniciais
+            .Where(x => !duplasPorId.ContainsKey(x))
+            .ToList();
+
+        if (idsDuplasFaltantes.Count > 0)
+        {
+            var duplasFaltantes = await ResolverDuplasPorIdsAsync(idsDuplasFaltantes, cancellationToken);
+            foreach (var dupla in duplasFaltantes)
+            {
+                duplasPorId[dupla.Id] = dupla;
+            }
+        }
+
+        var campeaId = ObterCampeaChaveDuplaEliminacao(partidasChave, categoria.Competicao.PossuiFinalReset);
+        var finalistasIds = ObterFinalistasAtuaisChaveDuplaEliminacao(partidasChave, campeaId);
+        var partidasPorId = partidasCategoria.ToDictionary(x => x.Id);
+
+        return participantesIniciais
+            .Where(duplasPorId.ContainsKey)
+            .Select(duplaId =>
+            {
+                var estado = controleDuplas[duplaId];
+                var partidaPendenteId = estado.PartidasPendentesIds.FirstOrDefault();
+                Partida? partidaPendente = null;
+                var possuiPartidaPendente = partidaPendenteId != Guid.Empty &&
+                                            partidasPorId.TryGetValue(partidaPendenteId, out partidaPendente);
+                var status = campeaId == duplaId
+                    ? "Campeã"
+                    : finalistasIds.Contains(duplaId)
+                        ? "Finalista"
+                        : estado.Status == StatusDuplaChaveDuplaEliminacao.Eliminada
+                            ? "Eliminada"
+                            : "Ativa";
+
+                return new SituacaoDuplaCompeticaoDto(
+                    duplaId,
+                    duplasPorId[duplaId].Nome,
+                    estado.QuantidadeDerrotas,
+                    status,
+                    campeaId == duplaId ? "Campeã" : estado.PosicaoAtual,
+                    possuiPartidaPendente ? partidaPendenteId : null,
+                    possuiPartidaPendente ? partidaPendente?.FaseCampeonato : null);
+            })
+            .OrderBy(x => x.Status)
+            .ThenBy(x => x.QuantidadeDerrotas)
+            .ThenBy(x => x.NomeDupla)
+            .ToList();
+    }
+
+    private static Guid? ObterCampeaChaveDuplaEliminacao(
+        IReadOnlyList<PartidaChave> partidasChave,
+        bool possuiFinalReset)
+    {
+        var reset = ObterPartidaUnicaPorSecao(partidasChave, SecaoChaveReset);
+        if (reset?.Partida.Status == StatusPartida.Encerrada && reset.Partida.DuplaVencedoraId.HasValue)
+        {
+            return reset.Partida.DuplaVencedoraId.Value;
+        }
+
+        var final = ObterPartidaUnicaPorSecao(partidasChave, SecaoChaveFinal);
+        if (final?.Partida.Status != StatusPartida.Encerrada || !final.Partida.DuplaVencedoraId.HasValue)
+        {
+            return null;
+        }
+
+        if (!possuiFinalReset)
+        {
+            return final.Partida.DuplaVencedoraId.Value;
+        }
+
+        var duplaInvictaId = ObterDuplaInvictaDaFinal(final);
+        return final.Partida.DuplaVencedoraId.Value == duplaInvictaId
+            ? duplaInvictaId
+            : null;
+    }
+
+    private static ISet<Guid> ObterFinalistasAtuaisChaveDuplaEliminacao(
+        IReadOnlyList<PartidaChave> partidasChave,
+        Guid? campeaId)
+    {
+        if (campeaId.HasValue)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var reset = ObterPartidaUnicaPorSecao(partidasChave, SecaoChaveReset);
+        if (reset is not null)
+        {
+            return new HashSet<Guid> { reset.Partida.DuplaAId, reset.Partida.DuplaBId };
+        }
+
+        var final = ObterPartidaUnicaPorSecao(partidasChave, SecaoChaveFinal);
+        if (final is not null)
+        {
+            return new HashSet<Guid> { final.Partida.DuplaAId, final.Partida.DuplaBId };
+        }
+
+        return new HashSet<Guid>();
+    }
+
+    private static Guid ObterDuplaInvictaDaFinal(PartidaChave final)
+    {
+        var duplaInvictaId = final.Metadados.DuplasEmEspera.FirstOrDefault();
+        return duplaInvictaId == Guid.Empty ? final.Partida.DuplaAId : duplaInvictaId;
+    }
+
+    private static JogoRodadaCompeticaoDto CriarJogoRodadaCompeticaoDto(Partida partida, int ordemJogo, string tipoJogo)
+    {
+        return new JogoRodadaCompeticaoDto(
+            partida.Id,
+            ordemJogo,
+            tipoJogo,
+            partida.FaseCampeonato,
+            partida.Status,
+            partida.DuplaAId,
+            partida.DuplaA?.Nome ?? string.Empty,
+            partida.DuplaBId,
+            partida.DuplaB?.Nome ?? string.Empty,
+            partida.PlacarDuplaA,
+            partida.PlacarDuplaB,
+            partida.DuplaVencedoraId,
+            partida.DuplaVencedora?.Nome,
+            partida.DataPartida);
+    }
+
+    private static int ObterNumeroRodadaExibicaoChave(MetadadosChave metadados, int maiorRodadaBase = 1)
+    {
+        if (string.Equals(metadados.Lado, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return (metadados.Rodada * 2) - 1;
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return metadados.Rodada + 1;
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return maiorRodadaBase + 1;
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase))
+        {
+            return maiorRodadaBase + 2;
+        }
+
+        return metadados.Rodada;
+    }
+
+    private static int ObterOrdemTipoJogoChave(MetadadosChave metadados)
+    {
+        if (string.Equals(metadados.Lado, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return 2;
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return 3;
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase))
+        {
+            return 4;
+        }
+
+        return 9;
+    }
+
+    private static string ObterTipoJogoChave(MetadadosChave metadados)
+    {
+        if (string.Equals(metadados.Lado, SecaoChaveVencedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chave vencedora";
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChavePerdedores, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chave perdedora";
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChaveFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Final";
+        }
+
+        if (string.Equals(metadados.Lado, SecaoChaveReset, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Final reset";
+        }
+
+        return "Jogo";
+    }
+
+    private static string ObterTipoJogoPadrao(string? faseCampeonato)
+    {
+        if (string.IsNullOrWhiteSpace(faseCampeonato))
+        {
+            return "Jogo";
+        }
+
+        if (faseCampeonato.Contains("final de reset", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Final reset";
+        }
+
+        if (string.Equals(faseCampeonato, NomeFaseFinal, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Final";
+        }
+
+        if (faseCampeonato.Contains("chave dos vencedores", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chave vencedora";
+        }
+
+        if (faseCampeonato.Contains("chave dos perdedores", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chave perdedora";
+        }
+
+        if (faseCampeonato.Contains("grupo", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Fase de grupos";
+        }
+
+        if (faseCampeonato.Contains("classificatória", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Fase classificatória";
+        }
+
+        return faseCampeonato;
+    }
+
+    private static int ExtrairNumeroRodadaDaFase(string? faseCampeonato)
+    {
+        if (string.IsNullOrWhiteSpace(faseCampeonato))
+        {
+            return 1;
+        }
+
+        var indiceRodada = faseCampeonato.IndexOf("rodada", StringComparison.OrdinalIgnoreCase);
+        if (indiceRodada < 0)
+        {
+            return 1;
+        }
+
+        var trecho = faseCampeonato[(indiceRodada + "rodada".Length)..].Trim();
+        var numeros = new string(trecho.TakeWhile(char.IsDigit).ToArray());
+        return int.TryParse(numeros, out var rodada) && rodada > 0 ? rodada : 1;
+    }
+
+    private static EstadoRodadaChave AvaliarRodadaChave(
+        string secao,
+        int rodada,
+        IReadOnlyList<Guid> participantes,
+        IReadOnlyList<PartidaChave> partidas)
+    {
+        var planejamento = PlanejarRodadaChave(participantes);
+        if (participantes.Count <= 1 || planejamento.Confrontos.Count == 0)
+        {
+            return new EstadoRodadaChave(
+                secao,
+                rodada,
+                participantes,
+                planejamento,
+                partidas,
+                true,
+                participantes,
+                []);
+        }
+
+        var partidasPorOrdem = partidas
+            .GroupBy(x => x.Metadados.Ordem)
+            .ToDictionary(x => x.Key, x => x.First());
+        var partidasPlanejadas = planejamento.Confrontos
+            .Where(x => partidasPorOrdem.ContainsKey(x.Ordem))
+            .Select(x => partidasPorOrdem[x.Ordem])
+            .ToList();
+        var concluiuTodosConfrontos = partidasPlanejadas.Count == planejamento.Confrontos.Count &&
+                                      partidasPlanejadas.All(x => x.Partida.Status == StatusPartida.Encerrada &&
+                                                                  x.Partida.DuplaVencedoraId.HasValue);
+
+        if (!concluiuTodosConfrontos)
+        {
+            return new EstadoRodadaChave(
+                secao,
+                rodada,
+                participantes,
+                planejamento,
+                partidas,
+                false,
+                [],
+                []);
+        }
+
+        var classificados = planejamento.DuplasEmEspera
+            .Concat(partidasPlanejadas.Select(x => x.Partida.DuplaVencedoraId!.Value))
+            .ToList();
+        var derrotados = partidasPlanejadas
+            .Select(x => ObterDuplaPerdedoraId(x.Partida))
+            .ToList();
+
+        return new EstadoRodadaChave(
+            secao,
+            rodada,
+            participantes,
+            planejamento,
+            partidasPlanejadas,
+            true,
+            classificados,
+            derrotados);
+    }
+
+    private static PlanejamentoRodadaChave PlanejarRodadaChave(IReadOnlyList<Guid> participantes)
+    {
+        if (participantes.Count == 0)
+        {
+            return new PlanejamentoRodadaChave([], []);
+        }
+
+        var tamanhoChave = 1;
+        while (tamanhoChave < participantes.Count)
+        {
+            tamanhoChave *= 2;
+        }
+
+        var quantidadeByes = tamanhoChave - participantes.Count;
+        var duplasEmEspera = participantes.Take(quantidadeByes).ToList();
+        var duplasComJogo = participantes.Skip(quantidadeByes).ToList();
+        var confrontos = new List<ConfrontoPlanejadoChave>();
+
+        for (var indice = 0; indice + 1 < duplasComJogo.Count; indice += 2)
+        {
+            confrontos.Add(new ConfrontoPlanejadoChave(
+                duplasComJogo[indice],
+                duplasComJogo[indice + 1],
+                (indice / 2) + 1));
+        }
+
+        return new PlanejamentoRodadaChave(duplasEmEspera, confrontos);
+    }
+
+    private static Guid? ObterCampeaoSecao(
+        IReadOnlyDictionary<int, EstadoRodadaChave> estados,
+        int ultimaRodada)
+    {
+        if (!estados.TryGetValue(ultimaRodada, out var estadoFinal) ||
+            !estadoFinal.Concluida ||
+            estadoFinal.Classificados.Count != 1)
+        {
+            return null;
+        }
+
+        return estadoFinal.Classificados[0];
+    }
+
+    private static Guid ObterDuplaPerdedoraId(Partida partida)
+    {
+        if (!partida.DuplaVencedoraId.HasValue)
+        {
+            throw new RegraNegocioException("A partida precisa estar encerrada para identificar a dupla derrotada.");
+        }
+
+        return partida.DuplaVencedoraId.Value == partida.DuplaAId
+            ? partida.DuplaBId
+            : partida.DuplaAId;
+    }
+
+    private static int CalcularQuantidadeRodadasChave(int quantidadeParticipantes)
+    {
+        var tamanhoChave = 1;
+        var quantidadeRodadas = 0;
+
+        while (tamanhoChave < quantidadeParticipantes)
+        {
+            tamanhoChave *= 2;
+        }
+
+        while (tamanhoChave > 1)
+        {
+            quantidadeRodadas++;
+            tamanhoChave /= 2;
+        }
+
+        return quantidadeRodadas;
+    }
+
     private static IReadOnlyList<PartidaChave>? ObterRodadaMaisAltaConcluida(
         IReadOnlyList<PartidaChave> partidasChave,
         string lado)
@@ -1171,6 +2350,21 @@ public class PartidaServico(
         string lado,
         int rodada)
     {
+        return GerarPartidasRodadaEliminatoria(
+            categoria,
+            duplas,
+            lado.ToUpperInvariant(),
+            rodada,
+            $"Chave {lado.ToUpperInvariant()} - Rodada {rodada:00}");
+    }
+
+    private static List<Partida> GerarPartidasRodadaEliminatoria(
+        CategoriaCompeticao categoria,
+        IReadOnlyList<Dupla> duplas,
+        string secao,
+        int rodada,
+        string nomeFase)
+    {
         var tamanhoChave = 1;
         while (tamanhoChave < duplas.Count)
         {
@@ -1186,7 +2380,6 @@ public class PartidaServico(
         }
 
         var partidas = new List<Partida>();
-        var nomeFase = $"Chave {lado.ToUpperInvariant()} - Rodada {rodada:00}";
         var idsDuplasEmEspera = duplasEmEspera.Select(x => x.Id).ToList();
 
         for (var indice = 0; indice + 1 < duplasComJogo.Count; indice += 2)
@@ -1196,10 +2389,22 @@ public class PartidaServico(
                 duplasComJogo[indice],
                 duplasComJogo[indice + 1],
                 nomeFase,
-                new MetadadosChave(lado.ToUpperInvariant(), rodada, (indice / 2) + 1, idsDuplasEmEspera)));
+                new MetadadosChave(secao, rodada, (indice / 2) + 1, idsDuplasEmEspera)));
         }
 
         return partidas;
+    }
+
+    private static string MontarNomeFaseChaveDuplaEliminacao(string secao, int rodada)
+    {
+        return secao switch
+        {
+            SecaoChaveVencedores => $"{NomeFaseChaveVencedores} - Rodada {rodada:00}",
+            SecaoChavePerdedores => $"{NomeFaseChavePerdedores} - Rodada {rodada:00}",
+            SecaoChaveFinal => NomeFaseFinal,
+            SecaoChaveReset => NomeFaseFinalReset,
+            _ => $"Chave - Rodada {rodada:00}"
+        };
     }
 
     private static string MontarObservacoesPartida(
@@ -1311,6 +2516,28 @@ public class PartidaServico(
     }
 
     private sealed record MetadadosChave(string Lado, int Rodada, int Ordem, IReadOnlyList<Guid> DuplasEmEspera);
+    private sealed record ConfrontoPlanejadoChave(Guid DuplaAId, Guid DuplaBId, int Ordem);
+    private sealed record PlanejamentoRodadaChave(IReadOnlyList<Guid> DuplasEmEspera, IReadOnlyList<ConfrontoPlanejadoChave> Confrontos);
+    private sealed record EstadoRodadaChave(
+        string Secao,
+        int Rodada,
+        IReadOnlyList<Guid> Participantes,
+        PlanejamentoRodadaChave Planejamento,
+        IReadOnlyList<PartidaChave> Partidas,
+        bool Concluida,
+        IReadOnlyList<Guid> Classificados,
+        IReadOnlyList<Guid> Derrotados);
+    private enum StatusDuplaChaveDuplaEliminacao
+    {
+        Ativa = 1,
+        Eliminada = 2
+    }
+    private sealed record EstadoDuplaChaveDuplaEliminacao(
+        Guid DuplaId,
+        int QuantidadeDerrotas,
+        StatusDuplaChaveDuplaEliminacao Status,
+        string PosicaoAtual,
+        IReadOnlyList<Guid> PartidasPendentesIds);
     private sealed record ConfrontoRoundRobin(Dupla DuplaA, Dupla DuplaB);
     private sealed record PartidaChave(Partida Partida, MetadadosChave Metadados);
     private sealed record MetadadosRodada(string? NomeFaseBase, int NumeroRodada, int OrdemConfronto, bool TurnoEVolta, IReadOnlyList<Guid> OrdemDuplas);

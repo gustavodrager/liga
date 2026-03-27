@@ -87,6 +87,7 @@ public class InscricaoCampeonatoServico(
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var campeonato = await ObterCompeticaoComInscricaoValidaAsync(campeonatoId, cancellationToken, exigirInscricoesAbertas: true);
         var categoria = await ObterCategoriaValidaAsync(campeonatoId, dto.CategoriaId, cancellationToken);
+        await ValidarCategoriaAptaParaReceberInscricaoAsync(categoria, cancellationToken);
         Dupla dupla;
         var parceiroCadastroPendente = false;
 
@@ -156,6 +157,7 @@ public class InscricaoCampeonatoServico(
         }
 
         var categoria = await ObterCategoriaValidaAsync(campeonatoId, dto.CategoriaId, cancellationToken);
+        await ValidarCategoriaAptaParaReceberInscricaoAsync(categoria, cancellationToken, inscricao.Id);
         Dupla dupla;
         var parceiroCadastroPendente = false;
 
@@ -292,6 +294,32 @@ public class InscricaoCampeonatoServico(
         }
 
         return categoria;
+    }
+
+    private async Task ValidarCategoriaAptaParaReceberInscricaoAsync(
+        CategoriaCompeticao categoria,
+        CancellationToken cancellationToken,
+        Guid? ignorarInscricaoId = null)
+    {
+        if (categoria.InscricoesEncerradas)
+        {
+            throw new RegraNegocioException("As inscrições desta categoria estão encerradas.");
+        }
+
+        if (!categoria.QuantidadeMaximaDuplas.HasValue)
+        {
+            return;
+        }
+
+        var quantidadeInscricoes = await inscricaoRepositorio.ContarPorCategoriaAsync(
+            categoria.Id,
+            ignorarInscricaoId,
+            cancellationToken);
+
+        if (quantidadeInscricoes >= categoria.QuantidadeMaximaDuplas.Value)
+        {
+            throw new RegraNegocioException("A categoria já atingiu a quantidade máxima de duplas inscritas.");
+        }
     }
 
     private async Task<Dupla> ResolverDuplaAsync(

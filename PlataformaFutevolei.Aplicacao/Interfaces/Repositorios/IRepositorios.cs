@@ -124,6 +124,10 @@ public interface IInscricaoCampeonatoRepositorio
         Guid campeonatoId,
         Guid? categoriaId,
         CancellationToken cancellationToken = default);
+    Task<int> ContarPorCategoriaAsync(
+        Guid categoriaId,
+        Guid? ignorarInscricaoId = null,
+        CancellationToken cancellationToken = default);
     Task<InscricaoCampeonato?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<InscricaoCampeonato?> ObterDuplicadaAsync(
         Guid categoriaId,

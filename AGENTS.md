@@ -54,6 +54,13 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Importação em lote deve passar pelos serviços de aplicação; não criar bypass direto de regra de negócio
 - Já existe caso real de importação de campeonato com atletas, duplas, inscrições e partidas; ao evoluir isso, preferir reaproveitar esse fluxo em vez de criar outro importador paralelo
 
+## Dupla eliminação
+- Em chave com dupla eliminação, toda dupla começa na chave vencedora
+- A primeira derrota move para a chave perdedora; a segunda derrota elimina definitivamente
+- Final reset é opcional por competição e só vale para chave com dupla eliminação
+- A progressão entre chave vencedora, perdedora, final e reset deve ficar centralizada no backend
+- Exibição da tabela deve priorizar rodadas com identificação clara do tipo do jogo
+
 ## Diretrizes de implementação
 - Não criar projeto novo
 - Sempre analisar o código e o fluxo existente antes de implementar

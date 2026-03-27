@@ -244,7 +244,9 @@ public class ImportacaoServico(
                 nomeCategoria,
                 genero,
                 nivel,
-                null),
+                null,
+                null,
+                false),
             cancellationToken);
 
         categoriasPorChave[chaveCategoria] = categoria;
@@ -586,8 +588,10 @@ public class ImportacaoServico(
                         registro.ObterDateTimeOpcional("datafim"),
                         registro.ObterGuidOpcional("ligaid"),
                         registro.ObterGuidOpcional("localid"),
+                        registro.ObterGuidOpcional("formatocampeonatoid"),
                         registro.ObterGuidOpcional("regracompeticaoid"),
-                        registro.ObterBoolOpcional("inscricoesabertas")),
+                        registro.ObterBoolOpcional("inscricoesabertas"),
+                        registro.ObterBoolOpcional("possuifinalreset")),
                     cancellationToken);
                 break;
 
@@ -599,7 +603,9 @@ public class ImportacaoServico(
                         registro.ObterObrigatorio("nome"),
                         registro.ObterEnum<GeneroCategoria>("genero"),
                         registro.ObterEnum<NivelCategoria>("nivel"),
-                        registro.ObterDecimalOpcional("pesoranking")),
+                        registro.ObterDecimalOpcional("pesoranking"),
+                        registro.ObterIntOpcional("quantidademaximaduplas"),
+                        registro.ObterBoolOpcional("inscricoesencerradas") ?? false),
                     cancellationToken);
                 break;
 

@@ -60,6 +60,22 @@ public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, 
         return Ok(partidas);
     }
 
+    [HttpGet("{id:guid}/estrutura")]
+    [ProducesResponseType(typeof(IReadOnlyList<RodadaEstruturaCompeticaoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarEstrutura(Guid id, CancellationToken cancellationToken)
+    {
+        var estrutura = await partidaServico.ListarEstruturaPorCategoriaAsync(id, cancellationToken);
+        return Ok(estrutura);
+    }
+
+    [HttpGet("{id:guid}/duplas/situacao")]
+    [ProducesResponseType(typeof(IReadOnlyList<SituacaoDuplaCompeticaoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarSituacaoDuplas(Guid id, CancellationToken cancellationToken)
+    {
+        var situacoes = await partidaServico.ListarSituacaoDuplasPorCategoriaAsync(id, cancellationToken);
+        return Ok(situacoes);
+    }
+
     [HttpPost("{id:guid}/partidas/gerar-tabela")]
     [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(GeracaoTabelaCategoriaDto), StatusCodes.Status200OK)]

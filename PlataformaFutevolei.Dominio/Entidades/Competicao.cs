@@ -21,13 +21,16 @@ public class Competicao : EntidadeBase
     public DateTime? DataFim { get; set; }
     public Guid? LigaId { get; set; }
     public Guid? LocalId { get; set; }
+    public Guid? FormatoCampeonatoId { get; set; }
     public Guid? RegraCompeticaoId { get; set; }
     public Guid? UsuarioOrganizadorId { get; set; }
     public bool ContaRankingLiga { get; set; }
     public bool InscricoesAbertas { get; set; }
+    public bool PossuiFinalReset { get; set; }
 
     public Liga? Liga { get; set; }
     public Local? Local { get; set; }
+    public FormatoCampeonato? FormatoCampeonato { get; set; }
     public RegraCompeticao? RegraCompeticao { get; set; }
     public Usuario? UsuarioOrganizador { get; set; }
     public ICollection<CategoriaCompeticao> Categorias { get; set; } = new List<CategoriaCompeticao>();

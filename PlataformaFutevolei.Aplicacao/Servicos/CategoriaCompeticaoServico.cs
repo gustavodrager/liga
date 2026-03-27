@@ -13,6 +13,7 @@ public class CategoriaCompeticaoServico(
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
     IFormatoCampeonatoRepositorio formatoRepositorio,
+    IInscricaoCampeonatoRepositorio inscricaoRepositorio,
     IPartidaRepositorio partidaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
@@ -77,7 +78,7 @@ public class CategoriaCompeticaoServico(
     public async Task<CategoriaCompeticaoDto> CriarAsync(CriarCategoriaCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(dto.CompeticaoId, cancellationToken);
-        Validar(dto.Nome, dto.PesoRanking);
+        Validar(dto.Nome, dto.PesoRanking, dto.QuantidadeMaximaDuplas);
 
         var competicao = await competicaoRepositorio.ObterPorIdAsync(dto.CompeticaoId, cancellationToken);
         if (competicao is null)
@@ -94,7 +95,9 @@ public class CategoriaCompeticaoServico(
             Nome = dto.Nome.Trim(),
             Genero = dto.Genero,
             Nivel = dto.Nivel,
-            PesoRanking = dto.PesoRanking ?? 1m
+            PesoRanking = dto.PesoRanking ?? 1m,
+            QuantidadeMaximaDuplas = dto.QuantidadeMaximaDuplas,
+            InscricoesEncerradas = dto.InscricoesEncerradas
         };
 
         await categoriaRepositorio.AdicionarAsync(categoria, cancellationToken);
@@ -112,16 +115,26 @@ public class CategoriaCompeticaoServico(
         }
 
         await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(categoria.CompeticaoId, cancellationToken);
-        Validar(dto.Nome, dto.PesoRanking);
+        Validar(dto.Nome, dto.PesoRanking, dto.QuantidadeMaximaDuplas);
 
         var formatoCampeonatoId = await ValidarFormatoCampeonatoAsync(categoria.Competicao, dto.FormatoCampeonatoId, cancellationToken);
+        await ValidarLimiteDuplasAsync(categoria.Id, dto.QuantidadeMaximaDuplas, cancellationToken);
 
         categoria.FormatoCampeonatoId = formatoCampeonatoId;
         categoria.Nome = dto.Nome.Trim();
         categoria.Genero = dto.Genero;
         categoria.Nivel = dto.Nivel;
         categoria.PesoRanking = dto.PesoRanking ?? 1m;
-        categoria.AtualizarDataModificacao();
+        categoria.QuantidadeMaximaDuplas = dto.QuantidadeMaximaDuplas;
+
+        if (dto.InscricoesEncerradas)
+        {
+            categoria.EncerrarInscricoes();
+        }
+        else
+        {
+            categoria.ReabrirInscricoes();
+        }
 
         categoriaRepositorio.Atualizar(categoria);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -177,7 +190,7 @@ public class CategoriaCompeticaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private static void Validar(string nome, decimal? pesoRanking)
+    private static void Validar(string nome, decimal? pesoRanking, int? quantidadeMaximaDuplas)
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
@@ -187,6 +200,28 @@ public class CategoriaCompeticaoServico(
         if (pesoRanking.HasValue && pesoRanking.Value <= 0)
         {
             throw new RegraNegocioException("Peso de ranking da categoria deve ser maior que zero.");
+        }
+
+        if (quantidadeMaximaDuplas.HasValue && quantidadeMaximaDuplas.Value <= 0)
+        {
+            throw new RegraNegocioException("Quantidade máxima de duplas deve ser maior que zero.");
+        }
+    }
+
+    private async Task ValidarLimiteDuplasAsync(
+        Guid categoriaId,
+        int? quantidadeMaximaDuplas,
+        CancellationToken cancellationToken)
+    {
+        if (!quantidadeMaximaDuplas.HasValue)
+        {
+            return;
+        }
+
+        var quantidadeInscricoes = await inscricaoRepositorio.ContarPorCategoriaAsync(categoriaId, cancellationToken: cancellationToken);
+        if (quantidadeInscricoes > quantidadeMaximaDuplas.Value)
+        {
+            throw new RegraNegocioException("A categoria já possui mais duplas inscritas do que o novo limite informado.");
         }
     }
 
@@ -200,15 +235,20 @@ public class CategoriaCompeticaoServico(
             return null;
         }
 
-        if (competicao.Tipo != TipoCompeticao.Campeonato)
-        {
-            throw new RegraNegocioException("Formato de campeonato só pode ser vinculado a categorias de campeonatos.");
-        }
-
         var formato = await formatoRepositorio.ObterPorIdAsync(formatoCampeonatoId.Value, cancellationToken);
         if (formato is null)
         {
             throw new RegraNegocioException("O formato de campeonato informado não foi encontrado.");
+        }
+
+        if (!formato.Ativo)
+        {
+            throw new RegraNegocioException("O formato de campeonato informado está inativo.");
+        }
+
+        if (competicao.Tipo == TipoCompeticao.Grupo && formato.TipoFormato != TipoFormatoCampeonato.PontosCorridos)
+        {
+            throw new RegraNegocioException("Categorias de grupos só podem usar formato padrão de pontos corridos.");
         }
 
         return formato.Id;

@@ -10,8 +10,10 @@ public record CriarCompeticaoDto(
     DateTime? DataFim,
     Guid? LigaId,
     Guid? LocalId,
+    Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
-    bool? InscricoesAbertas
+    bool? InscricoesAbertas,
+    bool? PossuiFinalReset
 );
 
 public record AtualizarCompeticaoDto(
@@ -22,8 +24,10 @@ public record AtualizarCompeticaoDto(
     DateTime? DataFim,
     Guid? LigaId,
     Guid? LocalId,
+    Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
-    bool? InscricoesAbertas
+    bool? InscricoesAbertas,
+    bool? PossuiFinalReset
 );
 
 public record CompeticaoDto(
@@ -35,14 +39,17 @@ public record CompeticaoDto(
     DateTime? DataFim,
     Guid? LigaId,
     Guid? LocalId,
+    Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
     Guid? UsuarioOrganizadorId,
     string? NomeLiga,
     string? NomeLocal,
+    string? NomeFormatoCampeonato,
     string? NomeRegraCompeticao,
     string? NomeUsuarioOrganizador,
     bool ContaRankingLiga,
     bool InscricoesAbertas,
+    bool PossuiFinalReset,
     int PontosMinimosPartidaEfetivo,
     int DiferencaMinimaPartidaEfetiva,
     bool PermiteEmpateEfetivo,

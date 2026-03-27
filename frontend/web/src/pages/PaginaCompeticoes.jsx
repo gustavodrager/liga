@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
+import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
 import { grupoAtletasServico } from '../services/grupoAtletasServico';
 import { inscricoesCampeonatoServico } from '../services/inscricoesCampeonatoServico';
 import { ligasServico } from '../services/ligasServico';
@@ -22,8 +23,10 @@ function criarEstadoInicialCompeticao(usuarioAtleta = false) {
     dataFim: '',
     ligaId: '',
     localId: '',
+    formatoCampeonatoId: '',
     regraCompeticaoId: '',
-    inscricoesAbertas: !usuarioAtleta
+    inscricoesAbertas: !usuarioAtleta,
+    possuiFinalReset: !usuarioAtleta
   };
 }
 
@@ -61,6 +64,7 @@ export function PaginaCompeticoes() {
   const [competicoes, setCompeticoes] = useState([]);
   const [ligas, setLigas] = useState([]);
   const [locais, setLocais] = useState([]);
+  const [formatosCampeonato, setFormatosCampeonato] = useState([]);
   const [regras, setRegras] = useState([]);
   const [regrasDisponiveis, setRegrasDisponiveis] = useState(true);
   const [formulario, setFormulario] = useState(() => criarEstadoInicialCompeticao(usuarioAtleta));
@@ -89,6 +93,31 @@ export function PaginaCompeticoes() {
     carregarCompeticoes();
   }, [gestorCompeticao, usuarioAtleta]);
 
+  function obterFormatosDisponiveisParaTipo(tipo) {
+    const tipoCompeticao = Number(tipo);
+    return formatosCampeonato.filter((formato) => (
+      formato.ativo &&
+      (tipoCompeticao !== 3 || formato.tipoFormato === 1)
+    ));
+  }
+
+  function formatoEfetivoDaCompeticaoEhChaveDuplaEliminacao(tipo, formatoCampeonatoId) {
+    if (Number(tipo) === 3) {
+      return false;
+    }
+
+    if (!formatoCampeonatoId) {
+      return true;
+    }
+
+    const formatoSelecionado = formatosCampeonato.find((formato) => formato.id === formatoCampeonatoId);
+    return Boolean(
+      formatoSelecionado &&
+      formatoSelecionado.tipoFormato === 3 &&
+      Number(formatoSelecionado.quantidadeDerrotasParaEliminacao) === 2
+    );
+  }
+
   function podeGerenciarCompeticao(competicao) {
     if (gestorCompeticao) {
       return true;
@@ -110,14 +139,28 @@ export function PaginaCompeticoes() {
     setAviso('');
 
     try {
+      const avisos = [];
       const listaCompeticoes = await competicoesServico.listar();
       setCompeticoes(listaCompeticoes);
+
+      if (podeCriarCompeticao) {
+        try {
+          const listaFormatos = await formatosCampeonatoServico.listar();
+          setFormatosCampeonato(listaFormatos.filter((formato) => formato.ativo));
+        } catch (error) {
+          setFormatosCampeonato([]);
+          avisos.push(`Não foi possível carregar os formatos de competição: ${extrairMensagemErro(error)}`);
+        }
+      } else {
+        setFormatosCampeonato([]);
+      }
 
       if (!gestorCompeticao) {
         setLigas([]);
         setLocais([]);
         setRegras([]);
         setRegrasDisponiveis(false);
+        setAviso(avisos.join(' '));
         return;
       }
 
@@ -138,11 +181,13 @@ export function PaginaCompeticoes() {
         setRegrasDisponiveis(false);
 
         if (error?.response?.status === 404) {
-          setAviso('O cadastro de regras não está disponível nesta API. As competições continuam usando a regra padrão.');
+          avisos.push('O cadastro de regras não está disponível nesta API. As competições continuam usando a regra padrão.');
         } else {
-          setAviso(`Não foi possível carregar as regras de competição: ${extrairMensagemErro(error)}`);
+          avisos.push(`Não foi possível carregar as regras de competição: ${extrairMensagemErro(error)}`);
         }
       }
+
+      setAviso(avisos.join(' '));
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -156,6 +201,27 @@ export function PaginaCompeticoes() {
 
       if (campo === 'tipo' && Number(valor) === 3) {
         proximo.inscricoesAbertas = false;
+        proximo.possuiFinalReset = false;
+      }
+
+      if (campo === 'tipo') {
+        const formatosDisponiveis = obterFormatosDisponiveisParaTipo(valor);
+        if (
+          proximo.formatoCampeonatoId &&
+          formatosDisponiveis.every((formato) => formato.id !== proximo.formatoCampeonatoId)
+        ) {
+          proximo.formatoCampeonatoId = '';
+        }
+      }
+
+      if (
+        (campo === 'tipo' || campo === 'formatoCampeonatoId') &&
+        !formatoEfetivoDaCompeticaoEhChaveDuplaEliminacao(
+          campo === 'tipo' ? valor : proximo.tipo,
+          campo === 'formatoCampeonatoId' ? valor : proximo.formatoCampeonatoId
+        )
+      ) {
+        proximo.possuiFinalReset = false;
       }
 
       return proximo;
@@ -172,8 +238,10 @@ export function PaginaCompeticoes() {
       dataFim: paraInputData(competicao.dataFim),
       ligaId: competicao.ligaId || '',
       localId: competicao.localId || '',
+      formatoCampeonatoId: competicao.formatoCampeonatoId || '',
       regraCompeticaoId: competicao.regraCompeticaoId || '',
-      inscricoesAbertas: Boolean(competicao.inscricoesAbertas)
+      inscricoesAbertas: Boolean(competicao.inscricoesAbertas),
+      possuiFinalReset: Boolean(competicao.possuiFinalReset)
     });
     rolarParaElemento(formularioCompeticaoRef.current);
   }
@@ -385,8 +453,10 @@ export function PaginaCompeticoes() {
       dataFim: formulario.dataFim || null,
       ligaId: usuarioAtleta ? null : formulario.ligaId || null,
       localId: usuarioAtleta ? null : formulario.localId || null,
+      formatoCampeonatoId: formulario.formatoCampeonatoId || null,
       regraCompeticaoId: usuarioAtleta ? null : formulario.regraCompeticaoId || null,
-      inscricoesAbertas: tipo !== 3 ? formulario.inscricoesAbertas : false
+      inscricoesAbertas: tipo !== 3 ? formulario.inscricoesAbertas : false,
+      possuiFinalReset: tipo !== 3 ? formulario.possuiFinalReset : false
     };
 
     try {
@@ -485,6 +555,32 @@ export function PaginaCompeticoes() {
               rows={3}
             />
           </label>
+
+          <label>
+            Forma de competição
+            <select
+              value={formulario.formatoCampeonatoId}
+              onChange={(evento) => atualizarCampo('formatoCampeonatoId', evento.target.value)}
+            >
+              <option value="">Usar padrão do tipo</option>
+              {obterFormatosDisponiveisParaTipo(usuarioAtleta ? 3 : formulario.tipo).map((formato) => (
+                <option key={formato.id} value={formato.id}>
+                  {formato.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {!usuarioAtleta && Number(formulario.tipo) !== 3 && formatoEfetivoDaCompeticaoEhChaveDuplaEliminacao(formulario.tipo, formulario.formatoCampeonatoId) && (
+            <label className="campo-checkbox">
+              <input
+                type="checkbox"
+                checked={Boolean(formulario.possuiFinalReset)}
+                onChange={(evento) => atualizarCampo('possuiFinalReset', evento.target.checked)}
+              />
+              <span>Permitir final reset na chave com dupla eliminação</span>
+            </label>
+          )}
 
           {!usuarioAtleta && (
             <>
@@ -607,6 +703,10 @@ export function PaginaCompeticoes() {
                   <p>Tipo: {tiposCompeticao.find((tipo) => tipo.valor === competicao.tipo)?.rotulo || '-'}</p>
                   <p>Liga: {competicao.nomeLiga || '-'}</p>
                   <p>Local: {competicao.nomeLocal || '-'}</p>
+                  <p>Forma de competição: {competicao.nomeFormatoCampeonato || 'Padrão do tipo'}</p>
+                  {competicao.tipo !== 3 && (
+                    <p>Final reset: {competicao.possuiFinalReset ? 'Habilitada' : 'Desabilitada'}</p>
+                  )}
                   <p>Regra: {competicao.nomeRegraCompeticao || 'Padrão'}</p>
                   <p>Ranking da liga: {competicao.ligaId ? 'Conta automaticamente' : 'Sem liga vinculada'}</p>
                   <p>Início: {formatarData(competicao.dataInicio)}</p>
@@ -709,8 +809,11 @@ export function PaginaCompeticoes() {
                             {competicao.tipo !== 3 && (
                               <p>Duplas inscritas: {quantidadeInscricoesPorCategoria[categoria.id] ?? 0}</p>
                             )}
-                            {competicao.tipo === 1 && (
-                              <p>Formato: {categoria.nomeFormatoCampeonato || 'Sem formato vinculado'}</p>
+                            {competicao.tipo !== 3 && (
+                              <p>
+                                Formato: {categoria.nomeFormatoCampeonatoEfetivo || 'Sem formato vinculado'}
+                                {categoria.usaFormatoCampeonatoDaCompeticao ? ' (seguindo a competição)' : ''}
+                              </p>
                             )}
                           </div>
 

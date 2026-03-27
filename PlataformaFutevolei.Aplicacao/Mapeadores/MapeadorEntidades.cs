@@ -122,14 +122,17 @@ internal static class MapeadorEntidades
             competicao.DataFim,
             competicao.LigaId,
             competicao.LocalId,
+            competicao.FormatoCampeonatoId,
             competicao.RegraCompeticaoId,
             competicao.UsuarioOrganizadorId,
             competicao.Liga?.Nome,
             competicao.Local?.Nome,
+            competicao.FormatoCampeonato?.Nome,
             competicao.RegraCompeticao?.Nome,
             competicao.UsuarioOrganizador?.Nome,
             competicao.LigaId.HasValue,
             competicao.InscricoesAbertas,
+            competicao.PossuiFinalReset,
             competicao.ObterPontosMinimosPartida(),
             competicao.ObterDiferencaMinimaPartida(),
             competicao.ObterPermiteEmpate(),
@@ -174,22 +177,34 @@ internal static class MapeadorEntidades
         );
 
     public static CategoriaCompeticaoDto ParaDto(this CategoriaCompeticao categoria)
-        => new(
+    {
+        var formatoEfetivo = categoria.ObterFormatoCampeonatoEfetivo();
+        var usaFormatoCampeonatoDaCompeticao = categoria.FormatoCampeonatoId is null &&
+            categoria.Competicao?.FormatoCampeonatoId is not null;
+
+        return new CategoriaCompeticaoDto(
             categoria.Id,
             categoria.CompeticaoId,
             categoria.FormatoCampeonatoId,
+            formatoEfetivo?.Id,
             categoria.TabelaJogosAprovada,
             categoria.TabelaJogosAprovadaPorUsuarioId,
             categoria.TabelaJogosAprovadaEmUtc,
             categoria.Competicao?.Nome ?? string.Empty,
             categoria.FormatoCampeonato?.Nome,
+            formatoEfetivo?.Nome,
+            usaFormatoCampeonatoDaCompeticao,
             categoria.Nome,
             categoria.Genero,
             categoria.Nivel,
             categoria.PesoRanking,
+            categoria.QuantidadeMaximaDuplas,
+            categoria.InscricoesEncerradas,
+            categoria.Inscricoes?.Count ?? 0,
             categoria.DataCriacao,
             categoria.DataAtualizacao
         );
+    }
 
     public static PartidaDto ParaDto(this Partida partida)
         => new(

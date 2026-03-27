@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
+import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { rolarParaElemento } from '../utils/rolagem';
 
 const estadoInicial = {
   competicaoId: '',
+  formatoCampeonatoId: '',
   nome: '',
   genero: '1',
   nivel: '1',
-  pesoRanking: ''
+  pesoRanking: '',
+  quantidadeMaximaDuplas: '',
+  inscricoesEncerradas: false
 };
 
 const opcoesGenero = [
@@ -31,6 +35,7 @@ const opcoesNivel = [
 export function PaginaCategorias() {
   const [competicoes, setCompeticoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [formatosCampeonato, setFormatosCampeonato] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
   const [categoriaEdicaoId, setCategoriaEdicaoId] = useState(null);
   const [erro, setErro] = useState('');
@@ -40,10 +45,21 @@ export function PaginaCategorias() {
 
   const [params, setParams] = useSearchParams();
   const navegar = useNavigate();
+  const competicaoSelecionada = competicoes.find((competicao) => competicao.id === formulario.competicaoId) || null;
+  const competicaoAceitaInscricoes = Boolean(competicaoSelecionada && competicaoSelecionada.tipo !== 3);
 
   useEffect(() => {
     carregarCompeticoes();
   }, []);
+
+  function obterFormatosDisponiveis() {
+    const tipoCompeticao = Number(competicaoSelecionada?.tipo);
+
+    return formatosCampeonato.filter((formato) => (
+      formato.ativo &&
+      (tipoCompeticao !== 3 || formato.tipoFormato === 1)
+    ));
+  }
 
   useEffect(() => {
     if (!formulario.competicaoId) {
@@ -71,8 +87,13 @@ export function PaginaCategorias() {
     setCarregando(true);
 
     try {
-      const listaCompeticoes = await competicoesServico.listar();
+      const [listaCompeticoes, listaFormatos] = await Promise.all([
+        competicoesServico.listar(),
+        formatosCampeonatoServico.listar()
+      ]);
+
       setCompeticoes(listaCompeticoes);
+      setFormatosCampeonato(listaFormatos.filter((formato) => formato.ativo));
 
       const competicaoUrl = params.get('competicaoId');
       const competicaoPadrao = competicaoUrl || listaCompeticoes[0]?.id || '';
@@ -98,7 +119,26 @@ export function PaginaCategorias() {
   }
 
   function atualizarCampo(campo, valor) {
-    setFormulario((anterior) => ({ ...anterior, [campo]: valor }));
+    setFormulario((anterior) => {
+      const proximo = { ...anterior, [campo]: valor };
+
+      if (campo === 'competicaoId') {
+        const competicao = competicoes.find((item) => item.id === valor);
+        const formatosDisponiveis = formatosCampeonato.filter((formato) => (
+          formato.ativo &&
+          (Number(competicao?.tipo) !== 3 || formato.tipoFormato === 1)
+        ));
+
+        if (
+          proximo.formatoCampeonatoId &&
+          formatosDisponiveis.every((formato) => formato.id !== proximo.formatoCampeonatoId)
+        ) {
+          proximo.formatoCampeonatoId = '';
+        }
+      }
+
+      return proximo;
+    });
 
     if (campo === 'competicaoId') {
       setCategoriaEdicaoId(null);
@@ -124,10 +164,13 @@ export function PaginaCategorias() {
     setCategoriaEdicaoId(categoria.id);
     setFormulario({
       competicaoId: categoria.competicaoId,
+      formatoCampeonatoId: categoria.formatoCampeonatoId || '',
       nome: categoria.nome,
       genero: String(categoria.genero),
       nivel: String(categoria.nivel),
-      pesoRanking: String(categoria.pesoRanking)
+      pesoRanking: String(categoria.pesoRanking),
+      quantidadeMaximaDuplas: categoria.quantidadeMaximaDuplas ? String(categoria.quantidadeMaximaDuplas) : '',
+      inscricoesEncerradas: Boolean(categoria.inscricoesEncerradas)
     });
     atualizarParametros(categoria.competicaoId, categoria.id);
     rolarParaElemento(formularioRef.current);
@@ -154,18 +197,24 @@ export function PaginaCategorias() {
 
       if (categoriaEdicaoId) {
         await categoriasServico.atualizar(categoriaEdicaoId, {
+          formatoCampeonatoId: formulario.formatoCampeonatoId || null,
           nome: formulario.nome,
           genero: Number(formulario.genero),
           nivel: Number(formulario.nivel),
-          pesoRanking: formulario.pesoRanking === '' ? null : Number(formulario.pesoRanking)
+          pesoRanking: formulario.pesoRanking === '' ? null : Number(formulario.pesoRanking),
+          quantidadeMaximaDuplas: formulario.quantidadeMaximaDuplas === '' ? null : Number(formulario.quantidadeMaximaDuplas),
+          inscricoesEncerradas: competicaoAceitaInscricoes ? Boolean(formulario.inscricoesEncerradas) : false
         });
       } else {
         await categoriasServico.criar({
           competicaoId: formulario.competicaoId,
+          formatoCampeonatoId: formulario.formatoCampeonatoId || null,
           nome: formulario.nome,
           genero: Number(formulario.genero),
           nivel: Number(formulario.nivel),
-          pesoRanking: formulario.pesoRanking === '' ? null : Number(formulario.pesoRanking)
+          pesoRanking: formulario.pesoRanking === '' ? null : Number(formulario.pesoRanking),
+          quantidadeMaximaDuplas: formulario.quantidadeMaximaDuplas === '' ? null : Number(formulario.quantidadeMaximaDuplas),
+          inscricoesEncerradas: competicaoAceitaInscricoes ? Boolean(formulario.inscricoesEncerradas) : false
         });
       }
 
@@ -186,6 +235,35 @@ export function PaginaCategorias() {
     try {
       await categoriasServico.remover(id);
       await carregarCategorias(formulario.competicaoId);
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    }
+  }
+
+  async function alternarEncerramentoInscricoes(categoria) {
+    const proximoEncerramento = !categoria.inscricoesEncerradas;
+    const mensagemConfirmacao = proximoEncerramento
+      ? 'Deseja encerrar as inscrições desta categoria?'
+      : 'Deseja reabrir as inscrições desta categoria?';
+
+    if (!window.confirm(mensagemConfirmacao)) {
+      return;
+    }
+
+    setErro('');
+
+    try {
+      await categoriasServico.atualizar(categoria.id, {
+        formatoCampeonatoId: categoria.formatoCampeonatoId,
+        nome: categoria.nome,
+        genero: Number(categoria.genero),
+        nivel: Number(categoria.nivel),
+        pesoRanking: categoria.pesoRanking,
+        quantidadeMaximaDuplas: categoria.quantidadeMaximaDuplas,
+        inscricoesEncerradas: proximoEncerramento
+      });
+
+      await carregarCategorias(categoria.competicaoId);
     } catch (error) {
       setErro(extrairMensagemErro(error));
     }
@@ -214,6 +292,27 @@ export function PaginaCategorias() {
             ))}
           </select>
         </label>
+
+        <label>
+          Forma de competição
+          <select
+            value={formulario.formatoCampeonatoId}
+            onChange={(evento) => atualizarCampo('formatoCampeonatoId', evento.target.value)}
+          >
+            <option value="">Seguir formato da competição</option>
+            {obterFormatosDisponiveis().map((formato) => (
+              <option key={formato.id} value={formato.id}>
+                {formato.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {competicaoSelecionada?.nomeFormatoCampeonato && (
+          <p className="campo-largo">
+            Formato definido na competição: {competicaoSelecionada.nomeFormatoCampeonato}.
+          </p>
+        )}
 
         <label>
           Nome da categoria
@@ -268,6 +367,31 @@ export function PaginaCategorias() {
           />
         </label>
 
+        {competicaoAceitaInscricoes && (
+          <label>
+            Quantidade máxima de duplas
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={formulario.quantidadeMaximaDuplas}
+              onChange={(evento) => atualizarCampo('quantidadeMaximaDuplas', evento.target.value)}
+              placeholder="Em branco = até encerrar as inscrições"
+            />
+          </label>
+        )}
+
+        {competicaoAceitaInscricoes && categoriaEdicaoId && (
+          <label className="checkbox-linha">
+            <input
+              type="checkbox"
+              checked={Boolean(formulario.inscricoesEncerradas)}
+              onChange={(evento) => atualizarCampo('inscricoesEncerradas', evento.target.checked)}
+            />
+            <span>Inscrições encerradas nesta categoria</span>
+          </label>
+        )}
+
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
             {salvando ? 'Salvando...' : categoriaEdicaoId ? 'Atualizar categoria' : 'Cadastrar categoria'}
@@ -294,6 +418,19 @@ export function PaginaCategorias() {
                 <p>Gênero: {opcoesGenero.find((item) => item.valor === categoria.genero)?.rotulo}</p>
                 <p>Nível: {opcoesNivel.find((item) => item.valor === categoria.nivel)?.rotulo}</p>
                 <p>Peso no ranking: {categoria.pesoRanking}</p>
+                {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
+                  <p>
+                    Formato: {categoria.nomeFormatoCampeonatoEfetivo || 'Sem formato vinculado'}
+                    {categoria.usaFormatoCampeonatoDaCompeticao ? ' (seguindo a competição)' : ''}
+                  </p>
+                )}
+                {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
+                  <>
+                    <p>Duplas inscritas: {categoria.quantidadeDuplasInscritas}</p>
+                    <p>Limite de duplas: {categoria.quantidadeMaximaDuplas || 'Sem limite'}</p>
+                    <p>Inscrições: {categoria.inscricoesEncerradas ? 'Encerradas' : 'Abertas'}</p>
+                  </>
+                )}
               </div>
 
               <div className="acoes-item">
@@ -316,6 +453,15 @@ export function PaginaCategorias() {
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(categoria)}>
                   Editar
                 </button>
+                {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
+                  <button
+                    type="button"
+                    className="botao-secundario"
+                    onClick={() => alternarEncerramentoInscricoes(categoria)}
+                  >
+                    {categoria.inscricoesEncerradas ? 'Reabrir inscrições' : 'Encerrar inscrições'}
+                  </button>
+                )}
                 <button type="button" className="botao-perigo" onClick={() => removerCategoria(categoria.id)}>
                   Excluir
                 </button>

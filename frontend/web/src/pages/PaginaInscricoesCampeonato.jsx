@@ -77,6 +77,17 @@ function compararPorNome(a, b) {
   return (a?.nome || '').localeCompare(b?.nome || '', 'pt-BR');
 }
 
+function compararInscricoesMaisRecentesPrimeiro(a, b) {
+  const dataA = a?.dataInscricaoUtc ? new Date(a.dataInscricaoUtc).getTime() : 0;
+  const dataB = b?.dataInscricaoUtc ? new Date(b.dataInscricaoUtc).getTime() : 0;
+
+  if (dataA !== dataB) {
+    return dataB - dataA;
+  }
+
+  return (b?.id || '').localeCompare(a?.id || '', 'pt-BR');
+}
+
 function montarOpcoesOrganizador(inscricoes) {
   const mapaDuplas = new Map();
   const mapaAtletas = new Map();
@@ -290,6 +301,11 @@ export function PaginaInscricoesCampeonato() {
       ? resultadosBuscaParceiro
       : buscarSugestoesAtleta(atletas, formulario.nomeAtleta2 || '', formulario.atleta2Id),
     [atletaLogado, resultadosBuscaParceiro, atletas, formulario.nomeAtleta2, formulario.atleta2Id]
+  );
+
+  const inscricoesOrdenadas = useMemo(
+    () => [...inscricoes].sort(compararInscricoesMaisRecentesPrimeiro),
+    [inscricoes]
   );
 
   function criarFormularioAtleta({
@@ -1157,7 +1173,7 @@ export function PaginaInscricoesCampeonato() {
         <p>Carregando inscrições...</p>
       ) : (
         <div className="lista-cartoes">
-          {inscricoes.map((inscricao) => (
+          {inscricoesOrdenadas.map((inscricao) => (
             <article key={inscricao.id} className="cartao-lista">
               <div>
                 <h3>{inscricao.nomeCategoria}</h3>

@@ -13,6 +13,7 @@ public class CompeticaoServico(
     ICompeticaoRepositorio competicaoRepositorio,
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
+    IFormatoCampeonatoRepositorio formatoRepositorio,
     ILigaRepositorio ligaRepositorio,
     ILocalRepositorio localRepositorio,
     IRegraCompeticaoRepositorio regraRepositorio,
@@ -96,6 +97,8 @@ public class CompeticaoServico(
         Validar(dto.Nome, dataInicioUtc, dataFimUtc);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(dto.Tipo, dto.FormatoCampeonatoId, cancellationToken);
+        var possuiFinalReset = await ResolverPossuiFinalResetAsync(dto.Tipo, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
         await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
 
         var competicao = new Competicao
@@ -107,10 +110,12 @@ public class CompeticaoServico(
             DataFim = dataFimUtc,
             LigaId = dto.LigaId,
             LocalId = dto.LocalId,
+            FormatoCampeonatoId = formatoCampeonatoId,
             RegraCompeticaoId = dto.RegraCompeticaoId,
             UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta ? usuario.Id : null,
             ContaRankingLiga = dto.LigaId.HasValue,
-            InscricoesAbertas = ObterInscricoesAbertasParaCriacao(dto.Tipo, dto.InscricoesAbertas)
+            InscricoesAbertas = ObterInscricoesAbertasParaCriacao(dto.Tipo, dto.InscricoesAbertas),
+            PossuiFinalReset = possuiFinalReset
         };
 
         await competicaoRepositorio.AdicionarAsync(competicao, cancellationToken);
@@ -120,6 +125,7 @@ public class CompeticaoServico(
             await categoriaRepositorio.AdicionarAsync(new CategoriaCompeticao
             {
                 CompeticaoId = competicao.Id,
+                FormatoCampeonatoId = null,
                 Nome = "Geral",
                 Genero = GeneroCategoria.Misto,
                 Nivel = NivelCategoria.Livre,
@@ -156,13 +162,17 @@ public class CompeticaoServico(
         Validar(dto.Nome, dataInicioUtc, dataFimUtc);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
-        await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
 
         var competicao = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (competicao is null)
         {
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
         }
+
+        var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(dto.Tipo, dto.FormatoCampeonatoId, cancellationToken);
+        var possuiFinalReset = await ResolverPossuiFinalResetAsync(dto.Tipo, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
+        await ValidarCategoriasExistentesAsync(id, dto.Tipo, formatoCampeonatoId, cancellationToken);
+        await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
 
         competicao.Nome = dto.Nome.Trim();
         competicao.Tipo = dto.Tipo;
@@ -171,12 +181,14 @@ public class CompeticaoServico(
         competicao.DataFim = dataFimUtc;
         competicao.LigaId = dto.LigaId;
         competicao.LocalId = dto.LocalId;
+        competicao.FormatoCampeonatoId = formatoCampeonatoId;
         competicao.RegraCompeticaoId = dto.RegraCompeticaoId;
         competicao.ContaRankingLiga = dto.LigaId.HasValue;
         competicao.InscricoesAbertas = ObterInscricoesAbertasParaAtualizacao(
             dto.Tipo,
             dto.InscricoesAbertas,
             competicao.InscricoesAbertas);
+        competicao.PossuiFinalReset = possuiFinalReset;
         competicao.AtualizarDataModificacao();
 
         competicaoRepositorio.Atualizar(competicao);
@@ -286,6 +298,151 @@ public class CompeticaoServico(
     private static bool AceitaInscricoes(TipoCompeticao tipo)
     {
         return tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento;
+    }
+
+    private async Task<Guid?> ResolverFormatoCampeonatoAsync(
+        TipoCompeticao tipo,
+        Guid? formatoCampeonatoId,
+        CancellationToken cancellationToken)
+    {
+        if (formatoCampeonatoId.HasValue)
+        {
+            var formato = await formatoRepositorio.ObterPorIdAsync(formatoCampeonatoId.Value, cancellationToken);
+            if (formato is null)
+            {
+                throw new RegraNegocioException("O formato de competição informado não foi encontrado.");
+            }
+
+            if (!formato.Ativo)
+            {
+                throw new RegraNegocioException("O formato de competição informado está inativo.");
+            }
+
+            ValidarCompatibilidadeFormato(tipo, formato);
+            return formato.Id;
+        }
+
+        return await ObterFormatoPadraoAsync(tipo, cancellationToken);
+    }
+
+    private async Task<bool> ResolverPossuiFinalResetAsync(
+        TipoCompeticao tipo,
+        Guid? formatoCampeonatoId,
+        bool? possuiFinalReset,
+        CancellationToken cancellationToken)
+    {
+        if (!AceitaInscricoes(tipo))
+        {
+            if (possuiFinalReset is true)
+            {
+                throw new RegraNegocioException("Final reset só pode ser configurada em campeonatos e eventos.");
+            }
+
+            return false;
+        }
+
+        var formatoEhChaveDuplaEliminacao = await FormatoEhChaveDuplaEliminacaoAsync(formatoCampeonatoId, cancellationToken);
+        if (possuiFinalReset is true && !formatoEhChaveDuplaEliminacao)
+        {
+            throw new RegraNegocioException("Final reset só pode ser habilitada quando a competição usa chave com dupla eliminação.");
+        }
+
+        if (possuiFinalReset.HasValue)
+        {
+            return possuiFinalReset.Value;
+        }
+
+        return formatoEhChaveDuplaEliminacao;
+    }
+
+    private async Task<Guid?> ObterFormatoPadraoAsync(TipoCompeticao tipo, CancellationToken cancellationToken)
+    {
+        var formatos = await formatoRepositorio.ListarAsync(cancellationToken);
+
+        if (tipo == TipoCompeticao.Grupo)
+        {
+            var formatoPontosCorridos = formatos
+                .FirstOrDefault(x => x.Ativo && x.TipoFormato == TipoFormatoCampeonato.PontosCorridos);
+
+            if (formatoPontosCorridos is null)
+            {
+                throw new RegraNegocioException("Cadastre um formato ativo de pontos corridos para usar como padrão em grupos.");
+            }
+
+            return formatoPontosCorridos.Id;
+        }
+
+        if (AceitaInscricoes(tipo))
+        {
+            var formatoChaveDuplaEliminacao = formatos.FirstOrDefault(x =>
+                x.Ativo &&
+                x.TipoFormato == TipoFormatoCampeonato.Chave &&
+                x.QuantidadeDerrotasParaEliminacao == 2);
+
+            if (formatoChaveDuplaEliminacao is null)
+            {
+                throw new RegraNegocioException("Cadastre um formato ativo de chave com dupla eliminação para usar como padrão em campeonatos e eventos.");
+            }
+
+            return formatoChaveDuplaEliminacao.Id;
+        }
+
+        return null;
+    }
+
+    private async Task<bool> FormatoEhChaveDuplaEliminacaoAsync(Guid? formatoCampeonatoId, CancellationToken cancellationToken)
+    {
+        if (!formatoCampeonatoId.HasValue)
+        {
+            return false;
+        }
+
+        var formato = await formatoRepositorio.ObterPorIdAsync(formatoCampeonatoId.Value, cancellationToken);
+        return formato is not null &&
+               formato.TipoFormato == TipoFormatoCampeonato.Chave &&
+               formato.QuantidadeDerrotasParaEliminacao == 2;
+    }
+
+    private async Task ValidarCategoriasExistentesAsync(
+        Guid competicaoId,
+        TipoCompeticao tipo,
+        Guid? formatoCampeonatoId,
+        CancellationToken cancellationToken)
+    {
+        var categorias = await categoriaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        if (categorias.Count == 0)
+        {
+            return;
+        }
+
+        FormatoCampeonato? formatoCompeticao = null;
+        if (formatoCampeonatoId.HasValue)
+        {
+            formatoCompeticao = await formatoRepositorio.ObterPorIdAsync(formatoCampeonatoId.Value, cancellationToken);
+        }
+
+        foreach (var categoria in categorias)
+        {
+            var formatoCategoria = categoria.FormatoCampeonato;
+            if (formatoCategoria is not null)
+            {
+                ValidarCompatibilidadeFormato(tipo, formatoCategoria);
+                continue;
+            }
+
+            if (formatoCompeticao is not null)
+            {
+                ValidarCompatibilidadeFormato(tipo, formatoCompeticao);
+            }
+        }
+    }
+
+    private static void ValidarCompatibilidadeFormato(TipoCompeticao tipo, FormatoCampeonato formato)
+    {
+        if (tipo == TipoCompeticao.Grupo && formato.TipoFormato != TipoFormatoCampeonato.PontosCorridos)
+        {
+            throw new RegraNegocioException("Competições do tipo grupo só podem usar formato de pontos corridos.");
+        }
     }
 
     private static void Validar(

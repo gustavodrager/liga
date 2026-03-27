@@ -118,6 +118,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("integer")
                         .HasColumnName("genero");
 
+                    b.Property<bool>("InscricoesEncerradas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("inscricoes_encerradas");
+
                     b.Property<int>("Nivel")
                         .HasColumnType("integer")
                         .HasColumnName("nivel");
@@ -134,6 +140,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("numeric(10,2)")
                         .HasDefaultValue(1m)
                         .HasColumnName("peso_ranking");
+
+                    b.Property<int?>("QuantidadeMaximaDuplas")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantidade_maxima_duplas");
 
                     b.Property<DateTime?>("TabelaJogosAprovadaEmUtc")
                         .HasColumnType("timestamp with time zone")
@@ -179,6 +189,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_fim");
 
+                    b.Property<Guid?>("FormatoCampeonatoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("formato_campeonato_id");
+
                     b.Property<DateTime>("DataInicio")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_inicio");
@@ -208,6 +222,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(200)")
                         .HasColumnName("nome");
 
+                    b.Property<bool>("PossuiFinalReset")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("possui_final_reset");
+
                     b.Property<Guid?>("RegraCompeticaoId")
                         .HasColumnType("uuid")
                         .HasColumnName("regra_competicao_id");
@@ -225,6 +245,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasIndex("LigaId");
 
                     b.HasIndex("LocalId");
+
+                    b.HasIndex("FormatoCampeonatoId");
 
                     b.HasIndex("RegraCompeticaoId");
 
@@ -794,6 +816,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasForeignKey("LocalId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.FormatoCampeonato", "FormatoCampeonato")
+                        .WithMany()
+                        .HasForeignKey("FormatoCampeonatoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", "RegraCompeticao")
                         .WithMany("Competicoes")
                         .HasForeignKey("RegraCompeticaoId")
@@ -807,6 +834,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Navigation("Liga");
 
                     b.Navigation("Local");
+
+                    b.Navigation("FormatoCampeonato");
 
                     b.Navigation("RegraCompeticao");
 

@@ -40,7 +40,9 @@ const opcoesFaseCampeonato = [
   'Quartas de final',
   'Semifinal',
   'Final',
+  'Final de reset',
   'Disputa de 3º lugar',
+  'Chave dos vencedores',
   'Chave principal',
   'Chave dos perdedores'
 ];
@@ -67,15 +69,100 @@ function extrairNumeroRodada(fase) {
 }
 
 function extrairMetadadosChaveLateral(fase) {
-  const correspondencia = (fase || '').trim().match(/^Chave\s+([A-Z])\s*-\s*Rodada\s+(\d+)/i);
-  if (!correspondencia) {
+  const faseNormalizada = (fase || '').trim();
+
+  if (!faseNormalizada) {
     return null;
   }
 
-  return {
-    lado: correspondencia[1].toUpperCase(),
-    rodada: Number(correspondencia[2])
-  };
+  const correspondenciaChaveLegada = faseNormalizada.match(/^Chave\s+([A-Z])\s*-\s*Rodada\s+(\d+)/i);
+  if (correspondenciaChaveLegada) {
+    const lado = correspondenciaChaveLegada[1].toUpperCase();
+    const rodada = Number(correspondenciaChaveLegada[2]);
+
+    return {
+      chave: `legado-${lado}-${rodada}`,
+      titulo: `Chave ${lado} · Rodada ${String(rodada).padStart(2, '0')}`,
+      rodada,
+      ordem: lado.charCodeAt(0) * 100 + rodada
+    };
+  }
+
+  const correspondenciaVencedores = faseNormalizada.match(/^Chave\s+dos\s+vencedores\s*-\s*Rodada\s+(\d+)/i);
+  if (correspondenciaVencedores) {
+    const rodada = Number(correspondenciaVencedores[1]);
+
+    return {
+      chave: `vencedores-${rodada}`,
+      titulo: `Chave dos vencedores · Rodada ${String(rodada).padStart(2, '0')}`,
+      rodada,
+      ordem: 100 + rodada
+    };
+  }
+
+  const correspondenciaPerdedores = faseNormalizada.match(/^Chave\s+dos\s+perdedores\s*-\s*Rodada\s+(\d+)/i);
+  if (correspondenciaPerdedores) {
+    const rodada = Number(correspondenciaPerdedores[1]);
+
+    return {
+      chave: `perdedores-${rodada}`,
+      titulo: `Chave dos perdedores · Rodada ${String(rodada).padStart(2, '0')}`,
+      rodada,
+      ordem: 200 + rodada
+    };
+  }
+
+  return null;
+}
+
+function ehTituloFinais(titulo) {
+  const tituloNormalizado = (titulo || '').trim().toLowerCase();
+  return tituloNormalizado === 'finais'
+    || tituloNormalizado === 'final'
+    || tituloNormalizado.startsWith('final')
+    || tituloNormalizado.includes('disputa de 3');
+}
+
+function tituloEhChaveVencedores(titulo) {
+  return (titulo || '').trim().toLowerCase().includes('chave dos vencedores');
+}
+
+function tituloEhChavePerdedores(titulo) {
+  return (titulo || '').trim().toLowerCase().includes('chave dos perdedores');
+}
+
+function ordenarColunasComFinaisNoFim(colunas) {
+  return [...colunas].sort((a, b) => {
+    const aEhFinais = ehTituloFinais(a.titulo);
+    const bEhFinais = ehTituloFinais(b.titulo);
+
+    if (aEhFinais && !bEhFinais) {
+      return 1;
+    }
+
+    if (!aEhFinais && bEhFinais) {
+      return -1;
+    }
+
+    return (a.ordem || 0) - (b.ordem || 0) || a.titulo.localeCompare(b.titulo, 'pt-BR');
+  });
+}
+
+function garantirColunaFinaisNoFim(colunas, ordemBase = 9999) {
+  const colunasOrdenadas = ordenarColunasComFinaisNoFim(colunas);
+  if (colunasOrdenadas.some((coluna) => ehTituloFinais(coluna.titulo))) {
+    return colunasOrdenadas;
+  }
+
+  return [
+    ...colunasOrdenadas,
+    {
+      titulo: 'Finais',
+      ordem: ordemBase,
+      partidas: [],
+      conectar: false
+    }
+  ];
 }
 
 function obterMetadadosFaseChaveClassica(fase) {
@@ -130,6 +217,13 @@ function obterMetadadosFaseChaveClassica(fase) {
     };
   }
 
+  if (texto.includes('chave dos vencedores')) {
+    return {
+      titulo: faseNormalizada,
+      ordem: 10 + rodada
+    };
+  }
+
   if (texto.includes('fase eliminatória')) {
     return {
       titulo: faseNormalizada,
@@ -165,6 +259,13 @@ function obterMetadadosFaseChaveClassica(fase) {
     };
   }
 
+  if (texto.includes('final de reset')) {
+    return {
+      titulo: 'Final de reset',
+      ordem: 65
+    };
+  }
+
   if (texto === 'final' || texto.startsWith('final -')) {
     return {
       titulo: 'Final',
@@ -175,7 +276,7 @@ function obterMetadadosFaseChaveClassica(fase) {
   if (texto.includes('chave dos perdedores')) {
     return {
       titulo: faseNormalizada,
-      ordem: 70 + rodada
+      ordem: 40 + rodada
     };
   }
 
@@ -191,6 +292,17 @@ function compararPartidasChave(a, b) {
   }
 
   return (a.faseOrdemInterna || 0) - (b.faseOrdemInterna || 0);
+}
+
+function compararInscricoesMaisRecentesPrimeiro(a, b) {
+  const dataA = a?.dataInscricaoUtc ? new Date(a.dataInscricaoUtc).getTime() : 0;
+  const dataB = b?.dataInscricaoUtc ? new Date(b.dataInscricaoUtc).getTime() : 0;
+
+  if (dataA !== dataB) {
+    return dataB - dataA;
+  }
+
+  return (b?.id || '').localeCompare(a?.id || '', 'pt-BR');
 }
 
 export function PaginaPartidas() {
@@ -257,88 +369,184 @@ export function PaginaPartidas() {
   const statusEncerrada = Number(formulario.status) === 2;
   const rotuloPlacarDuplaA = grupoSelecionado ? 'Pontos da Dupla A' : 'Placar Dupla A';
   const rotuloPlacarDuplaB = grupoSelecionado ? 'Pontos da Dupla B' : 'Placar Dupla B';
-  const colunasChave = useMemo(() => {
-    const colunas = new Map();
-    const rodadasChaveB = partidas
-      .map((partida) => extrairMetadadosChaveLateral(partida.faseCampeonato))
-      .filter((item) => item?.lado === 'B')
-      .map((item) => item.rodada);
-    const maiorRodadaChaveB = rodadasChaveB.length > 0 ? Math.max(...rodadasChaveB) : 0;
+  const estruturaTabelaJogos = useMemo(() => {
+    const colunasPadrao = new Map();
+    const colunasSequenciais = new Map();
+    const partidasAvulsas = [];
+    let possuiChavesLateraisExplicitas = false;
+    let maiorOrdemLateral = 0;
 
     partidas.forEach((partida, indice) => {
+      const partidaComOrdem = {
+        ...partida,
+        faseOrdemInterna: indice
+      };
       const metadadosLaterais = extrairMetadadosChaveLateral(partida.faseCampeonato);
-      const metadados = metadadosLaterais
-        ? {
-            titulo: `Chave ${metadadosLaterais.lado} · Rodada ${String(metadadosLaterais.rodada).padStart(2, '0')}`,
-            ordem: metadadosLaterais.lado === 'A'
-              ? 100 + metadadosLaterais.rodada
-              : 700 + (maiorRodadaChaveB - metadadosLaterais.rodada)
-          }
-        : obterMetadadosFaseChaveClassica(partida.faseCampeonato);
+
+      if (metadadosLaterais) {
+        possuiChavesLateraisExplicitas = true;
+        maiorOrdemLateral = Math.max(maiorOrdemLateral, metadadosLaterais.ordem);
+
+        if (!colunasSequenciais.has(metadadosLaterais.chave)) {
+          colunasSequenciais.set(metadadosLaterais.chave, {
+            titulo: metadadosLaterais.titulo,
+            ordem: metadadosLaterais.ordem,
+            partidas: [],
+            conectar: true
+          });
+        }
+
+        colunasSequenciais.get(metadadosLaterais.chave).partidas.push(partidaComOrdem);
+        return;
+      }
+
+      partidasAvulsas.push(partidaComOrdem);
+    });
+
+    if (possuiChavesLateraisExplicitas) {
+      const colunasOrdenadas = Array.from(colunasSequenciais.values())
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((coluna) => ({
+          ...coluna,
+          partidas: [...coluna.partidas].sort(compararPartidasChave)
+        }));
+      const colunasComplementares = [];
+      const partidasFinais = [];
+
+      partidasAvulsas.forEach((partida) => {
+        const metadados = obterMetadadosFaseChaveClassica(partida.faseCampeonato);
+        if (!metadados) {
+          return;
+        }
+
+        if (metadados.titulo === 'Final' || metadados.titulo === 'Disputa de 3º lugar') {
+          partidasFinais.push(partida);
+          return;
+        }
+
+        colunasComplementares.push({
+          titulo: metadados.titulo,
+          ordem: 1000 + metadados.ordem,
+          partidas: [partida],
+          conectar: false
+        });
+      });
+
+      return {
+        modo: 'sequencial',
+        colunas: garantirColunaFinaisNoFim([
+          ...colunasOrdenadas,
+          ...colunasComplementares.sort((a, b) => a.ordem - b.ordem || a.titulo.localeCompare(b.titulo, 'pt-BR')),
+          ...(partidasFinais.length > 0
+            ? [{
+                titulo: 'Finais',
+                ordem: maiorOrdemLateral + 100,
+                partidas: partidasFinais.sort(compararPartidasChave),
+                conectar: false
+              }]
+            : [])
+        ], maiorOrdemLateral + 100)
+      };
+    }
+
+    const partidasFinais = [];
+
+    partidasAvulsas.forEach((partida) => {
+      const metadados = obterMetadadosFaseChaveClassica(partida.faseCampeonato);
       if (!metadados) {
         return;
       }
 
-      if (!colunas.has(metadados.titulo)) {
-        colunas.set(metadados.titulo, {
+      if (metadados.titulo === 'Final' || metadados.titulo === 'Disputa de 3º lugar') {
+        partidasFinais.push(partida);
+        return;
+      }
+
+      if (!colunasPadrao.has(metadados.titulo)) {
+        colunasPadrao.set(metadados.titulo, {
           titulo: metadados.titulo,
           ordem: metadados.ordem,
           partidas: []
         });
       }
 
-      colunas.get(metadados.titulo).partidas.push({
-        ...partida,
-        faseOrdemInterna: indice
-      });
+      colunasPadrao.get(metadados.titulo).partidas.push(partida);
     });
 
-    return Array.from(colunas.values())
-      .sort((a, b) => a.ordem - b.ordem || a.titulo.localeCompare(b.titulo, 'pt-BR'))
-      .map((coluna) => ({
-        ...coluna,
-        partidas: [...coluna.partidas].sort(compararPartidasChave)
-      }));
-  }, [partidas]);
-  const estruturaTabelaJogos = useMemo(() => {
-    const colunasEsquerda = [];
-    const colunasCentro = [];
-    const colunasDireita = [];
-    const possuiChavesLateraisExplicitas = colunasChave.some(
-      (coluna) => coluna.titulo.startsWith('Chave A') || coluna.titulo.startsWith('Chave B')
-    );
-
-    if (!possuiChavesLateraisExplicitas) {
-      return {
-        esquerda: colunasChave.length > 0 ? [colunasChave[0]] : [],
-        centro: [],
-        direita: colunasChave.slice(1)
-      };
-    }
-
-    colunasChave.forEach((coluna) => {
-      if (coluna.titulo.startsWith('Chave A')) {
-        colunasEsquerda.push(coluna);
-        return;
-      }
-
-      if (coluna.titulo.startsWith('Chave B')) {
-        colunasDireita.push(coluna);
-        return;
-      }
-
-      colunasCentro.push(coluna);
-    });
+    const colunasOrdenadas = garantirColunaFinaisNoFim([
+      ...Array.from(colunasPadrao.values()),
+      ...(partidasFinais.length > 0
+        ? [{
+            titulo: 'Finais',
+            ordem: 9998,
+            partidas: partidasFinais.sort(compararPartidasChave),
+            conectar: false
+          }]
+        : [])
+    ]).map((coluna) => ({
+      ...coluna,
+      partidas: [...coluna.partidas].sort(compararPartidasChave)
+    }));
 
     return {
-      esquerda: colunasEsquerda,
-      centro: colunasCentro,
-      direita: colunasDireita
+      modo: 'setores',
+      esquerda: colunasOrdenadas,
+      centro: [],
+      direita: []
     };
-  }, [colunasChave]);
-  const exibirChaveVisual = competicaoComInscricoes && partidas.length > 0 && colunasChave.length > 0;
+  }, [partidas]);
+  const colunasEmVisualizacao = estruturaTabelaJogos.modo === 'sequencial'
+    ? estruturaTabelaJogos.colunas
+    : [
+        ...estruturaTabelaJogos.esquerda,
+        ...estruturaTabelaJogos.centro,
+        ...estruturaTabelaJogos.direita
+      ];
+  const blocosVisualizacaoChave = useMemo(() => {
+    const vencedores = [];
+    const perdedores = [];
+    const finais = [];
+    const outros = [];
+
+    colunasEmVisualizacao.forEach((coluna) => {
+      if (ehTituloFinais(coluna.titulo)) {
+        finais.push(coluna);
+        return;
+      }
+
+      if (tituloEhChaveVencedores(coluna.titulo)) {
+        vencedores.push(coluna);
+        return;
+      }
+
+      if (tituloEhChavePerdedores(coluna.titulo)) {
+        perdedores.push(coluna);
+        return;
+      }
+
+      outros.push(coluna);
+    });
+
+    return [
+      vencedores.length > 0
+        ? { id: 'vencedores', titulo: 'Chave dos vencedores', colunas: vencedores }
+        : null,
+      perdedores.length > 0
+        ? { id: 'perdedores', titulo: 'Chave dos perdedores', colunas: perdedores }
+        : null,
+      outros.length > 0
+        ? { id: 'outros', titulo: null, colunas: outros }
+        : null,
+      finais.length > 0
+        ? { id: 'finais', titulo: 'Finais', colunas: finais }
+        : null
+    ].filter(Boolean);
+  }, [colunasEmVisualizacao]);
+  const exibirChaveVisual = competicaoComInscricoes && partidas.length > 0 && colunasEmVisualizacao.length > 0;
   const exibirListaDetalhada = !exibirChaveVisual || !visualizacaoTabela;
-  const possuiChavesLaterais = estruturaTabelaJogos.esquerda.length > 0 || estruturaTabelaJogos.direita.length > 0;
+  const possuiChavesLaterais = estruturaTabelaJogos.modo === 'sequencial'
+    || estruturaTabelaJogos.esquerda.length > 0
+    || estruturaTabelaJogos.direita.length > 0;
 
   useEffect(() => {
     carregarBase();
@@ -455,6 +663,10 @@ export function PaginaPartidas() {
   const opcoesDuplaB = useMemo(
     () => duplasDisponiveis.filter((dupla) => dupla.id !== formulario.duplaAId),
     [duplasDisponiveis, formulario.duplaAId]
+  );
+  const inscricoesCategoriaOrdenadas = useMemo(
+    () => [...inscricoesCategoria].sort(compararInscricoesMaisRecentesPrimeiro),
+    [inscricoesCategoria]
   );
 
   const opcoesDuplaAAtleta1 = grupoAtletas;
@@ -963,7 +1175,7 @@ export function PaginaPartidas() {
     );
   }
 
-  function renderizarColunaChave(coluna, indiceColuna, totalColunas, lado) {
+  function renderizarColunaChave(coluna, indiceColuna, totalColunas, lado, conectar = true) {
     const primeiraColuna = indiceColuna === 0;
     const ultimaColuna = indiceColuna === totalColunas - 1;
 
@@ -973,6 +1185,7 @@ export function PaginaPartidas() {
         className={[
           'chave-coluna',
           `lado-${lado}`,
+          conectar ? '' : 'sem-conector',
           primeiraColuna ? 'primeira' : '',
           ultimaColuna ? 'ultima' : ''
         ].filter(Boolean).join(' ')}
@@ -983,6 +1196,12 @@ export function PaginaPartidas() {
         </div>
 
         <div className="chave-coluna-jogos">
+          {coluna.partidas.length === 0 && ehTituloFinais(coluna.titulo) && (
+            <div className="chave-jogos-centro-vazio">
+              <strong>Próximas fases</strong>
+              <p>Final e demais jogos decisivos aparecem aqui conforme os vencedores avançam nas rodadas anteriores.</p>
+            </div>
+          )}
           {coluna.partidas.map((partida, indicePartida) => {
             const duplaAVenceu = partida.duplaVencedoraId === partida.duplaAId;
             const duplaBVenceu = partida.duplaVencedoraId === partida.duplaBId;
@@ -1047,8 +1266,11 @@ export function PaginaPartidas() {
             {competicaoSelecionada.pontosDerrotaEfetivo}. Participação: {competicaoSelecionada.pontosParticipacaoEfetivo}.
           </p>
         )}
-        {categoriaSelecionada?.nomeFormatoCampeonato && (
-          <p>Formato da categoria: {categoriaSelecionada.nomeFormatoCampeonato}.</p>
+        {categoriaSelecionada?.nomeFormatoCampeonatoEfetivo && (
+          <p>Formato da categoria: {categoriaSelecionada.nomeFormatoCampeonatoEfetivo}.</p>
+        )}
+        {categoriaSelecionada?.nomeFormatoCampeonatoEfetivo?.toLowerCase().includes('dupla') && competicaoSelecionada?.tipo !== 3 && (
+          <p>Final reset: {competicaoSelecionada?.possuiFinalReset ? 'habilitada' : 'desabilitada'}.</p>
         )}
         {competicaoComInscricoes && (
           <p>Para campeonatos e eventos, o sorteio usa as duplas inscritas da categoria selecionada.</p>
@@ -1442,55 +1664,35 @@ export function PaginaPartidas() {
           <div className="chave-visualizacao-cabecalho">
             <div>
               <h3>Tabela de jogos</h3>
-              <p>As duas chaves avançam até a final conforme os resultados lançados. A lista detalhada continua abaixo para consulta e edição.</p>
+              <p>Os vencedores avançam de uma coluna para a seguinte conforme os resultados lançados. A lista detalhada continua abaixo para consulta e edição.</p>
             </div>
-            <p>{colunasChave.length} fase(s) em visualização</p>
+            <p>{colunasEmVisualizacao.length} fase(s) em visualização</p>
           </div>
 
           <div className="chave-jogos-wrapper">
-            <div className="chave-jogos-grade">
-              <div className="chave-jogos-lado esquerda">
-                <div className="chave-jogos-setor-cabecalho">
-                  <span>Chave A</span>
-                  <small>{possuiChavesLaterais ? 'Primeiros confrontos' : 'Jogos sorteados e rodada inicial'}</small>
-                </div>
-                <div className="chave-jogos">
-                  {estruturaTabelaJogos.esquerda.map((coluna, indiceColuna) =>
-                    renderizarColunaChave(coluna, indiceColuna, estruturaTabelaJogos.esquerda.length, 'esquerda')
+            <div className="chave-jogos-blocos">
+              {blocosVisualizacaoChave.map((bloco) => (
+                <section key={bloco.id} className="chave-jogos-bloco">
+                  {bloco.titulo && (
+                    <div className="chave-jogos-bloco-cabecalho">
+                      <strong>{bloco.titulo}</strong>
+                      <span>{bloco.colunas.length} fase(s)</span>
+                    </div>
                   )}
-                </div>
-              </div>
 
-              <div className="chave-jogos-centro">
-                <div className="chave-jogos-setor-cabecalho centro">
-                  <span>{possuiChavesLaterais ? 'Finais' : 'Rodadas'}</span>
-                  <small>{possuiChavesLaterais ? 'Jogos decisivos' : 'Jogos sorteados da categoria'}</small>
-                </div>
-                {estruturaTabelaJogos.centro.length > 0 ? (
                   <div className="chave-jogos">
-                    {estruturaTabelaJogos.centro.map((coluna, indiceColuna) =>
-                      renderizarColunaChave(coluna, indiceColuna, estruturaTabelaJogos.centro.length, 'centro')
+                    {bloco.colunas.map((coluna, indiceColuna) =>
+                      renderizarColunaChave(
+                        coluna,
+                        indiceColuna,
+                        bloco.colunas.length,
+                        'esquerda',
+                        coluna.conectar !== false && !ehTituloFinais(coluna.titulo)
+                      )
                     )}
                   </div>
-                ) : (
-                  <div className="chave-jogos-centro-vazio">
-                    <strong>Próximas fases</strong>
-                    <p>Final e demais jogos decisivos aparecem aqui conforme os vencedores avançam nas duas chaves.</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="chave-jogos-lado direita">
-                <div className="chave-jogos-setor-cabecalho">
-                  <span>Chave B</span>
-                  <small>{possuiChavesLaterais ? 'Primeiros confrontos' : 'Vencedores e próximas rodadas'}</small>
-                </div>
-                <div className="chave-jogos">
-                  {estruturaTabelaJogos.direita.map((coluna, indiceColuna) =>
-                    renderizarColunaChave(coluna, indiceColuna, estruturaTabelaJogos.direita.length, 'direita')
-                  )}
-                </div>
-              </div>
+                </section>
+              ))}
             </div>
           </div>
         </section>
@@ -1539,7 +1741,27 @@ export function PaginaPartidas() {
             </article>
           ))}
 
-          {partidas.length === 0 && <p>Nenhuma partida cadastrada para esta categoria.</p>}
+          {partidas.length === 0 && competicaoComInscricoes && categoriaSelecionada && inscricoesCategoriaOrdenadas.length > 0 && (
+            <>
+              <p>Esta categoria ainda não possui jogos cadastrados. As duplas inscritas aparecem abaixo para conferência antes do sorteio.</p>
+              {inscricoesCategoriaOrdenadas.map((inscricao) => (
+                <article key={inscricao.id} className="cartao-lista">
+                  <div>
+                    <h3>{inscricao.nomeDupla}</h3>
+                    <p>Categoria: {inscricao.nomeCategoria}</p>
+                    <p>Atletas: {inscricao.nomeAtleta1} / {inscricao.nomeAtleta2}</p>
+                    <p>Pagamento: {inscricao.pago ? 'Pago' : 'Pendente'}</p>
+                    <p>Data da inscrição: {formatarDataHora(inscricao.dataInscricaoUtc)}</p>
+                    <p>Observação: {inscricao.observacao || '-'}</p>
+                  </div>
+                </article>
+              ))}
+            </>
+          )}
+
+          {partidas.length === 0 && !(competicaoComInscricoes && categoriaSelecionada && inscricoesCategoriaOrdenadas.length > 0) && (
+            <p>Nenhuma partida cadastrada para esta categoria.</p>
+          )}
         </div>
       ) : (
         <p>Use "Ver lista detalhada" para consultar todos os dados dos jogos em formato de lista.</p>

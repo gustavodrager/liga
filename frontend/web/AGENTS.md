@@ -21,5 +21,6 @@ Seguir o `AGENTS.md` da raiz. Neste diretório, além disso:
 - `Inscrições` para atleta permite escolher campeonato/categoria e se inscrever com dupla própria ou parceiro ainda pendente
 - `Usuários` existe apenas para administrador; esconder rota e menu fora desse perfil
 - `Partidas` deve exibir a tabela de jogos da categoria; administrador e organizador podem gerar/alterar jogos, respeitando ownership da competição
+- Em dupla eliminação, `Partidas` deve deixar claro se o jogo pertence à chave vencedora, perdedora, final ou final reset
 - `Ranking` já possui modos de liga e competição; o da liga é consolidado e o da competição segue separado por categoria
 - `Modelos de importação` já oferece download e upload CSV por tipo de cadastro

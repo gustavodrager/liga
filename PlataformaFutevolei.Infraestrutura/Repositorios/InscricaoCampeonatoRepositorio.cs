@@ -28,9 +28,27 @@ public class InscricaoCampeonatoRepositorio(PlataformaFutevoleiDbContext dbConte
         }
 
         return await query
-            .OrderBy(x => x.CategoriaCompeticao.Nome)
-            .ThenBy(x => x.Dupla.Nome)
+            .OrderByDescending(x => x.DataInscricaoUtc)
+            .ThenByDescending(x => x.DataCriacao)
+            .ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> ContarPorCategoriaAsync(
+        Guid categoriaId,
+        Guid? ignorarInscricaoId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.InscricoesCampeonato
+            .AsNoTracking()
+            .Where(x => x.CategoriaCompeticaoId == categoriaId);
+
+        if (ignorarInscricaoId.HasValue)
+        {
+            query = query.Where(x => x.Id != ignorarInscricaoId.Value);
+        }
+
+        return query.CountAsync(cancellationToken);
     }
 
     public Task<InscricaoCampeonato?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)

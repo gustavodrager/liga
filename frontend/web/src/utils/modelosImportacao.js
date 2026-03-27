@@ -135,12 +135,12 @@ export const modelosImportacao = [
     descricao: 'Modelo para importar competições.',
     observacoes: [
       'Tipo: 1=Campeonato, 2=Evento, 3=Grupo.',
-      'LigaId, LocalId e RegraCompeticaoId são opcionais e usam GUIDs existentes.',
+      'LigaId, LocalId, FormatoCampeonatoId, RegraCompeticaoId e PossuiFinalReset são opcionais e usam GUIDs existentes.',
       'Datas no formato AAAA-MM-DD.'
     ],
     csv: gerarCsv(
-      ['nome', 'tipo', 'descricao', 'dataInicio', 'dataFim', 'ligaId', 'localId', 'regraCompeticaoId', 'inscricoesAbertas'],
-      ['Copa Verão 2026', 1, 'Campeonato de verão', '2026-01-10', '2026-02-28', 'GUID_LIGA', 'GUID_LOCAL', 'GUID_REGRA', true]
+      ['nome', 'tipo', 'descricao', 'dataInicio', 'dataFim', 'ligaId', 'localId', 'formatoCampeonatoId', 'regraCompeticaoId', 'inscricoesAbertas', 'possuiFinalReset'],
+      ['Copa Verão 2026', 1, 'Campeonato de verão', '2026-01-10', '2026-02-28', 'GUID_LIGA', 'GUID_LOCAL', 'GUID_FORMATO', 'GUID_REGRA', true, true]
     )
   },
   {

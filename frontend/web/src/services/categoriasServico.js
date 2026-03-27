@@ -30,6 +30,16 @@ export const categoriasServico = {
     return resposta.data;
   },
 
+  async listarEstrutura(id) {
+    const resposta = await http.get(`/categorias/${id}/estrutura`);
+    return resposta.data;
+  },
+
+  async listarSituacaoDuplas(id) {
+    const resposta = await http.get(`/categorias/${id}/duplas/situacao`);
+    return resposta.data;
+  },
+
   async aprovarTabelaPartidas(id) {
     const resposta = await http.post(`/categorias/${id}/partidas/aprovar`);
     return resposta.data;

@@ -54,6 +54,39 @@ public record RemocaoTabelaCategoriaDto(
     string Resumo
 );
 
+public record RodadaEstruturaCompeticaoDto(
+    int NumeroRodada,
+    string NomeRodada,
+    IReadOnlyList<JogoRodadaCompeticaoDto> Jogos
+);
+
+public record JogoRodadaCompeticaoDto(
+    Guid PartidaId,
+    int OrdemJogo,
+    string TipoJogo,
+    string? NomeFase,
+    StatusPartida Status,
+    Guid DuplaAId,
+    string NomeDuplaA,
+    Guid DuplaBId,
+    string NomeDuplaB,
+    int PlacarDuplaA,
+    int PlacarDuplaB,
+    Guid? DuplaVencedoraId,
+    string? NomeDuplaVencedora,
+    DateTime? DataPartida
+);
+
+public record SituacaoDuplaCompeticaoDto(
+    Guid DuplaId,
+    string NomeDupla,
+    int QuantidadeDerrotas,
+    string Status,
+    string PosicaoAtual,
+    Guid? PartidaPendenteId,
+    string? NomePartidaPendente
+);
+
 public record PartidaDto(
     Guid Id,
     Guid CategoriaCompeticaoId,
