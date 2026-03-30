@@ -629,6 +629,7 @@ public class ImportacaoServico(
             case "partidas":
                 await partidaServico.CriarAsync(
                     new CriarPartidaDto(
+                        null,
                         registro.ObterGuidObrigatorio("categoriacompeticaoid", "categoriaid"),
                         registro.ObterGuidObrigatorio("duplaaid"),
                         registro.ObterGuidObrigatorio("duplabid"),

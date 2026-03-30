@@ -18,6 +18,32 @@ public class RankingServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
 {
+    public async Task<RankingFiltroInicialDto> ObterFiltroInicialAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+
+        Guid? competicaoId = usuario.Perfil switch
+        {
+            PerfilUsuario.Atleta when usuario.AtletaId.HasValue => await partidaRepositorio.ObterUltimaCompeticaoComPartidaEncerradaAsync(
+                null,
+                usuario.AtletaId.Value,
+                cancellationToken),
+            PerfilUsuario.Organizador => await partidaRepositorio.ObterUltimaCompeticaoComPartidaEncerradaAsync(
+                usuario.Id,
+                null,
+                cancellationToken),
+            _ => await partidaRepositorio.ObterUltimaCompeticaoComPartidaEncerradaAsync(
+                null,
+                null,
+                cancellationToken)
+        };
+
+        return new RankingFiltroInicialDto(
+            competicaoId.HasValue ? "competicao" : null,
+            competicaoId);
+    }
+
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
         CancellationToken cancellationToken = default)
@@ -87,6 +113,7 @@ public class RankingServico(
         }
 
         var atletas = new Dictionary<Guid, RankingAtletaAcumulado>();
+        var participacoesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
 
         foreach (var partida in partidas)
         {
@@ -103,7 +130,9 @@ public class RankingServico(
 
             Acumular(
                 atletas,
+                participacoesAplicadas,
                 partida.DuplaA.Atleta1,
+                competicao.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaAId,
@@ -116,7 +145,9 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 atletas,
+                participacoesAplicadas,
                 partida.DuplaA.Atleta2,
+                competicao.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaAId,
@@ -129,7 +160,9 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 atletas,
+                participacoesAplicadas,
                 partida.DuplaB.Atleta1,
+                competicao.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaBId,
@@ -142,7 +175,9 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 atletas,
+                participacoesAplicadas,
                 partida.DuplaB.Atleta2,
+                competicao.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaBId,
@@ -175,6 +210,7 @@ public class RankingServico(
     private static IReadOnlyList<RankingCategoriaDto> MontarRankingPorCategoria(IReadOnlyList<Partida> partidas)
     {
         var acumuladoPorCategoria = new Dictionary<Guid, RankingCategoriaAcumulado>();
+        var participacoesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
 
         foreach (var partida in partidas)
         {
@@ -202,7 +238,9 @@ public class RankingServico(
 
             Acumular(
                 categoriaAcumulada.Atletas,
+                participacoesAplicadas,
                 partida.DuplaA.Atleta1,
+                categoria.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaAId,
@@ -215,7 +253,9 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 categoriaAcumulada.Atletas,
+                participacoesAplicadas,
                 partida.DuplaA.Atleta2,
+                categoria.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaAId,
@@ -228,7 +268,9 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 categoriaAcumulada.Atletas,
+                participacoesAplicadas,
                 partida.DuplaB.Atleta1,
+                categoria.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaBId,
@@ -241,7 +283,9 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 categoriaAcumulada.Atletas,
+                participacoesAplicadas,
                 partida.DuplaB.Atleta2,
+                categoria.Id,
                 pontosParticipacao,
                 empate,
                 vencedoraId == partida.DuplaBId,
@@ -500,7 +544,9 @@ public class RankingServico(
 
     private static void Acumular(
         IDictionary<Guid, RankingAtletaAcumulado> acumulado,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesAplicadas,
         Atleta atleta,
+        Guid referenciaParticipacaoId,
         decimal pontosParticipacao,
         bool empate,
         bool venceu,
@@ -518,7 +564,11 @@ public class RankingServico(
             acumulado[atleta.Id] = item;
         }
 
-        var pontosPartida = pontosParticipacao;
+        var pontosPartida = ObterPontosParticipacaoUnica(
+            participacoesAplicadas,
+            atleta.Id,
+            referenciaParticipacaoId,
+            pontosParticipacao);
         item.Jogos++;
 
         if (empate)
@@ -563,6 +613,17 @@ public class RankingServico(
             nomeCategoria,
             "Derrota",
             pontosPartida));
+    }
+
+    private static decimal ObterPontosParticipacaoUnica(
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesAplicadas,
+        Guid atletaId,
+        Guid referenciaParticipacaoId,
+        decimal pontosParticipacao)
+    {
+        return participacoesAplicadas.Add((atletaId, referenciaParticipacaoId))
+            ? pontosParticipacao
+            : 0m;
     }
 
     private sealed class RankingAtletaAcumulado(

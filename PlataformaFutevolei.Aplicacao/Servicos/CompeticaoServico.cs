@@ -122,16 +122,6 @@ public class CompeticaoServico(
 
         if (dto.Tipo == TipoCompeticao.Grupo)
         {
-            await categoriaRepositorio.AdicionarAsync(new CategoriaCompeticao
-            {
-                CompeticaoId = competicao.Id,
-                FormatoCampeonatoId = null,
-                Nome = "Geral",
-                Genero = GeneroCategoria.Misto,
-                Nivel = NivelCategoria.Livre,
-                PesoRanking = 1m
-            }, cancellationToken);
-
             if (usuario.AtletaId.HasValue && await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(competicao.Id, usuario.AtletaId.Value, cancellationToken) is null)
             {
                 await grupoAtletaRepositorio.AdicionarAsync(new GrupoAtleta

@@ -2,6 +2,11 @@ using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
+public record RankingFiltroInicialDto(
+    string? TipoConsulta,
+    Guid? CompeticaoId
+);
+
 public record RankingCategoriaDto(
     Guid CategoriaId,
     Guid CompeticaoId,

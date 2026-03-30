@@ -11,6 +11,50 @@ namespace PlataformaFutevolei.Api.Controllers;
 [Route("api/partidas")]
 public class PartidasController(IPartidaServico partidaServico) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Listar(
+        [FromQuery] Guid? competicaoId,
+        [FromQuery] Guid? categoriaId,
+        CancellationToken cancellationToken)
+    {
+        if (categoriaId.HasValue)
+        {
+            var partidasCategoria = await partidaServico.ListarPorCategoriaAsync(categoriaId.Value, cancellationToken);
+            return Ok(partidasCategoria);
+        }
+
+        if (competicaoId.HasValue)
+        {
+            var partidasCompeticao = await partidaServico.ListarPorCompeticaoAsync(competicaoId.Value, cancellationToken);
+            return Ok(partidasCompeticao);
+        }
+
+        return BadRequest("Informe uma competição ou categoria para consultar as partidas.");
+    }
+
+    [HttpGet("estrutura")]
+    [ProducesResponseType(typeof(IReadOnlyList<RodadaEstruturaCompeticaoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarEstrutura(
+        [FromQuery] Guid? competicaoId,
+        [FromQuery] Guid? categoriaId,
+        CancellationToken cancellationToken)
+    {
+        if (categoriaId.HasValue)
+        {
+            var estruturaCategoria = await partidaServico.ListarEstruturaPorCategoriaAsync(categoriaId.Value, cancellationToken);
+            return Ok(estruturaCategoria);
+        }
+
+        if (competicaoId.HasValue)
+        {
+            var estruturaCompeticao = await partidaServico.ListarEstruturaPorCompeticaoAsync(competicaoId.Value, cancellationToken);
+            return Ok(estruturaCompeticao);
+        }
+
+        return BadRequest("Informe uma competição ou categoria para consultar a estrutura das partidas.");
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)

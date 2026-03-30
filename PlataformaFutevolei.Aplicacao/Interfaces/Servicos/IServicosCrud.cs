@@ -73,7 +73,9 @@ public interface ICategoriaCompeticaoServico
 
 public interface IPartidaServico
 {
+    Task<IReadOnlyList<PartidaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
@@ -114,6 +116,9 @@ public interface IInscricaoCampeonatoServico
 
 public interface IRankingServico
 {
+    Task<RankingFiltroInicialDto> ObterFiltroInicialAsync(
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
         CancellationToken cancellationToken = default);

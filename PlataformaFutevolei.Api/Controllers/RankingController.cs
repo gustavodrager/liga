@@ -10,6 +10,14 @@ namespace PlataformaFutevolei.Api.Controllers;
 [Route("api/ranking")]
 public class RankingController(IRankingServico rankingServico) : ControllerBase
 {
+    [HttpGet("filtro-inicial")]
+    [ProducesResponseType(typeof(RankingFiltroInicialDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterFiltroInicial(CancellationToken cancellationToken)
+    {
+        var filtro = await rankingServico.ObterFiltroInicialAsync(cancellationToken);
+        return Ok(filtro);
+    }
+
     [HttpGet("ligas/{ligaId:guid}/atletas")]
     [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarAtletasPorLiga(Guid ligaId, CancellationToken cancellationToken)

@@ -1,6 +1,11 @@
 import { http } from './http';
 
 export const rankingServico = {
+  async obterFiltroInicial() {
+    const resposta = await http.get('/ranking/filtro-inicial');
+    return resposta.data;
+  },
+
   async listarAtletasPorLiga(ligaId) {
     const resposta = await http.get(`/ranking/ligas/${ligaId}/atletas`);
     return resposta.data;

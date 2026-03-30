@@ -7,6 +7,7 @@ internal static class MapeadorEntidades
 {
     private const string MarcadorMetadadosChave = "[[chave:";
     private const string MarcadorMetadadosRodada = "[[rodada:";
+    private const string MarcadorMetadadosLados = "[[lados:";
 
     public static UsuarioLogadoDto ParaDto(this Usuario usuario)
         => new(
@@ -207,22 +208,29 @@ internal static class MapeadorEntidades
     }
 
     public static PartidaDto ParaDto(this Partida partida)
-        => new(
+    {
+        var metadadosLados = ExtrairMetadadosLados(partida.Observacoes);
+        var duplaAAtleta1Id = metadadosLados?.DuplaADireitaId ?? partida.DuplaA?.Atleta1Id ?? Guid.Empty;
+        var duplaAAtleta2Id = metadadosLados?.DuplaAEsquerdaId ?? partida.DuplaA?.Atleta2Id ?? Guid.Empty;
+        var duplaBAtleta1Id = metadadosLados?.DuplaBDireitaId ?? partida.DuplaB?.Atleta1Id ?? Guid.Empty;
+        var duplaBAtleta2Id = metadadosLados?.DuplaBEsquerdaId ?? partida.DuplaB?.Atleta2Id ?? Guid.Empty;
+
+        return new PartidaDto(
             partida.Id,
             partida.CategoriaCompeticaoId,
             partida.CategoriaCompeticao?.Nome ?? string.Empty,
             partida.DuplaAId,
             partida.DuplaA?.Nome ?? string.Empty,
-            partida.DuplaA?.Atleta1Id ?? Guid.Empty,
-            partida.DuplaA?.Atleta1?.Nome ?? string.Empty,
-            partida.DuplaA?.Atleta2Id ?? Guid.Empty,
-            partida.DuplaA?.Atleta2?.Nome ?? string.Empty,
+            duplaAAtleta1Id,
+            ObterNomeAtletaDupla(partida.DuplaA, duplaAAtleta1Id),
+            duplaAAtleta2Id,
+            ObterNomeAtletaDupla(partida.DuplaA, duplaAAtleta2Id),
             partida.DuplaBId,
             partida.DuplaB?.Nome ?? string.Empty,
-            partida.DuplaB?.Atleta1Id ?? Guid.Empty,
-            partida.DuplaB?.Atleta1?.Nome ?? string.Empty,
-            partida.DuplaB?.Atleta2Id ?? Guid.Empty,
-            partida.DuplaB?.Atleta2?.Nome ?? string.Empty,
+            duplaBAtleta1Id,
+            ObterNomeAtletaDupla(partida.DuplaB, duplaBAtleta1Id),
+            duplaBAtleta2Id,
+            ObterNomeAtletaDupla(partida.DuplaB, duplaBAtleta2Id),
             partida.FaseCampeonato,
             partida.Status,
             partida.PlacarDuplaA,
@@ -236,6 +244,7 @@ internal static class MapeadorEntidades
             partida.DataCriacao,
             partida.DataAtualizacao
         );
+    }
 
     public static InscricaoCampeonatoDto ParaDto(this InscricaoCampeonato inscricao)
         => new(
@@ -269,9 +278,63 @@ internal static class MapeadorEntidades
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(x =>
                 !x.StartsWith(MarcadorMetadadosChave, StringComparison.Ordinal) &&
-                !x.StartsWith(MarcadorMetadadosRodada, StringComparison.Ordinal))
+                !x.StartsWith(MarcadorMetadadosRodada, StringComparison.Ordinal) &&
+                !x.StartsWith(MarcadorMetadadosLados, StringComparison.Ordinal))
             .ToList();
 
         return linhas.Count == 0 ? null : string.Join(Environment.NewLine, linhas);
     }
+
+    private static string ObterNomeAtletaDupla(Dupla? dupla, Guid atletaId)
+    {
+        if (dupla is null || atletaId == Guid.Empty)
+        {
+            return string.Empty;
+        }
+
+        if (dupla.Atleta1Id == atletaId)
+        {
+            return dupla.Atleta1?.Nome ?? string.Empty;
+        }
+
+        if (dupla.Atleta2Id == atletaId)
+        {
+            return dupla.Atleta2?.Nome ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private static MetadadosLados? ExtrairMetadadosLados(string? observacoes)
+    {
+        if (string.IsNullOrWhiteSpace(observacoes))
+        {
+            return null;
+        }
+
+        var linhas = observacoes
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var linhaMetadados = linhas.LastOrDefault(x => x.StartsWith(MarcadorMetadadosLados, StringComparison.Ordinal));
+        if (string.IsNullOrWhiteSpace(linhaMetadados))
+        {
+            return null;
+        }
+
+        var conteudo = linhaMetadados
+            .Replace(MarcadorMetadadosLados, string.Empty, StringComparison.Ordinal)
+            .Replace("]]", string.Empty, StringComparison.Ordinal);
+        var partes = conteudo.Split(';');
+        if (partes.Length < 4 ||
+            !Guid.TryParse(partes[0], out var duplaADireitaId) ||
+            !Guid.TryParse(partes[1], out var duplaAEsquerdaId) ||
+            !Guid.TryParse(partes[2], out var duplaBDireitaId) ||
+            !Guid.TryParse(partes[3], out var duplaBEsquerdaId))
+        {
+            return null;
+        }
+
+        return new MetadadosLados(duplaADireitaId, duplaAEsquerdaId, duplaBDireitaId, duplaBEsquerdaId);
+    }
+
+    private sealed record MetadadosLados(Guid DuplaADireitaId, Guid DuplaAEsquerdaId, Guid DuplaBDireitaId, Guid DuplaBEsquerdaId);
 }

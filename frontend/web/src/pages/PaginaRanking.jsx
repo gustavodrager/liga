@@ -82,8 +82,11 @@ export function PaginaRanking() {
     setErro('');
 
     try {
-      const listaCompeticoes = await competicoesServico.listar();
-      const listaLigas = usuarioAtleta ? [] : await ligasServico.listar();
+      const [listaCompeticoes, listaLigas, filtroInicial] = await Promise.all([
+        competicoesServico.listar(),
+        usuarioAtleta ? Promise.resolve([]) : ligasServico.listar(),
+        rankingServico.obterFiltroInicial()
+      ]);
 
       let competicoesDisponiveis = listaCompeticoes;
       if (usuarioAtleta) {
@@ -115,18 +118,30 @@ export function PaginaRanking() {
         : tipoUrl === 'competicao' ? 'competicao' : 'liga';
       const ligaUrl = params.get('ligaId');
       const competicaoUrl = params.get('competicaoId');
+      const haFiltroUrl = Boolean(tipoUrl || ligaUrl || competicaoUrl);
+      const competicaoHistoricoValida = filtroInicial?.competicaoId &&
+        competicoesDisponiveis.some((competicao) => competicao.id === filtroInicial.competicaoId)
+        ? filtroInicial.competicaoId
+        : '';
 
       const ligaInicial = ligaUrl && listaLigas.some((liga) => liga.id === ligaUrl)
         ? ligaUrl
         : listaLigas[0]?.id || '';
       const competicaoInicial = competicaoUrl && competicoesDisponiveis.some((competicao) => competicao.id === competicaoUrl)
         ? competicaoUrl
-        : competicoesDisponiveis[0]?.id || '';
+        : !haFiltroUrl && competicaoHistoricoValida
+          ? competicaoHistoricoValida
+          : competicoesDisponiveis[0]?.id || '';
+      const tipoConsultaInicial = usuarioAtleta
+        ? 'competicao'
+        : !haFiltroUrl && competicaoHistoricoValida && filtroInicial?.tipoConsulta === 'competicao'
+          ? 'competicao'
+          : tipoInicial;
 
-      setTipoConsulta(tipoInicial);
+      setTipoConsulta(tipoConsultaInicial);
       setLigaId(ligaInicial);
       setCompeticaoId(competicaoInicial);
-      atualizarParametros(tipoInicial, ligaInicial, competicaoInicial);
+      atualizarParametros(tipoConsultaInicial, ligaInicial, competicaoInicial);
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

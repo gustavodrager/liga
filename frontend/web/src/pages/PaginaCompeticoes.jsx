@@ -14,12 +14,20 @@ import { formatarData, paraInputData } from '../utils/formatacao';
 import { ehAtleta, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
 import { rolarParaElemento } from '../utils/rolagem';
 
+function obterDataAtualInput() {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
 function criarEstadoInicialCompeticao(usuarioAtleta = false) {
   return {
     nome: '',
     tipo: usuarioAtleta ? '3' : '1',
     descricao: '',
-    dataInicio: '',
+    dataInicio: usuarioAtleta ? obterDataAtualInput() : '',
     dataFim: '',
     ligaId: '',
     localId: '',
@@ -88,6 +96,7 @@ export function PaginaCompeticoes() {
   const [assumindoNomeGrupo, setAssumindoNomeGrupo] = useState(false);
   const formularioCompeticaoRef = useRef(null);
   const navegar = useNavigate();
+  const tipoGrupoSelecionado = usuarioAtleta || Number(formulario.tipo) === 3;
 
   useEffect(() => {
     carregarCompeticoes();
@@ -200,6 +209,8 @@ export function PaginaCompeticoes() {
       const proximo = { ...anterior, [campo]: valor };
 
       if (campo === 'tipo' && Number(valor) === 3) {
+        proximo.dataInicio = proximo.dataInicio || obterDataAtualInput();
+        proximo.dataFim = '';
         proximo.inscricoesAbertas = false;
         proximo.possuiFinalReset = false;
       }
@@ -449,8 +460,8 @@ export function PaginaCompeticoes() {
       nome: formulario.nome,
       tipo,
       descricao: formulario.descricao || null,
-      dataInicio: formulario.dataInicio,
-      dataFim: formulario.dataFim || null,
+      dataInicio: tipo === 3 ? (formulario.dataInicio || obterDataAtualInput()) : formulario.dataInicio,
+      dataFim: tipo === 3 ? null : formulario.dataFim || null,
       ligaId: usuarioAtleta ? null : formulario.ligaId || null,
       localId: usuarioAtleta ? null : formulario.localId || null,
       formatoCampeonatoId: formulario.formatoCampeonatoId || null,
@@ -528,24 +539,28 @@ export function PaginaCompeticoes() {
             </label>
           )}
 
-          <label>
-            Data de início
-            <input
-              type="date"
-              value={formulario.dataInicio}
-              onChange={(evento) => atualizarCampo('dataInicio', evento.target.value)}
-              required
-            />
-          </label>
+          {!tipoGrupoSelecionado && (
+            <>
+              <label>
+                Data de início
+                <input
+                  type="date"
+                  value={formulario.dataInicio}
+                  onChange={(evento) => atualizarCampo('dataInicio', evento.target.value)}
+                  required
+                />
+              </label>
 
-          <label>
-            Data de fim
-            <input
-              type="date"
-              value={formulario.dataFim}
-              onChange={(evento) => atualizarCampo('dataFim', evento.target.value)}
-            />
-          </label>
+              <label>
+                Data de fim
+                <input
+                  type="date"
+                  value={formulario.dataFim}
+                  onChange={(evento) => atualizarCampo('dataFim', evento.target.value)}
+                />
+              </label>
+            </>
+          )}
 
           <label className="campo-largo">
             Descrição
@@ -646,7 +661,7 @@ export function PaginaCompeticoes() {
 
           {usuarioAtleta && (
             <p className="campo-largo">
-              O grupo criado por atleta já recebe uma categoria geral para você cadastrar os nomes do grupo e lançar os jogos.
+              O grupo criado por atleta permite lançar jogos sem categoria e também organizar partidas por categoria quando você quiser.
             </p>
           )}
 
@@ -783,7 +798,7 @@ export function PaginaCompeticoes() {
                 {categoriasAbertas && (
                   <div className="campo-largo">
                     {!gestorCompeticao && competicao.tipo === 3 && (
-                      <p>Este grupo usa a categoria geral criada automaticamente para registrar os jogos.</p>
+                      <p>Neste grupo, as categorias são opcionais. Você pode lançar jogos sem categoria ou separar os confrontos por categoria.</p>
                     )}
 
                     {gestorCompeticao && competicao.tipo !== 3 && (

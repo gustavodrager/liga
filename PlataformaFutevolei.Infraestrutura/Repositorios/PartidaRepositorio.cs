@@ -8,6 +8,30 @@ namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
 public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IPartidaRepositorio
 {
+    public async Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Partidas
+            .AsNoTracking()
+            .Include(x => x.CategoriaCompeticao)
+                .ThenInclude(x => x.Competicao)
+            .Include(x => x.DuplaA)
+                .ThenInclude(x => x.Atleta1)
+            .Include(x => x.DuplaA)
+                .ThenInclude(x => x.Atleta2)
+            .Include(x => x.DuplaB)
+                .ThenInclude(x => x.Atleta1)
+            .Include(x => x.DuplaB)
+                .ThenInclude(x => x.Atleta2)
+            .Include(x => x.DuplaVencedora)
+            .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
+            .OrderBy(x => x.CategoriaCompeticao.Nome)
+            .ThenBy(x => x.Status)
+            .ThenBy(x => x.FaseCampeonato)
+            .ThenBy(x => x.DataPartida ?? DateTime.MaxValue)
+            .ThenBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
         return await dbContext.Partidas
@@ -15,7 +39,13 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Include(x => x.CategoriaCompeticao)
                 .ThenInclude(x => x.Competicao)
             .Include(x => x.DuplaA)
+                .ThenInclude(x => x.Atleta1)
+            .Include(x => x.DuplaA)
+                .ThenInclude(x => x.Atleta2)
             .Include(x => x.DuplaB)
+                .ThenInclude(x => x.Atleta1)
+            .Include(x => x.DuplaB)
+                .ThenInclude(x => x.Atleta2)
             .Include(x => x.DuplaVencedora)
             .Where(x => x.CategoriaCompeticaoId == categoriaId)
             .OrderBy(x => x.Status)
@@ -65,6 +95,35 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> ObterUltimaCompeticaoComPartidaEncerradaAsync(
+        Guid? usuarioOrganizadorId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = dbContext.Partidas
+            .AsNoTracking()
+            .Where(x => x.Status == StatusPartida.Encerrada);
+
+        if (atletaId.HasValue)
+        {
+            consulta = consulta.Where(x =>
+                x.DuplaA.Atleta1Id == atletaId.Value ||
+                x.DuplaA.Atleta2Id == atletaId.Value ||
+                x.DuplaB.Atleta1Id == atletaId.Value ||
+                x.DuplaB.Atleta2Id == atletaId.Value);
+        }
+        else if (usuarioOrganizadorId.HasValue)
+        {
+            consulta = consulta.Where(x => x.CategoriaCompeticao.Competicao.UsuarioOrganizadorId == usuarioOrganizadorId.Value);
+        }
+
+        return await consulta
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .Select(x => (Guid?)x.CategoriaCompeticao.CompeticaoId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)

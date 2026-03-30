@@ -3,7 +3,8 @@ using PlataformaFutevolei.Dominio.Enums;
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarPartidaDto(
-    Guid CategoriaCompeticaoId,
+    Guid? CompeticaoId,
+    Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
     Guid? DuplaBId,
     Guid? DuplaAAtleta1Id,
@@ -19,7 +20,8 @@ public record CriarPartidaDto(
 );
 
 public record AtualizarPartidaDto(
-    Guid CategoriaCompeticaoId,
+    Guid? CompeticaoId,
+    Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
     Guid? DuplaBId,
     Guid? DuplaAAtleta1Id,
