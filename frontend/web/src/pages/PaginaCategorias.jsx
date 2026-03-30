@@ -13,7 +13,7 @@ const estadoInicial = {
   genero: '1',
   nivel: '1',
   pesoRanking: '',
-  quantidadeMaximaDuplas: '',
+  quantidadeMaximaDuplas: '16',
   inscricoesEncerradas: false
 };
 
@@ -320,8 +320,7 @@ export function PaginaCategorias() {
             type="text"
             value={formulario.nome}
             onChange={(evento) => atualizarCampo('nome', evento.target.value)}
-            placeholder="Ex: Ouro Misto"
-            required
+            placeholder="Opcional, exceto se já existir mesma combinação"
           />
         </label>
 
@@ -355,21 +354,9 @@ export function PaginaCategorias() {
           </select>
         </label>
 
-        <label>
-          Peso no ranking
-          <input
-            type="number"
-            min={0.01}
-            step="0.01"
-            value={formulario.pesoRanking}
-            onChange={(evento) => atualizarCampo('pesoRanking', evento.target.value)}
-            placeholder="Padrão: 1"
-          />
-        </label>
-
         {competicaoAceitaInscricoes && (
           <label>
-            Quantidade máxima de duplas
+            Máx. de duplas
             <input
               type="number"
               min={1}
@@ -417,7 +404,6 @@ export function PaginaCategorias() {
                 <h3>{categoria.nome}</h3>
                 <p>Gênero: {opcoesGenero.find((item) => item.valor === categoria.genero)?.rotulo}</p>
                 <p>Nível: {opcoesNivel.find((item) => item.valor === categoria.nivel)?.rotulo}</p>
-                <p>Peso no ranking: {categoria.pesoRanking}</p>
                 {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
                   <p>
                     Formato: {categoria.nomeFormatoCampeonatoEfetivo || 'Sem formato vinculado'}

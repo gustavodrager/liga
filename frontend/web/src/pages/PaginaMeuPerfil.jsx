@@ -25,12 +25,24 @@ const estadoInicialAtleta = {
   dataNascimento: ''
 };
 
+const mensagemErroAcessoOrganizador =
+  'O organizador só pode alterar atletas inscritos em competições vinculadas ao próprio usuário.';
+
 function criarEstadoInicialAtleta(usuario, usuarioEhAtleta) {
   return {
     ...estadoInicialAtleta,
     nome: usuarioEhAtleta ? usuario?.nome || '' : '',
     email: usuarioEhAtleta ? usuario?.email || '' : ''
   };
+}
+
+function obterMensagemErroPerfil(error) {
+  const mensagem = extrairMensagemErro(error);
+  if (mensagem === mensagemErroAcessoOrganizador) {
+    return 'Não foi possível atualizar o atleta vinculado por este perfil.';
+  }
+
+  return mensagem;
 }
 
 function criarResumoAtleta(atleta) {
@@ -54,10 +66,7 @@ export function PaginaMeuPerfil() {
   const { usuario, atualizarUsuarioLocal, recarregarUsuario } = useAutenticacao();
   const [usuarioDetalhe, setUsuarioDetalhe] = useState(null);
   const [formularioAtleta, setFormularioAtleta] = useState(estadoInicialAtleta);
-  const [buscaAtleta, setBuscaAtleta] = useState('');
-  const [resultadosAtleta, setResultadosAtleta] = useState([]);
   const [carregando, setCarregando] = useState(true);
-  const [carregandoBusca, setCarregandoBusca] = useState(false);
   const [salvandoAtleta, setSalvandoAtleta] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
@@ -184,54 +193,9 @@ export function PaginaMeuPerfil() {
       atualizarUsuarioLocal(proximoUsuario);
       setMensagem('Dados do atleta atualizados com sucesso.');
     } catch (error) {
-      setErro(extrairMensagemErro(error));
+      setErro(obterMensagemErroPerfil(error));
     } finally {
       setSalvandoAtleta(false);
-    }
-  }
-
-  async function buscarAtletas() {
-    setCarregandoBusca(true);
-    setErro('');
-
-    try {
-      const resultados = await atletasServico.buscar(buscaAtleta);
-      setResultadosAtleta(resultados);
-    } catch (error) {
-      setErro(extrairMensagemErro(error));
-    } finally {
-      setCarregandoBusca(false);
-    }
-  }
-
-  async function vincularAtleta(atletaId) {
-    setErro('');
-    setMensagem('');
-
-    try {
-      const resposta = await usuariosServico.vincularMeuAtleta({ atletaId });
-      atualizarUsuarioLocal(resposta);
-      setResultadosAtleta([]);
-      setBuscaAtleta('');
-
-      try {
-        const atleta = await atletasServico.obterPorId(atletaId);
-        preencherFormularioAtleta(atleta);
-        setUsuarioDetalhe({
-          ...resposta,
-          atleta: criarResumoAtleta(atleta)
-        });
-      } catch (error) {
-        if (error?.response?.status === 404) {
-          setUsuarioDetalhe(resposta);
-        } else {
-          throw error;
-        }
-      }
-
-      setMensagem('Atleta vinculado com sucesso.');
-    } catch (error) {
-      setErro(extrairMensagemErro(error));
     }
   }
 
@@ -495,45 +459,6 @@ export function PaginaMeuPerfil() {
         </>
       ) : (
         <>
-          <div className="formulario-grid">
-            <label className="campo-largo">
-              Vincular atleta existente
-              <input
-                type="text"
-                value={buscaAtleta}
-                onChange={(evento) => setBuscaAtleta(evento.target.value)}
-                placeholder="Busque por nome, apelido, telefone ou e-mail"
-              />
-            </label>
-
-            <div className="acoes-formulario">
-              <button type="button" className="botao-secundario" onClick={buscarAtletas} disabled={carregandoBusca}>
-                {carregandoBusca ? 'Buscando...' : 'Buscar atleta'}
-              </button>
-            </div>
-          </div>
-
-          {resultadosAtleta.length > 0 && (
-            <div className="lista-cartoes">
-              {resultadosAtleta.map((atleta) => (
-                <article key={atleta.id} className="cartao-lista">
-                  <div>
-                    <h3>{atleta.nome}</h3>
-                    <p>Apelido: {atleta.apelido || '-'}</p>
-                    <p>E-mail: {atleta.email || '-'}</p>
-                    <p>Telefone: {atleta.telefone || '-'}</p>
-                  </div>
-
-                  <div className="acoes-item">
-                    <button type="button" className="botao-primario" onClick={() => vincularAtleta(atleta.id)}>
-                      Vincular atleta existente
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-
           <form className="formulario-grid" onSubmit={criarAtletaNovo}>
             <label>
               Nome completo

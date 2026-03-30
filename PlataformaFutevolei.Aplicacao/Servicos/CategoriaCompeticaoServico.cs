@@ -78,7 +78,7 @@ public class CategoriaCompeticaoServico(
     public async Task<CategoriaCompeticaoDto> CriarAsync(CriarCategoriaCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(dto.CompeticaoId, cancellationToken);
-        Validar(dto.Nome, dto.PesoRanking, dto.QuantidadeMaximaDuplas);
+        Validar(dto.PesoRanking, dto.QuantidadeMaximaDuplas);
 
         var competicao = await competicaoRepositorio.ObterPorIdAsync(dto.CompeticaoId, cancellationToken);
         if (competicao is null)
@@ -87,12 +87,19 @@ public class CategoriaCompeticaoServico(
         }
 
         var formatoCampeonatoId = await ValidarFormatoCampeonatoAsync(competicao, dto.FormatoCampeonatoId, cancellationToken);
+        var nomeCategoria = await ResolverNomeAsync(
+            dto.CompeticaoId,
+            null,
+            dto.Nome,
+            dto.Genero,
+            dto.Nivel,
+            cancellationToken);
 
         var categoria = new CategoriaCompeticao
         {
             CompeticaoId = dto.CompeticaoId,
             FormatoCampeonatoId = formatoCampeonatoId,
-            Nome = dto.Nome.Trim(),
+            Nome = nomeCategoria,
             Genero = dto.Genero,
             Nivel = dto.Nivel,
             PesoRanking = dto.PesoRanking ?? 1m,
@@ -115,13 +122,20 @@ public class CategoriaCompeticaoServico(
         }
 
         await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(categoria.CompeticaoId, cancellationToken);
-        Validar(dto.Nome, dto.PesoRanking, dto.QuantidadeMaximaDuplas);
+        Validar(dto.PesoRanking, dto.QuantidadeMaximaDuplas);
 
         var formatoCampeonatoId = await ValidarFormatoCampeonatoAsync(categoria.Competicao, dto.FormatoCampeonatoId, cancellationToken);
         await ValidarLimiteDuplasAsync(categoria.Id, dto.QuantidadeMaximaDuplas, cancellationToken);
+        var nomeCategoria = await ResolverNomeAsync(
+            categoria.CompeticaoId,
+            categoria.Id,
+            dto.Nome,
+            dto.Genero,
+            dto.Nivel,
+            cancellationToken);
 
         categoria.FormatoCampeonatoId = formatoCampeonatoId;
-        categoria.Nome = dto.Nome.Trim();
+        categoria.Nome = nomeCategoria;
         categoria.Genero = dto.Genero;
         categoria.Nivel = dto.Nivel;
         categoria.PesoRanking = dto.PesoRanking ?? 1m;
@@ -190,13 +204,8 @@ public class CategoriaCompeticaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private static void Validar(string nome, decimal? pesoRanking, int? quantidadeMaximaDuplas)
+    private static void Validar(decimal? pesoRanking, int? quantidadeMaximaDuplas)
     {
-        if (string.IsNullOrWhiteSpace(nome))
-        {
-            throw new RegraNegocioException("Nome da categoria é obrigatório.");
-        }
-
         if (pesoRanking.HasValue && pesoRanking.Value <= 0)
         {
             throw new RegraNegocioException("Peso de ranking da categoria deve ser maior que zero.");
@@ -223,6 +232,59 @@ public class CategoriaCompeticaoServico(
         {
             throw new RegraNegocioException("A categoria já possui mais duplas inscritas do que o novo limite informado.");
         }
+    }
+
+    private async Task<string> ResolverNomeAsync(
+        Guid competicaoId,
+        Guid? categoriaIgnoradaId,
+        string? nomeInformado,
+        GeneroCategoria genero,
+        NivelCategoria nivel,
+        CancellationToken cancellationToken)
+    {
+        var nome = nomeInformado?.Trim();
+        if (!string.IsNullOrWhiteSpace(nome))
+        {
+            return nome;
+        }
+
+        var categoriasCompeticao = await categoriaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        var possuiCategoriaComMesmoGeneroENivel = categoriasCompeticao.Any(categoria =>
+            categoria.Id != categoriaIgnoradaId &&
+            categoria.Genero == genero &&
+            categoria.Nivel == nivel);
+
+        if (possuiCategoriaComMesmoGeneroENivel)
+        {
+            throw new RegraNegocioException("Informe o nome da categoria quando já existir outra com o mesmo gênero e nível técnico nesta competição.");
+        }
+
+        return $"{ObterNomeNivel(nivel)} {ObterNomeGenero(genero)}";
+    }
+
+    private static string ObterNomeGenero(GeneroCategoria genero)
+    {
+        return genero switch
+        {
+            GeneroCategoria.Masculino => "Masculino",
+            GeneroCategoria.Feminino => "Feminino",
+            GeneroCategoria.Misto => "Misto",
+            _ => "Categoria"
+        };
+    }
+
+    private static string ObterNomeNivel(NivelCategoria nivel)
+    {
+        return nivel switch
+        {
+            NivelCategoria.Estreante => "Estreante",
+            NivelCategoria.Iniciante => "Iniciante",
+            NivelCategoria.Intermediario => "Intermediário",
+            NivelCategoria.Amador => "Amador",
+            NivelCategoria.Profissional => "Profissional",
+            NivelCategoria.Livre => "Livre",
+            _ => "Categoria"
+        };
     }
 
     private async Task<Guid?> ValidarFormatoCampeonatoAsync(

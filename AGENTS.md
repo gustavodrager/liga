@@ -61,6 +61,11 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - A progressão entre chave vencedora, perdedora, final e reset deve ficar centralizada no backend
 - Exibição da tabela deve priorizar rodadas com identificação clara do tipo do jogo
 
+## Fase de grupos
+- Em fase de grupos, as duplas do mesmo grupo jogam entre si uma vez por turno configurado
+- Quando o formato gerar mata-mata após grupos, os classificados por grupo avançam automaticamente conforme os resultados
+- A exibição deve separar claramente os grupos e a fase eliminatória subsequente
+
 ## Diretrizes de implementação
 - Não criar projeto novo
 - Sempre analisar o código e o fluxo existente antes de implementar
