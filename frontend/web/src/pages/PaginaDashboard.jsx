@@ -79,6 +79,11 @@ export function PaginaDashboard() {
         rota: '/ligas'
       },
       {
+        titulo: 'Convites',
+        descricao: 'Crie e acompanhe convites fechados para novos organizadores.',
+        rota: '/convites-cadastro'
+      },
+      {
         titulo: 'Usuários',
         descricao: 'Gerencie perfis, status e vínculo com atletas.',
         rota: '/usuarios'

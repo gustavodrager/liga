@@ -13,7 +13,12 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Usuario representa autenticação e autorização; Atleta representa identidade esportiva
 - Nem todo atleta possui usuário; um usuário pode estar vinculado a um atleta
 - Perfis de usuário: Administrador, Organizador e Atleta
+- Cadastro público está desativado; criação de conta deve ocorrer por convite controlado no backend
+- No fluxo atual, convite de cadastro cria usuário com perfil `Organizador`; o perfil efetivo vem do convite, nunca do frontend
+- Quando o provedor de e-mail estiver configurado, a criação do convite pode disparar automaticamente a mensagem de primeiro acesso; sem configuração, o convite continua válido e o envio fica pendente/manual
+- Falha de provedor externo de e-mail não pode invalidar convite, token ou cadastro; o fluxo principal continua válido
 - Usuário comum (`Atleta`) só pode criar o próprio atleta, usando o mesmo nome e e-mail do usuário
+- Usuário `Organizador` pode existir sem atleta vinculado; não criar atleta automático nesse fluxo sem necessidade explícita
 - Atleta pode se inscrever em campeonatos com inscrições abertas, usando dupla própria já cadastrada ou criando a dupla no fluxo da inscrição
 - Partidas são sempre 2x2
 - Cada dupla possui exatamente 2 atletas
@@ -29,10 +34,12 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 
 ## Convenções já adotadas no produto
 - Atleta deve ser tratado por nome completo; o apelido é derivado do primeiro e último nome do registro final
+- Convite vencido, inativo, já usado ou com e-mail divergente não pode ser aceito no cadastro
 - Na inscrição de campeonato, a dupla pode vir de um cadastro existente ou ser criada no fluxo da inscrição a partir dos dois atletas
 - Se um atleta com o mesmo nome completo já existir, reutilizar o cadastro quando for a mesma pessoa; se for outra pessoa, diferenciar com apelido/complemento
 - Dupla e inscrição de campeonato devem tratar a ordem dos dois atletas de forma normalizada; não assumir que a ordem digitada será a ordem persistida
 - Organizador só pode alterar competição vinculada ao próprio usuário
+- Organizador autenticado deve conseguir operar o caso inicial de grupos, vínculo de atletas no grupo e registro de partidas sem permissões administrativas globais
 - Atleta só pode acessar e alterar os próprios dados vinculados
 - Atleta pode visualizar campeonatos com inscrições abertas e as categorias disponíveis para inscrição
 - Competição com liga vinculada conta automaticamente no ranking da liga

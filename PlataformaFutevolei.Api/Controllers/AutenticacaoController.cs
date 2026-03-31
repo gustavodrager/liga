@@ -10,9 +10,10 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : ControllerBase
 {
     [HttpPost("registrar")]
+    [HttpPost("registrar-por-convite")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Registrar([FromBody] RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> RegistrarPorConvite([FromBody] RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken)
     {
         var resposta = await autenticacaoServico.RegistrarAsync(dto, cancellationToken);
         return Ok(resposta);

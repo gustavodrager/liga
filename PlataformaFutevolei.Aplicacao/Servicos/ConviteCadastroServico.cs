@@ -1,0 +1,266 @@
+using System.Security.Cryptography;
+using PlataformaFutevolei.Aplicacao.DTOs;
+using PlataformaFutevolei.Aplicacao.Excecoes;
+using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
+using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
+using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
+
+namespace PlataformaFutevolei.Aplicacao.Servicos;
+
+public class ConviteCadastroServico(
+    IConviteCadastroRepositorio conviteCadastroRepositorio,
+    IUsuarioRepositorio usuarioRepositorio,
+    IUnidadeTrabalho unidadeTrabalho,
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IEnvioEmailConviteCadastroServico envioEmailConviteCadastroServico
+) : IConviteCadastroServico
+{
+    private static readonly TimeSpan ValidadePadrao = TimeSpan.FromDays(7);
+
+    public async Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default)
+    {
+        await GarantirAdministradorAsync(cancellationToken);
+        var convites = await conviteCadastroRepositorio.ListarAsync(cancellationToken);
+        return convites.Select(x => x.ParaDto()).ToList();
+    }
+
+    public async Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await GarantirAdministradorAsync(cancellationToken);
+        var convite = await conviteCadastroRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (convite is null)
+        {
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        }
+
+        return convite.ParaDto();
+    }
+
+    public async Task<ConviteCadastroPublicoDto> ObterPublicoPorTokenAsync(string token, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new RegraNegocioException("Token do convite é obrigatório.");
+        }
+
+        var convite = await conviteCadastroRepositorio.ObterPorTokenAsync(token.Trim(), cancellationToken);
+        if (convite is null)
+        {
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        }
+
+        return convite.ParaPublicoDto();
+    }
+
+    public async Task<ConviteCadastroDto> CriarAsync(CriarConviteCadastroDto dto, CancellationToken cancellationToken = default)
+    {
+        var usuario = await GarantirAdministradorAsync(cancellationToken);
+        var emailNormalizado = NormalizarEmail(dto.Email);
+
+        var usuarioExistente = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
+        if (usuarioExistente is not null)
+        {
+            throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
+        }
+
+        var perfilDestino = dto.PerfilDestino ?? PerfilUsuario.Organizador;
+        if (perfilDestino != PerfilUsuario.Organizador)
+        {
+            throw new RegraNegocioException("Neste momento, convites de cadastro só podem criar usuários com perfil organizador.");
+        }
+
+        var expiraEmUtc = NormalizarExpiracao(dto.ExpiraEmUtc);
+        var convite = new ConviteCadastro
+        {
+            Email = emailNormalizado,
+            Telefone = NormalizarTexto(dto.Telefone),
+            Token = await GerarTokenUnicoAsync(cancellationToken),
+            PerfilDestino = perfilDestino,
+            ExpiraEmUtc = expiraEmUtc,
+            Ativo = true,
+            CriadoPorUsuarioId = usuario.Id,
+            CanalEnvio = NormalizarTexto(dto.CanalEnvio)
+        };
+
+        await conviteCadastroRepositorio.AdicionarAsync(convite, cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        var conviteCriado = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(convite.Id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+
+        await TentarEnviarEmailAutomaticoAsync(conviteCriado, cancellationToken);
+
+        return conviteCriado.ParaDto();
+    }
+
+    public async Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await GarantirAdministradorAsync(cancellationToken);
+        var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
+        if (convite is null)
+        {
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        }
+
+        ValidarConviteParaEnvioEmail(convite);
+        await EnviarEmailConviteAsync(convite, falharSemConfiguracao: true, falharQuandoNaoEnviado: true, cancellationToken);
+        return convite.ParaDto();
+    }
+
+    public async Task DesativarAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await GarantirAdministradorAsync(cancellationToken);
+        var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
+        if (convite is null)
+        {
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        }
+
+        if (!convite.Ativo)
+        {
+            return;
+        }
+
+        convite.Desativar();
+        conviteCadastroRepositorio.Atualizar(convite);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private async Task<Usuario> GarantirAdministradorAsync(CancellationToken cancellationToken)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil != PerfilUsuario.Administrador)
+        {
+            throw new RegraNegocioException("Apenas administradores podem executar esta operação.");
+        }
+
+        return usuario;
+    }
+
+    private static string NormalizarEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        return email.Trim().ToLowerInvariant();
+    }
+
+    private static string? NormalizarTexto(string? texto)
+    {
+        var textoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(texto);
+        return string.IsNullOrWhiteSpace(textoNormalizado) ? null : textoNormalizado;
+    }
+
+    private async Task TentarEnviarEmailAutomaticoAsync(
+        ConviteCadastro conviteCadastro,
+        CancellationToken cancellationToken)
+    {
+        if (!DeveEnviarEmailAutomaticamente(conviteCadastro.CanalEnvio))
+        {
+            return;
+        }
+
+        await EnviarEmailConviteAsync(
+            conviteCadastro,
+            falharSemConfiguracao: false,
+            falharQuandoNaoEnviado: false,
+            cancellationToken);
+    }
+
+    private static DateTime NormalizarExpiracao(DateTime? expiraEmUtc)
+    {
+        var expiracao = expiraEmUtc ?? DateTime.UtcNow.Add(ValidadePadrao);
+        var expiracaoNormalizada = expiracao.Kind switch
+        {
+            DateTimeKind.Utc => expiracao,
+            DateTimeKind.Local => expiracao.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(expiracao, DateTimeKind.Utc)
+        };
+
+        if (expiracaoNormalizada <= DateTime.UtcNow)
+        {
+            throw new RegraNegocioException("A data de expiração do convite deve ser futura.");
+        }
+
+        return expiracaoNormalizada;
+    }
+
+    private async Task<string> GerarTokenUnicoAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+            var existente = await conviteCadastroRepositorio.ObterPorTokenAsync(token, cancellationToken);
+            if (existente is null)
+            {
+                return token;
+            }
+        }
+    }
+
+    private static bool DeveEnviarEmailAutomaticamente(string? canalEnvio)
+    {
+        return string.IsNullOrWhiteSpace(canalEnvio)
+            || canalEnvio.Contains("e-mail", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task EnviarEmailConviteAsync(
+        ConviteCadastro conviteCadastro,
+        bool falharSemConfiguracao,
+        bool falharQuandoNaoEnviado,
+        CancellationToken cancellationToken)
+    {
+        var resultado = await envioEmailConviteCadastroServico.EnviarAsync(conviteCadastro, cancellationToken);
+        if (!resultado.TentativaRealizada)
+        {
+            if (falharSemConfiguracao)
+            {
+                throw new RegraNegocioException("O envio automático de e-mail não está configurado.");
+            }
+
+            return;
+        }
+
+        if (resultado.Enviado)
+        {
+            conviteCadastro.RegistrarEnvioEmailComSucesso(DateTime.UtcNow);
+        }
+        else
+        {
+            conviteCadastro.RegistrarFalhaEnvioEmail(resultado.Erro, DateTime.UtcNow);
+        }
+
+        conviteCadastroRepositorio.Atualizar(conviteCadastro);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        if (falharQuandoNaoEnviado && !resultado.Enviado)
+        {
+            throw new RegraNegocioException(conviteCadastro.ErroEnvioEmail ?? "Falha ao enviar o e-mail do convite.");
+        }
+    }
+
+    private static void ValidarConviteParaEnvioEmail(ConviteCadastro conviteCadastro)
+    {
+        var agoraUtc = DateTime.UtcNow;
+        if (!conviteCadastro.Ativo)
+        {
+            throw new RegraNegocioException("Este convite está cancelado e não pode ser enviado.");
+        }
+
+        if (conviteCadastro.FoiUtilizado())
+        {
+            throw new RegraNegocioException("Este convite já foi utilizado e não pode ser reenviado.");
+        }
+
+        if (conviteCadastro.EstaExpirado(agoraUtc))
+        {
+            throw new RegraNegocioException("Este convite está expirado e não pode ser reenviado.");
+        }
+    }
+}

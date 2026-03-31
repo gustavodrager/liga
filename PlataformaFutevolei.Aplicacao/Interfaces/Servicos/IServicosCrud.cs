@@ -14,6 +14,16 @@ public interface IAtletaServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IConviteCadastroServico
+{
+    Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ConviteCadastroPublicoDto> ObterPublicoPorTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task<ConviteCadastroDto> CriarAsync(CriarConviteCadastroDto dto, CancellationToken cancellationToken = default);
+    Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default);
+    Task DesativarAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
 public interface IDuplaServico
 {
     Task<IReadOnlyList<DuplaDto>> ListarAsync(

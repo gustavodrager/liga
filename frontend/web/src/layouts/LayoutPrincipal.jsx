@@ -23,7 +23,8 @@ export function LayoutPrincipal() {
     { caminho: '/categorias', nome: 'Categorias', visivel: gestorCompeticao },
     { caminho: '/inscricoes', nome: 'Inscrições', visivel: true },
     { caminho: '/partidas', nome: 'Partidas', visivel: gestorCompeticao || atleta },
-    { caminho: '/usuarios', nome: 'Usuários', visivel: administrador }
+    { caminho: '/usuarios', nome: 'Usuários', visivel: administrador },
+    { caminho: '/convites-cadastro', nome: 'Convites', visivel: administrador }
   ].filter((item) => item.visivel);
 
   return (

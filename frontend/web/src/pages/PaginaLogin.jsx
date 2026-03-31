@@ -7,7 +7,6 @@ import logoLiga from '../assets/logo-liga.svg';
 
 export function PaginaLogin() {
   const [modo, setModo] = useState('login');
-  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [codigoRedefinicao, setCodigoRedefinicao] = useState('');
@@ -18,7 +17,7 @@ export function PaginaLogin() {
   const [carregando, setCarregando] = useState(false);
   const [carregandoCodigo, setCarregandoCodigo] = useState(false);
 
-  const { entrar, registrar, token } = useAutenticacao();
+  const { entrar, token } = useAutenticacao();
   const navegar = useNavigate();
   const localizacao = useLocation();
 
@@ -29,7 +28,6 @@ export function PaginaLogin() {
   }, [token, navegar]);
 
   const origem = localizacao.state?.origem?.pathname || '/dashboard';
-  const emModoRegistro = modo === 'registro';
   const emModoRecuperacao = modo === 'recuperacao';
 
   function alterarModo(novoModo) {
@@ -47,9 +45,7 @@ export function PaginaLogin() {
     setCarregando(true);
 
     try {
-      if (emModoRegistro) {
-        await registrar(nome, email, senha);
-      } else if (emModoRecuperacao) {
+      if (emModoRecuperacao) {
         await autenticacaoServico.redefinirSenha({
           email,
           codigo: codigoRedefinicao,
@@ -99,49 +95,9 @@ export function PaginaLogin() {
         <h1>Plataforma de Futevôlei</h1>
         <p>Registre partidas, atletas e competições em um fluxo simples.</p>
 
-        <div className="alternador-auth">
-          <button
-            type="button"
-            className={modo === 'registro' ? 'botao-primario' : 'botao-secundario'}
-            onClick={() => alterarModo('registro')}
-            disabled={carregando || carregandoCodigo}
-          >
-            Registrar
-          </button>
-          <button
-            type="button"
-            className={modo === 'recuperacao' ? 'botao-primario' : 'botao-secundario'}
-            onClick={() => alterarModo('recuperacao')}
-            disabled={carregando || carregandoCodigo}
-          >
-            Esqueci senha
-          </button>
-          {modo !== 'login' && (
-            <button
-              type="button"
-              className="botao-secundario"
-              onClick={() => alterarModo('login')}
-              disabled={carregando || carregandoCodigo}
-            >
-              Voltar ao login
-            </button>
-          )}
-        </div>
+        <p>O cadastro público foi desativado. Novas contas só podem ser criadas por convite. Se você recebeu um link de acesso, abra-o para criar sua senha e entrar pela primeira vez.</p>
 
         <form onSubmit={aoSubmeter} className="formulario-grid unico">
-          {emModoRegistro && (
-            <label>
-              Nome
-              <input
-                type="text"
-                value={nome}
-                onChange={(evento) => setNome(evento.target.value)}
-                placeholder="Seu nome"
-                required
-              />
-            </label>
-          )}
-
           <label>
             E-mail
             <input
@@ -214,17 +170,31 @@ export function PaginaLogin() {
 
           <button type="submit" className="botao-primario" disabled={carregando}>
             {carregando
-              ? (emModoRegistro
-                ? 'Registrando...'
-                : emModoRecuperacao
-                  ? 'Redefinindo...'
-                  : 'Entrando...')
-              : (emModoRegistro
-                ? 'Criar conta'
-                : emModoRecuperacao
-                  ? 'Redefinir senha'
-                  : 'Entrar')}
+              ? (emModoRecuperacao ? 'Redefinindo...' : 'Entrando...')
+              : (emModoRecuperacao ? 'Redefinir senha' : 'Entrar')}
           </button>
+
+          {!emModoRecuperacao && (
+            <button
+              type="button"
+              className="botao-secundario"
+              onClick={() => alterarModo('recuperacao')}
+              disabled={carregando || carregandoCodigo}
+            >
+              Esqueci minha senha
+            </button>
+          )}
+
+          {emModoRecuperacao && (
+            <button
+              type="button"
+              className="botao-secundario"
+              onClick={() => alterarModo('login')}
+              disabled={carregando || carregandoCodigo}
+            >
+              Voltar ao login
+            </button>
+          )}
         </form>
       </div>
     </section>

@@ -1,7 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { definirManipuladorNaoAutorizado, definirTokenAutorizacao } from '../services/http';
 import { autenticacaoServico } from '../services/autenticacaoServico';
-import { PERFIS_USUARIO } from '../utils/perfis';
 
 const CHAVE_ARMAZENAMENTO = 'plataforma_futevolei_autenticacao';
 
@@ -100,12 +99,12 @@ export function ProvedorAutenticacao({ children }) {
     return resposta;
   }, [salvarAutenticacao]);
 
-  const registrar = useCallback(async (nome, email, senha) => {
-    const resposta = await autenticacaoServico.registrar({
+  const registrarPorConvite = useCallback(async (tokenConvite, nome, email, senha) => {
+    const resposta = await autenticacaoServico.registrarPorConvite({
+      tokenConvite,
       nome,
       email,
-      senha,
-      perfil: PERFIS_USUARIO.atleta
+      senha
     });
     salvarAutenticacao(resposta);
     return resposta;
@@ -130,12 +129,12 @@ export function ProvedorAutenticacao({ children }) {
       usuario,
       carregando,
       entrar,
-      registrar,
+      registrarPorConvite,
       sair,
       recarregarUsuario,
       atualizarUsuarioLocal
     }),
-    [token, usuario, carregando, entrar, registrar, sair, recarregarUsuario, atualizarUsuarioLocal]
+    [token, usuario, carregando, entrar, registrarPorConvite, sair, recarregarUsuario, atualizarUsuarioLocal]
   );
 
   return <AutenticacaoContexto.Provider value={valor}>{children}</AutenticacaoContexto.Provider>;

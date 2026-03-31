@@ -6,4 +6,7 @@
 - Ao alterar regra de entidade ou relacionamento, alinhar aplicação, mapeamentos e constraints do banco
 - Não criar abstrações de domínio genéricas sem ganho real
 - Preservar as invariantes já adotadas: partida sem empate, dupla com exatamente dois atletas e categoria ligada a competição
+- Convite de cadastro precisa manter token único e impedir uso quando estiver vencido, inativo ou já utilizado
+- Se o convite registrar status operacional de envio de e-mail, isso não pode relaxar as invariantes de uso do token
+- Usuário organizador pode existir sem atleta vinculado; não tratar `AtletaId` como obrigatório no domínio
 - Quando a regra estiver hoje centralizada na aplicação, não forçar migração prematura para entidades sem ganho claro

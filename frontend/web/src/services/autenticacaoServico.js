@@ -1,8 +1,8 @@
 import { http } from './http';
 
 export const autenticacaoServico = {
-  async registrar(dados) {
-    const resposta = await http.post('/autenticacao/registrar', dados);
+  async registrarPorConvite(dados) {
+    const resposta = await http.post('/autenticacao/registrar-por-convite', dados);
     return resposta.data;
   },
 

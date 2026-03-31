@@ -33,6 +33,47 @@ internal static class MapeadorEntidades
             usuario.DataAtualizacao
         );
 
+    public static ConviteCadastroDto ParaDto(this ConviteCadastro conviteCadastro)
+    {
+        var agoraUtc = DateTime.UtcNow;
+
+        return new ConviteCadastroDto(
+            conviteCadastro.Id,
+            conviteCadastro.Email,
+            conviteCadastro.Telefone,
+            conviteCadastro.Token,
+            conviteCadastro.PerfilDestino,
+            conviteCadastro.ExpiraEmUtc,
+            conviteCadastro.UsadoEmUtc,
+            conviteCadastro.Ativo,
+            conviteCadastro.CriadoPorUsuarioId,
+            conviteCadastro.CriadoPorUsuario?.Nome,
+            conviteCadastro.CanalEnvio,
+            conviteCadastro.ObterSituacao(agoraUtc),
+            conviteCadastro.PodeSerUsado(agoraUtc),
+            conviteCadastro.ObterSituacaoEnvioEmail(),
+            conviteCadastro.UltimaTentativaEnvioEmailEmUtc,
+            conviteCadastro.EmailEnviadoEmUtc,
+            conviteCadastro.ErroEnvioEmail,
+            conviteCadastro.DataCriacao,
+            conviteCadastro.DataAtualizacao
+        );
+    }
+
+    public static ConviteCadastroPublicoDto ParaPublicoDto(this ConviteCadastro conviteCadastro)
+    {
+        var agoraUtc = DateTime.UtcNow;
+
+        return new ConviteCadastroPublicoDto(
+            conviteCadastro.Id,
+            conviteCadastro.Email,
+            conviteCadastro.PerfilDestino,
+            conviteCadastro.ExpiraEmUtc,
+            conviteCadastro.ObterSituacao(agoraUtc),
+            conviteCadastro.PodeSerUsado(agoraUtc)
+        );
+    }
+
     public static AtletaResumoDto ParaResumoDto(this Atleta atleta)
         => new(
             atleta.Id,

@@ -255,6 +255,90 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.ToTable("competicoes", (string)null);
                 });
 
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.ConviteCadastro", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<string>("CanalEnvio")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("canal_envio");
+
+                    b.Property<Guid>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTime?>("EmailEnviadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_enviado_em_utc");
+
+                    b.Property<string>("ErroEnvioEmail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("erro_envio_email");
+
+                    b.Property<DateTime>("ExpiraEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em_utc");
+
+                    b.Property<int>("PerfilDestino")
+                        .HasColumnType("integer")
+                        .HasColumnName("perfil_destino");
+
+                    b.Property<string>("Telefone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("telefone");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("token");
+
+                    b.Property<DateTime?>("UltimaTentativaEnvioEmailEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ultima_tentativa_envio_email_em_utc");
+
+                    b.Property<DateTime?>("UsadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("usado_em_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Ativo", "ExpiraEmUtc");
+
+                    b.HasIndex("CriadoPorUsuarioId");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("convites_cadastro", (string)null);
+                });
+
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>
                 {
                     b.Property<Guid>("Id")
@@ -840,6 +924,17 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Navigation("RegraCompeticao");
 
                     b.Navigation("UsuarioOrganizador");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.ConviteCadastro", b =>
+                {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "CriadoPorUsuario")
+                        .WithMany()
+                        .HasForeignKey("CriadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CriadoPorUsuario");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>

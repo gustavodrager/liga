@@ -13,6 +13,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class AutenticacaoServico(
     IUsuarioRepositorio usuarioRepositorio,
+    IConviteCadastroRepositorio conviteCadastroRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     ISenhaServico senhaServico,
     ITokenJwtServico tokenJwtServico,
@@ -29,25 +30,26 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
         }
 
+        var tokenConvite = dto.TokenConvite.Trim();
+        var conviteCadastro = await conviteCadastroRepositorio.ObterPorTokenParaAtualizacaoAsync(tokenConvite, cancellationToken);
+        if (conviteCadastro is null)
+        {
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        }
+
+        ValidarConviteParaRegistro(conviteCadastro, emailNormalizado);
+
         var usuario = new Usuario
         {
             Nome = dto.Nome.Trim(),
             Email = emailNormalizado,
             SenhaHash = senhaServico.GerarHash(dto.Senha),
-            Perfil = PerfilUsuario.Atleta,
+            Perfil = conviteCadastro.PerfilDestino,
             Ativo = true
         };
-        var (nomeAtleta, apelidoAtleta) = NormalizadorNomeAtleta.NormalizarNomeEApelido(usuario.Nome, null);
-        var atleta = new Atleta
-        {
-            Nome = nomeAtleta,
-            Apelido = apelidoAtleta,
-            Email = usuario.Email,
-            CadastroPendente = true,
-            Lado = LadoAtleta.Ambos
-        };
-        usuario.AtletaId = atleta.Id;
-        usuario.Atleta = atleta;
+
+        VincularAtletaPendenteSeNecessario(usuario);
+        conviteCadastro.MarcarComoUtilizado(DateTime.UtcNow);
 
         await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -159,6 +161,11 @@ public class AutenticacaoServico(
 
     private static void ValidarRegistro(RegistrarUsuarioRequisicaoDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.TokenConvite))
+        {
+            throw new RegraNegocioException("Token do convite é obrigatório.");
+        }
+
         if (string.IsNullOrWhiteSpace(dto.Nome))
         {
             throw new RegraNegocioException("Nome é obrigatório.");
@@ -173,6 +180,50 @@ public class AutenticacaoServico(
         {
             throw new RegraNegocioException("A senha deve ter no mínimo 6 caracteres.");
         }
+    }
+
+    private static void ValidarConviteParaRegistro(ConviteCadastro conviteCadastro, string emailNormalizado)
+    {
+        if (!conviteCadastro.Ativo)
+        {
+            throw new RegraNegocioException("Este convite está cancelado.");
+        }
+
+        if (conviteCadastro.FoiUtilizado())
+        {
+            throw new RegraNegocioException("Este convite já foi utilizado.");
+        }
+
+        if (conviteCadastro.EstaExpirado(DateTime.UtcNow))
+        {
+            throw new RegraNegocioException("Este convite está expirado.");
+        }
+
+        if (!string.Equals(conviteCadastro.Email, emailNormalizado, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RegraNegocioException("O e-mail informado deve ser o mesmo do convite.");
+        }
+    }
+
+    private static void VincularAtletaPendenteSeNecessario(Usuario usuario)
+    {
+        if (usuario.Perfil != PerfilUsuario.Atleta)
+        {
+            return;
+        }
+
+        var (nomeAtleta, apelidoAtleta) = NormalizadorNomeAtleta.NormalizarNomeEApelido(usuario.Nome, null);
+        var atleta = new Atleta
+        {
+            Nome = nomeAtleta,
+            Apelido = apelidoAtleta,
+            Email = usuario.Email,
+            CadastroPendente = true,
+            Lado = LadoAtleta.Ambos
+        };
+
+        usuario.AtletaId = atleta.Id;
+        usuario.Atleta = atleta;
     }
 
     private static string GerarCodigoRedefinicao()

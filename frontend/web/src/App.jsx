@@ -17,12 +17,15 @@ import { PaginaInscricoesCampeonato } from './pages/PaginaInscricoesCampeonato';
 import { PaginaPartidas } from './pages/PaginaPartidas';
 import { PaginaMeuPerfil } from './pages/PaginaMeuPerfil';
 import { PaginaUsuarios } from './pages/PaginaUsuarios';
+import { PaginaConvitesCadastro } from './pages/PaginaConvitesCadastro';
+import { PaginaCadastroConvite } from './pages/PaginaCadastroConvite';
 import { PERFIS_USUARIO } from './utils/perfis';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<PaginaLogin />} />
+      <Route path="/cadastro/convite" element={<PaginaCadastroConvite />} />
 
       <Route
         element={
@@ -127,6 +130,14 @@ export default function App() {
           element={
             <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
               <PaginaUsuarios />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/convites-cadastro"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
+              <PaginaConvitesCadastro />
             </RotaProtegida>
           }
         />

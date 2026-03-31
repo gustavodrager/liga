@@ -3,10 +3,10 @@ using PlataformaFutevolei.Dominio.Enums;
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record RegistrarUsuarioRequisicaoDto(
+    string TokenConvite,
     string Nome,
     string Email,
-    string Senha,
-    PerfilUsuario Perfil = PerfilUsuario.Atleta
+    string Senha
 );
 
 public record LoginRequisicaoDto(

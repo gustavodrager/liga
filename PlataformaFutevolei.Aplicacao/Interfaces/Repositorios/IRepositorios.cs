@@ -14,6 +14,17 @@ public interface IUsuarioRepositorio
     void Atualizar(Usuario usuario);
 }
 
+public interface IConviteCadastroRepositorio
+{
+    Task<IReadOnlyList<ConviteCadastro>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterPorTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterPorTokenParaAtualizacaoAsync(string token, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(ConviteCadastro conviteCadastro, CancellationToken cancellationToken = default);
+    void Atualizar(ConviteCadastro conviteCadastro);
+}
+
 public interface IAtletaRepositorio
 {
     Task<IReadOnlyList<Atleta>> ListarAsync(CancellationToken cancellationToken = default);

@@ -1,13 +1,13 @@
 @PlataformaFutevolei.Api_HostAddress = http://localhost:5000
 
-POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/registrar
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/registrar-por-convite
 Content-Type: application/json
 
 {
-  "nome": "Administrador",
-  "email": "admin@futevolei.com",
-  "senha": "123456",
-  "perfil": 1
+  "tokenConvite": "TOKEN_DO_CONVITE",
+  "nome": "Organizador Convidado",
+  "email": "organizador@futevolei.com",
+  "senha": "123456"
 }
 
 ###
