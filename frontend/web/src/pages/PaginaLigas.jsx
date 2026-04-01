@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { ligasServico } from '../services/ligasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
@@ -123,12 +124,12 @@ export function PaginaLigas() {
 
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : ligaEdicaoId ? 'Atualizar liga' : 'Cadastrar liga'}
+            {salvando ? 'Salvando...' : 'Salvar'}
           </button>
 
           {ligaEdicaoId && (
             <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              Cancelar
+              <ConteudoBotao icone="cancelar" texto="Cancelar" />
             </button>
           )}
         </div>
@@ -151,10 +152,10 @@ export function PaginaLigas() {
 
               <div className="acoes-item">
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(liga)}>
-                  Editar
+                  <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerLiga(liga.id)}>
-                  Excluir
+                  <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>
             </article>

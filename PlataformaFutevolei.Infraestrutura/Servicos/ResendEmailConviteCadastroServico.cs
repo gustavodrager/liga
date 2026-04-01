@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -23,15 +22,17 @@ public class ResendEmailConviteCadastroServico(
         ConviteCadastro conviteCadastro,
         CancellationToken cancellationToken = default)
     {
-        if (!configuracao.EstaConfigurado())
+        var mensagemConfiguracaoIncompleta = configuracao.ObterMensagemConfiguracaoIncompleta();
+        if (mensagemConfiguracaoIncompleta is not null)
         {
-            logger.LogInformation(
-                "Envio automático de e-mail para o convite {ConviteId} ignorado porque o provedor não está configurado.",
-                conviteCadastro.Id);
-            return new ResultadoEnvioEmailConviteDto(false, false, null, null);
+            logger.LogWarning(
+                "Envio automático de e-mail para o convite {ConviteId} ignorado. {Mensagem}.",
+                conviteCadastro.Id,
+                mensagemConfiguracaoIncompleta);
+            return new ResultadoEnvioEmailConviteDto(false, false, mensagemConfiguracaoIncompleta, null);
         }
 
-        var linkConvite = $"{configuracao.ObterUrlAppBase()}/cadastro/convite?token={Uri.EscapeDataString(conviteCadastro.Token)}";
+        var linkConvite = ConteudoConviteCadastro.MontarLinkConvite(configuracao.ObterUrlAppBase(), conviteCadastro.Token);
         var payload = CriarPayload(conviteCadastro, linkConvite);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
@@ -71,9 +72,9 @@ public class ResendEmailConviteCadastroServico(
 
     private object CriarPayload(ConviteCadastro conviteCadastro, string linkConvite)
     {
-        var assunto = "Seu convite para acessar a Plataforma de Futevôlei";
-        var texto = MontarTexto(conviteCadastro, linkConvite);
-        var html = MontarHtml(conviteCadastro, linkConvite);
+        var assunto = ConteudoConviteCadastro.MontarAssuntoEmail();
+        var texto = ConteudoConviteCadastro.MontarTextoEmail(conviteCadastro, linkConvite);
+        var html = ConteudoConviteCadastro.MontarHtmlEmail(conviteCadastro, linkConvite);
 
         if (string.IsNullOrWhiteSpace(configuracao.ReplyTo))
         {
@@ -96,48 +97,6 @@ public class ResendEmailConviteCadastroServico(
             text = texto,
             reply_to = configuracao.ReplyTo!.Trim()
         };
-    }
-
-    private static string MontarTexto(ConviteCadastro conviteCadastro, string linkConvite)
-    {
-        return string.Join(
-            "\n",
-            [
-                "Olá!",
-                string.Empty,
-                "Você foi convidado(a) para usar a Plataforma de Futevôlei como organizador(a).",
-                "Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.",
-                string.Empty,
-                $"E-mail liberado para o convite: {conviteCadastro.Email}",
-                string.Empty,
-                "Abra o link abaixo e conclua seu cadastro:",
-                linkConvite,
-                string.Empty,
-                "Importante: este link é individual e só permite concluir o acesso com o e-mail convidado."
-            ]);
-    }
-
-    private static string MontarHtml(ConviteCadastro conviteCadastro, string linkConvite)
-    {
-        var email = WebUtility.HtmlEncode(conviteCadastro.Email);
-        var link = WebUtility.HtmlEncode(linkConvite);
-
-        return $"""
-            <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
-              <p>Olá!</p>
-              <p>Você foi convidado(a) para usar a <strong>Plataforma de Futevôlei</strong> como organizador(a).</p>
-              <p>Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.</p>
-              <p><strong>E-mail liberado para o convite:</strong> {email}</p>
-              <p>
-                <a href="{link}" style="display: inline-block; padding: 12px 18px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 8px;">
-                  Criar senha e entrar
-                </a>
-              </p>
-              <p>Se preferir, você também pode abrir este link diretamente:</p>
-              <p><a href="{link}">{link}</a></p>
-              <p><strong>Importante:</strong> este link é individual e só permite concluir o acesso com o e-mail convidado.</p>
-            </div>
-            """;
     }
 
     private static string ExtrairIdentificadorMensagem(string conteudo)

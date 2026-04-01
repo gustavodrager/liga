@@ -16,6 +16,9 @@ public class ConviteCadastro : EntidadeBase
     public DateTime? UltimaTentativaEnvioEmailEmUtc { get; set; }
     public DateTime? EmailEnviadoEmUtc { get; set; }
     public string? ErroEnvioEmail { get; set; }
+    public DateTime? UltimaTentativaEnvioWhatsappEmUtc { get; set; }
+    public DateTime? WhatsappEnviadoEmUtc { get; set; }
+    public string? ErroEnvioWhatsapp { get; set; }
 
     public Usuario? CriadoPorUsuario { get; set; }
 
@@ -52,6 +55,18 @@ public class ConviteCadastro : EntidadeBase
             : "Pendente";
     }
 
+    public string ObterSituacaoEnvioWhatsapp()
+    {
+        if (WhatsappEnviadoEmUtc.HasValue)
+        {
+            return "Enviado";
+        }
+
+        return UltimaTentativaEnvioWhatsappEmUtc.HasValue && !string.IsNullOrWhiteSpace(ErroEnvioWhatsapp)
+            ? "Falhou"
+            : "Pendente";
+    }
+
     public void MarcarComoUtilizado(DateTime dataUtc)
     {
         UsadoEmUtc = dataUtc;
@@ -78,6 +93,24 @@ public class ConviteCadastro : EntidadeBase
         EmailEnviadoEmUtc = null;
         ErroEnvioEmail = string.IsNullOrWhiteSpace(mensagemErro)
             ? "Falha ao enviar o e-mail do convite."
+            : mensagemErro.Trim();
+        AtualizarDataModificacao();
+    }
+
+    public void RegistrarEnvioWhatsappComSucesso(DateTime dataUtc)
+    {
+        UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
+        WhatsappEnviadoEmUtc = dataUtc;
+        ErroEnvioWhatsapp = null;
+        AtualizarDataModificacao();
+    }
+
+    public void RegistrarFalhaEnvioWhatsapp(string? mensagemErro, DateTime dataUtc)
+    {
+        UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
+        WhatsappEnviadoEmUtc = null;
+        ErroEnvioWhatsapp = string.IsNullOrWhiteSpace(mensagemErro)
+            ? "Falha ao enviar o WhatsApp do convite."
             : mensagemErro.Trim();
         AtualizarDataModificacao();
     }

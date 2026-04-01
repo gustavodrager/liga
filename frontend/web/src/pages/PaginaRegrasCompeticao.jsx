@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { regrasCompeticaoServico } from '../services/regrasCompeticaoServico';
 import { extrairMensagemErro } from '../utils/erros';
@@ -310,12 +311,12 @@ export function PaginaRegrasCompeticao() {
 
           <div className="acoes-formulario">
             <button type="submit" className="botao-primario" disabled={salvando}>
-              {salvando ? 'Salvando...' : regraEdicaoId ? 'Atualizar regra' : 'Cadastrar regra'}
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
 
             {regraEdicaoId && (
               <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-                Cancelar
+                <ConteudoBotao icone="cancelar" texto="Cancelar" />
               </button>
             )}
           </div>
@@ -357,7 +358,7 @@ export function PaginaRegrasCompeticao() {
                   onClick={() => iniciarEdicao(regra)}
                   disabled={!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id}
                 >
-                  Editar
+                  <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button
                   type="button"
@@ -365,7 +366,7 @@ export function PaginaRegrasCompeticao() {
                   onClick={() => removerRegra(regra.id)}
                   disabled={!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id}
                 >
-                  Excluir
+                  <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>
             </article>

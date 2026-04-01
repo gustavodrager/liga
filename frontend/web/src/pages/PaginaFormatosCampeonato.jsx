@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
@@ -378,12 +379,12 @@ export function PaginaFormatosCampeonato() {
 
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : formatoEdicaoId ? 'Atualizar formato' : 'Cadastrar formato'}
+            {salvando ? 'Salvando...' : 'Salvar'}
           </button>
 
           {formatoEdicaoId && (
             <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              Cancelar
+              <ConteudoBotao icone="cancelar" texto="Cancelar" />
             </button>
           )}
         </div>
@@ -434,10 +435,10 @@ export function PaginaFormatosCampeonato() {
 
               <div className="acoes-item">
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(formato)}>
-                  Editar
+                  <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerFormato(formato.id)}>
-                  Excluir
+                  <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>
             </article>

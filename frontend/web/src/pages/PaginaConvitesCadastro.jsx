@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { convitesCadastroServico } from '../services/convitesCadastroServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
@@ -15,38 +16,8 @@ function montarLinkConvite(token) {
   return `${window.location.origin}/cadastro/convite?token=${encodeURIComponent(token)}`;
 }
 
-function montarMensagemConvite(convite, linkConvite) {
-  return [
-    'Olá!',
-    '',
-    'Você foi convidado(a) para usar a Plataforma de Futevôlei como organizador(a).',
-    'Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.',
-    '',
-    `E-mail liberado para o convite: ${convite.email}`,
-    '',
-    'Abra o link abaixo e conclua seu cadastro:',
-    linkConvite
-    ,
-    '',
-    'Importante: este link é individual e só permite concluir o acesso com o e-mail convidado.'
-  ].join('\n');
-}
-
-function montarTelefoneWhatsApp(telefone) {
-  const telefoneNumerico = (telefone || '').replace(/\D/g, '');
-  if (!telefoneNumerico) {
-    return null;
-  }
-
-  if (telefoneNumerico.startsWith('55')) {
-    return telefoneNumerico;
-  }
-
-  if (telefoneNumerico.length === 10 || telefoneNumerico.length === 11) {
-    return `55${telefoneNumerico}`;
-  }
-
-  return telefoneNumerico;
+function canalIncluiWhatsapp(canalEnvio) {
+  return (canalEnvio || '').toLowerCase().includes('whatsapp');
 }
 
 export function PaginaConvitesCadastro() {
@@ -58,6 +29,7 @@ export function PaginaConvitesCadastro() {
   const [salvando, setSalvando] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [enviandoEmailId, setEnviandoEmailId] = useState(null);
+  const [enviandoWhatsappId, setEnviandoWhatsappId] = useState(null);
 
   useEffect(() => {
     carregarConvites();
@@ -86,6 +58,12 @@ export function PaginaConvitesCadastro() {
     setErro('');
     setMensagem('');
     setSalvando(true);
+
+    if (canalIncluiWhatsapp(formulario.canalEnvio) && !formulario.telefone.trim()) {
+      setErro('Informe o telefone quando o canal de envio incluir WhatsApp.');
+      setSalvando(false);
+      return;
+    }
 
     try {
       const convite = await convitesCadastroServico.criar({
@@ -151,19 +129,22 @@ export function PaginaConvitesCadastro() {
     }
   }
 
-  function enviarPorWhatsApp(convite) {
-    const telefone = montarTelefoneWhatsApp(convite.telefone);
-    if (!telefone) {
-      setMensagem('');
-      setErro('Informe um telefone no convite para enviar por WhatsApp.');
-      return;
-    }
-
-    const linkConvite = montarLinkConvite(convite.token);
-    const texto = encodeURIComponent(montarMensagemConvite(convite, linkConvite));
-    window.open(`https://wa.me/${telefone}?text=${texto}`, '_blank', 'noopener,noreferrer');
+  async function enviarPorWhatsApp(convite) {
     setErro('');
-    setMensagem('WhatsApp aberto com a mensagem do convite.');
+    setMensagem('');
+    setEnviandoWhatsappId(convite.id);
+
+    try {
+      await convitesCadastroServico.enviarWhatsapp(convite.id);
+      await carregarConvites();
+      setMensagem('Convite enviado por WhatsApp com sucesso.');
+    } catch (error) {
+      const mensagemErro = extrairMensagemErro(error);
+      await carregarConvites();
+      setErro(mensagemErro);
+    } finally {
+      setEnviandoWhatsappId(null);
+    }
   }
 
   return (
@@ -171,6 +152,7 @@ export function PaginaConvitesCadastro() {
       <div className="cabecalho-pagina">
         <h2>Convites de Cadastro</h2>
         <p>Crie convites fechados para novos organizadores. Quando o canal incluir e-mail, o sistema tenta enviar automaticamente a mensagem com o link direto para criação de senha e primeiro acesso.</p>
+        <p>O WhatsApp usa o mesmo convite e o mesmo link de aceite. Falhas de envio não invalidam o token.</p>
       </div>
 
       <form className="formulario-grid" onSubmit={aoCriarConvite}>
@@ -191,7 +173,8 @@ export function PaginaConvitesCadastro() {
             type="text"
             value={formulario.telefone}
             onChange={(evento) => atualizarFormulario('telefone', evento.target.value)}
-            placeholder="Opcional"
+            placeholder="Obrigatório para WhatsApp"
+            required={canalIncluiWhatsapp(formulario.canalEnvio)}
           />
         </label>
 
@@ -224,7 +207,11 @@ export function PaginaConvitesCadastro() {
 
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Criando...' : 'Criar convite'}
+            <ConteudoBotao
+              icone="convite"
+              texto={salvando ? 'Criando...' : 'Criar convite'}
+              somenteIconeNoMobile={false}
+            />
           </button>
         </div>
       </form>
@@ -256,6 +243,10 @@ export function PaginaConvitesCadastro() {
                     <p>Última tentativa de e-mail: {convite.ultimaTentativaEnvioEmailEmUtc ? formatarDataHora(convite.ultimaTentativaEnvioEmailEmUtc) : 'Ainda não realizada'}</p>
                     <p>E-mail enviado em: {convite.emailEnviadoEmUtc ? formatarDataHora(convite.emailEnviadoEmUtc) : 'Ainda não enviado'}</p>
                     {convite.erroEnvioEmail ? <p>Falha no e-mail: {convite.erroEnvioEmail}</p> : null}
+                    <p>WhatsApp: {convite.situacaoEnvioWhatsapp}</p>
+                    <p>Última tentativa de WhatsApp: {convite.ultimaTentativaEnvioWhatsappEmUtc ? formatarDataHora(convite.ultimaTentativaEnvioWhatsappEmUtc) : 'Ainda não realizada'}</p>
+                    <p>WhatsApp enviado em: {convite.whatsappEnviadoEmUtc ? formatarDataHora(convite.whatsappEnviadoEmUtc) : 'Ainda não enviado'}</p>
+                    {convite.erroEnvioWhatsapp ? <p>Falha no WhatsApp: {convite.erroEnvioWhatsapp}</p> : null}
                     <p>Expira em: {formatarDataHora(convite.expiraEmUtc)}</p>
                     <p>Usado em: {convite.usadoEmUtc ? formatarDataHora(convite.usadoEmUtc) : 'Ainda não utilizado'}</p>
                     <p>Criado por: {convite.criadoPorUsuarioNome || 'Administrador'}</p>
@@ -269,29 +260,37 @@ export function PaginaConvitesCadastro() {
                       onClick={() => enviarPorEmail(convite)}
                       disabled={!podeEnviar || enviandoEmailId === convite.id}
                     >
-                      {enviandoEmailId === convite.id ? 'Enviando e-mail...' : 'Enviar e-mail'}
+                      <ConteudoBotao
+                        icone="email"
+                        texto={enviandoEmailId === convite.id ? 'Enviando e-mail...' : 'Enviar e-mail'}
+                        somenteIconeNoMobile={false}
+                      />
                     </button>
                     <button
                       type="button"
                       className="botao-primario"
                       onClick={() => enviarPorWhatsApp(convite)}
-                      disabled={!podeEnviar}
+                      disabled={!podeEnviar || enviandoWhatsappId === convite.id}
                     >
-                      Enviar por WhatsApp
+                      <ConteudoBotao
+                        icone="whatsapp"
+                        texto={enviandoWhatsappId === convite.id ? 'Enviando WhatsApp...' : 'Enviar WhatsApp'}
+                        somenteIconeNoMobile={false}
+                      />
                     </button>
                     <button
                       type="button"
                       className="botao-secundario"
                       onClick={() => copiarTexto(linkConvite, 'Link do convite copiado com sucesso.')}
                     >
-                      Copiar link
+                      <ConteudoBotao icone="link" texto="Copiar link" somenteIconeNoMobile={false} />
                     </button>
                     <button
                       type="button"
                       className="botao-secundario"
                       onClick={() => copiarTexto(convite.token, 'Token do convite copiado com sucesso.')}
                     >
-                      Copiar token
+                      <ConteudoBotao icone="copiar" texto="Copiar token" somenteIconeNoMobile={false} />
                     </button>
                     <button
                       type="button"
@@ -299,7 +298,11 @@ export function PaginaConvitesCadastro() {
                       onClick={() => cancelarConvite(convite.id)}
                       disabled={!podeCancelar || cancelandoId === convite.id}
                     >
-                      {cancelandoId === convite.id ? 'Cancelando...' : 'Cancelar convite'}
+                      <ConteudoBotao
+                        icone="cancelar"
+                        texto={cancelandoId === convite.id ? 'Cancelando...' : 'Cancelar convite'}
+                        somenteIconeNoMobile={false}
+                      />
                     </button>
                   </div>
 
@@ -315,17 +318,61 @@ export function PaginaConvitesCadastro() {
 }
 
 function montarMensagemCriacao(convite) {
-  if (convite.situacaoEnvioEmail === 'Enviado') {
+  const emailEnviado = convite.situacaoEnvioEmail === 'Enviado';
+  const emailFalhou = convite.situacaoEnvioEmail === 'Falhou';
+  const emailPendente = convite.situacaoEnvioEmail === 'Pendente';
+  const whatsappEnviado = convite.situacaoEnvioWhatsapp === 'Enviado';
+  const whatsappFalhou = convite.situacaoEnvioWhatsapp === 'Falhou';
+  const whatsappPendente = convite.situacaoEnvioWhatsapp === 'Pendente';
+  const canal = (convite.canalEnvio || '').toLowerCase();
+
+  if (emailEnviado && whatsappEnviado) {
+    return 'Convite criado com sucesso. O e-mail e o WhatsApp foram enviados automaticamente.';
+  }
+
+  if (emailEnviado && !canalIncluiWhatsapp(canal)) {
     return 'Convite criado com sucesso. O e-mail foi enviado automaticamente.';
   }
 
-  if (convite.situacaoEnvioEmail === 'Falhou') {
+  if (whatsappEnviado && canal === 'whatsapp') {
+    return 'Convite criado com sucesso. O WhatsApp foi enviado automaticamente.';
+  }
+
+  if (emailEnviado && whatsappPendente && canal === 'e-mail e whatsapp') {
+    return 'Convite criado com sucesso. O e-mail foi enviado automaticamente e o WhatsApp ficou pendente porque o provedor ainda não está configurado.';
+  }
+
+  if (whatsappEnviado && emailPendente && canal === 'e-mail e whatsapp') {
+    return 'Convite criado com sucesso. O WhatsApp foi enviado automaticamente e o e-mail ficou pendente porque o provedor ainda não está configurado.';
+  }
+
+  if (emailEnviado && whatsappFalhou) {
+    return `Convite criado com sucesso. O e-mail foi enviado, mas o WhatsApp falhou: ${convite.erroEnvioWhatsapp || 'Verifique a configuração do provedor e tente novamente.'}`;
+  }
+
+  if (whatsappEnviado && emailFalhou) {
+    return `Convite criado com sucesso. O WhatsApp foi enviado, mas o e-mail falhou: ${convite.erroEnvioEmail || 'Verifique a configuração do provedor e tente novamente.'}`;
+  }
+
+  if (emailFalhou && whatsappFalhou) {
+    return `Convite criado, mas os envios automáticos falharam: e-mail: ${convite.erroEnvioEmail || 'falha não detalhada'} | WhatsApp: ${convite.erroEnvioWhatsapp || 'falha não detalhada'}`;
+  }
+
+  if (emailFalhou) {
     return `Convite criado, mas o e-mail automático falhou: ${convite.erroEnvioEmail || 'Verifique a configuração do provedor e tente novamente.'}`;
   }
 
-  if ((convite.canalEnvio || '').toLowerCase() === 'whatsapp') {
-    return 'Convite criado com sucesso. O envio automático por e-mail não foi solicitado para este canal.';
+  if (whatsappFalhou) {
+    return `Convite criado, mas o WhatsApp automático falhou: ${convite.erroEnvioWhatsapp || 'Verifique a configuração do provedor e tente novamente.'}`;
   }
 
-  return 'Convite criado com sucesso. O e-mail automático ficou pendente porque o provedor ainda não está configurado.';
+  if (canal === 'whatsapp') {
+    return 'Convite criado com sucesso. O envio automático por WhatsApp ficou pendente porque o provedor ainda não está configurado.';
+  }
+
+  if (canal === 'e-mail e whatsapp') {
+    return 'Convite criado com sucesso. Os envios automáticos ficaram pendentes porque os provedores ainda não estão configurados.';
+  }
+
+  return 'Convite criado com sucesso. O envio automático ficou pendente porque o provedor ainda não está configurado.';
 }

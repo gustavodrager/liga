@@ -28,6 +28,10 @@ public record ConviteCadastroDto(
     DateTime? UltimaTentativaEnvioEmailEmUtc,
     DateTime? EmailEnviadoEmUtc,
     string? ErroEnvioEmail,
+    string SituacaoEnvioWhatsapp,
+    DateTime? UltimaTentativaEnvioWhatsappEmUtc,
+    DateTime? WhatsappEnviadoEmUtc,
+    string? ErroEnvioWhatsapp,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
@@ -42,6 +46,13 @@ public record ConviteCadastroPublicoDto(
 );
 
 public record ResultadoEnvioEmailConviteDto(
+    bool TentativaRealizada,
+    bool Enviado,
+    string? Erro,
+    string? IdentificadorMensagem
+);
+
+public record ResultadoEnvioWhatsappConviteDto(
     bool TentativaRealizada,
     bool Enviado,
     string? Erro,

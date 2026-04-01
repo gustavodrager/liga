@@ -69,6 +69,16 @@ public static class InjecaoDependenciaInfraestrutura
             options.UrlApp = secaoEmailConvites["UrlApp"] ?? "http://localhost:5173";
         });
 
+        var secaoWhatsappConvites = configuration.GetSection(ConfiguracaoWhatsappConviteCadastro.Secao);
+        services.Configure<ConfiguracaoWhatsappConviteCadastro>(options =>
+        {
+            options.Enabled = secaoWhatsappConvites.GetValue<bool>("Enabled");
+            options.AccountSid = secaoWhatsappConvites["AccountSid"] ?? string.Empty;
+            options.AuthToken = secaoWhatsappConvites["AuthToken"] ?? string.Empty;
+            options.RemetenteWhatsapp = secaoWhatsappConvites["RemetenteWhatsapp"] ?? string.Empty;
+            options.UrlApp = secaoWhatsappConvites["UrlApp"] ?? "http://localhost:5173";
+        });
+
         services.AddScoped<IUnidadeTrabalho, UnidadeTrabalho>();
         services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
         services.AddScoped<IConviteCadastroRepositorio, ConviteCadastroRepositorio>();
@@ -92,6 +102,7 @@ public static class InjecaoDependenciaInfraestrutura
             client.BaseAddress = new Uri($"{configuracaoEmail.ObterBaseUrl()}/");
             client.Timeout = TimeSpan.FromSeconds(15);
         });
+        services.AddScoped<IEnvioWhatsappConviteCadastroServico, TwilioWhatsappConviteCadastroServico>();
 
         return services;
     }

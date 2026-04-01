@@ -24,6 +24,9 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
         builder.Property(x => x.UltimaTentativaEnvioEmailEmUtc).HasColumnName("ultima_tentativa_envio_email_em_utc");
         builder.Property(x => x.EmailEnviadoEmUtc).HasColumnName("email_enviado_em_utc");
         builder.Property(x => x.ErroEnvioEmail).HasColumnName("erro_envio_email").HasMaxLength(500);
+        builder.Property(x => x.UltimaTentativaEnvioWhatsappEmUtc).HasColumnName("ultima_tentativa_envio_whatsapp_em_utc");
+        builder.Property(x => x.WhatsappEnviadoEmUtc).HasColumnName("whatsapp_enviado_em_utc");
+        builder.Property(x => x.ErroEnvioWhatsapp).HasColumnName("erro_envio_whatsapp").HasMaxLength(500);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 

@@ -35,9 +35,12 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 ## Convenções já adotadas no produto
 - Atleta deve ser tratado por nome completo; o apelido é derivado do primeiro e último nome do registro final
 - Convite vencido, inativo, já usado ou com e-mail divergente não pode ser aceito no cadastro
+- E-mail e WhatsApp são apenas canais de entrega do mesmo convite; o token, a validade e o aceite continuam únicos
 - Na inscrição de campeonato, a dupla pode vir de um cadastro existente ou ser criada no fluxo da inscrição a partir dos dois atletas
+- Na tela de partidas de grupo, o frontend pode coletar nome completo ou seleção de atleta existente; a API deve reaproveitar ou criar atleta e dupla no mesmo fluxo, sem exigir cadastro prévio separado
 - Se um atleta com o mesmo nome completo já existir, reutilizar o cadastro quando for a mesma pessoa; se for outra pessoa, diferenciar com apelido/complemento
 - Dupla e inscrição de campeonato devem tratar a ordem dos dois atletas de forma normalizada; não assumir que a ordem digitada será a ordem persistida
+- Status operacional de envio por canal não pode alterar a validade do convite; falha de provedor externo só afeta rastreabilidade e reenvio
 - Organizador só pode alterar competição vinculada ao próprio usuário
 - Organizador autenticado deve conseguir operar o caso inicial de grupos, vínculo de atletas no grupo e registro de partidas sem permissões administrativas globais
 - Atleta só pode acessar e alterar os próprios dados vinculados

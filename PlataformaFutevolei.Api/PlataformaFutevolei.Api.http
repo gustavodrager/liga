@@ -1,10 +1,13 @@
 @PlataformaFutevolei.Api_HostAddress = http://localhost:5000
+@TokenAdministrador = COLE_O_TOKEN_AQUI
+@ConviteId = 00000000-0000-0000-0000-000000000000
+@TokenConvite = TOKEN_DO_CONVITE
 
 POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/registrar-por-convite
 Content-Type: application/json
 
 {
-  "tokenConvite": "TOKEN_DO_CONVITE",
+  "tokenConvite": "{{TokenConvite}}",
   "nome": "Organizador Convidado",
   "email": "organizador@futevolei.com",
   "senha": "123456"
@@ -21,3 +24,22 @@ Content-Type: application/json
 }
 
 ###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/convites-cadastro
+Authorization: Bearer {{TokenAdministrador}}
+Content-Type: application/json
+
+{
+  "email": "organizador@futevolei.com",
+  "telefone": "+5511999999999",
+  "canalEnvio": "E-mail e WhatsApp"
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/convites-cadastro/{{ConviteId}}/enviar-whatsapp
+Authorization: Bearer {{TokenAdministrador}}
+
+###
+
+GET {{PlataformaFutevolei.Api_HostAddress}}/api/convites-cadastro/publico/{{TokenConvite}}

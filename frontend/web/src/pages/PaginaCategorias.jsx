@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
@@ -381,12 +382,12 @@ export function PaginaCategorias() {
 
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : categoriaEdicaoId ? 'Atualizar categoria' : 'Cadastrar categoria'}
+            {salvando ? 'Salvando...' : 'Salvar'}
           </button>
 
           {categoriaEdicaoId && (
             <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              Cancelar
+              <ConteudoBotao icone="cancelar" texto="Cancelar" />
             </button>
           )}
         </div>
@@ -425,7 +426,7 @@ export function PaginaCategorias() {
                   className="botao-terciario"
                   onClick={() => navegar(`/partidas?categoriaId=${categoria.id}`)}
                 >
-                  Partidas
+                  <ConteudoBotao icone="partidas" texto="Partidas" />
                 </button>
                 {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
                   <button
@@ -433,11 +434,11 @@ export function PaginaCategorias() {
                     className="botao-terciario"
                     onClick={() => navegar(`/inscricoes?campeonatoId=${categoria.competicaoId}&categoriaId=${categoria.id}`)}
                   >
-                    Inscrições
+                    <ConteudoBotao icone="inscricoes" texto="Inscrições" />
                   </button>
                 )}
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(categoria)}>
-                  Editar
+                  <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
                   <button
@@ -445,11 +446,14 @@ export function PaginaCategorias() {
                     className="botao-secundario"
                     onClick={() => alternarEncerramentoInscricoes(categoria)}
                   >
-                    {categoria.inscricoesEncerradas ? 'Reabrir inscrições' : 'Encerrar inscrições'}
+                    <ConteudoBotao
+                      icone="inscricoes"
+                      texto={categoria.inscricoesEncerradas ? 'Reabrir inscrições' : 'Encerrar inscrições'}
+                    />
                   </button>
                 )}
                 <button type="button" className="botao-perigo" onClick={() => removerCategoria(categoria.id)}>
-                  Excluir
+                  <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>
             </article>

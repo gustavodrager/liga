@@ -189,10 +189,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_fim");
 
-                    b.Property<Guid?>("FormatoCampeonatoId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("formato_campeonato_id");
-
                     b.Property<DateTime>("DataInicio")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_inicio");
@@ -201,6 +197,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descricao");
+
+                    b.Property<Guid?>("FormatoCampeonatoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("formato_campeonato_id");
 
                     b.Property<bool>("InscricoesAbertas")
                         .ValueGeneratedOnAdd()
@@ -242,11 +242,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FormatoCampeonatoId");
+
                     b.HasIndex("LigaId");
 
                     b.HasIndex("LocalId");
-
-                    b.HasIndex("FormatoCampeonatoId");
 
                     b.HasIndex("RegraCompeticaoId");
 
@@ -298,6 +298,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(500)")
                         .HasColumnName("erro_envio_email");
 
+                    b.Property<string>("ErroEnvioWhatsapp")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("erro_envio_whatsapp");
+
                     b.Property<DateTime>("ExpiraEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expira_em_utc");
@@ -321,13 +326,19 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("ultima_tentativa_envio_email_em_utc");
 
+                    b.Property<DateTime?>("UltimaTentativaEnvioWhatsappEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ultima_tentativa_envio_whatsapp_em_utc");
+
                     b.Property<DateTime?>("UsadoEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("usado_em_utc");
 
-                    b.HasKey("Id");
+                    b.Property<DateTime?>("WhatsappEnviadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("whatsapp_enviado_em_utc");
 
-                    b.HasIndex("Ativo", "ExpiraEmUtc");
+                    b.HasKey("Id");
 
                     b.HasIndex("CriadoPorUsuarioId");
 
@@ -335,6 +346,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                     b.HasIndex("Token")
                         .IsUnique();
+
+                    b.HasIndex("Ativo", "ExpiraEmUtc");
 
                     b.ToTable("convites_cadastro", (string)null);
                 });
@@ -890,6 +903,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Competicao", b =>
                 {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.FormatoCampeonato", "FormatoCampeonato")
+                        .WithMany()
+                        .HasForeignKey("FormatoCampeonatoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.Liga", "Liga")
                         .WithMany("Competicoes")
                         .HasForeignKey("LigaId")
@@ -898,11 +916,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.Local", "Local")
                         .WithMany("Competicoes")
                         .HasForeignKey("LocalId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.FormatoCampeonato", "FormatoCampeonato")
-                        .WithMany()
-                        .HasForeignKey("FormatoCampeonatoId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", "RegraCompeticao")
@@ -915,11 +928,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasForeignKey("UsuarioOrganizadorId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("FormatoCampeonato");
+
                     b.Navigation("Liga");
 
                     b.Navigation("Local");
-
-                    b.Navigation("FormatoCampeonato");
 
                     b.Navigation("RegraCompeticao");
 

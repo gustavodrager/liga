@@ -1,4 +1,5 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
+using PlataformaFutevolei.Dominio.Entidades;
 
 namespace PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 
@@ -21,6 +22,7 @@ public interface IConviteCadastroServico
     Task<ConviteCadastroPublicoDto> ObterPublicoPorTokenAsync(string token, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> CriarAsync(CriarConviteCadastroDto dto, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default);
     Task DesativarAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
@@ -97,6 +99,38 @@ public interface IPartidaServico
     Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default);
     Task<PartidaDto> AtualizarAsync(Guid id, AtualizarPartidaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IResolvedorAtletaDuplaServico
+{
+    Task<Atleta> ObterAtletaExistenteAsync(
+        Guid atletaId,
+        string mensagemQuandoInvalido,
+        CancellationToken cancellationToken = default);
+
+    Task<Atleta> ResolverAtletaAsync(
+        Guid? atletaId,
+        string? nomeInformado,
+        string? apelidoInformado,
+        string mensagemQuandoInvalido,
+        bool cadastroPendente,
+        CancellationToken cancellationToken = default);
+
+    Task<Atleta> ObterOuCriarAtletaAsync(
+        string? nomeInformado,
+        string? apelidoInformado,
+        bool cadastroPendente,
+        CancellationToken cancellationToken = default);
+
+    Task<Dupla> ObterOuCriarDuplaAsync(
+        Atleta atleta1,
+        Atleta atleta2,
+        CancellationToken cancellationToken = default);
+
+    Task<GrupoAtleta> GarantirAtletaNoGrupoAsync(
+        Guid competicaoId,
+        Atleta atleta,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IInscricaoCampeonatoServico

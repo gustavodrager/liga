@@ -52,6 +52,14 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
         return Ok(convite);
     }
 
+    [HttpPost("{id:guid}/enviar-whatsapp")]
+    [ProducesResponseType(typeof(ConviteCadastroDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> EnviarWhatsapp(Guid id, CancellationToken cancellationToken)
+    {
+        var convite = await conviteCadastroServico.EnviarWhatsappAsync(id, cancellationToken);
+        return Ok(convite);
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Desativar(Guid id, CancellationToken cancellationToken)

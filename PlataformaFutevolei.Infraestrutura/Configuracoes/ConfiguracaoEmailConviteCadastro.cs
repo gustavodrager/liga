@@ -13,9 +13,31 @@ public class ConfiguracaoEmailConviteCadastro
 
     public bool EstaConfigurado()
     {
-        return !string.IsNullOrWhiteSpace(ApiKey)
-            && !string.IsNullOrWhiteSpace(RemetenteEmail)
-            && !string.IsNullOrWhiteSpace(UrlApp);
+        return ObterMensagemConfiguracaoIncompleta() is null;
+    }
+
+    public string? ObterMensagemConfiguracaoIncompleta()
+    {
+        var camposAusentes = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(ApiKey))
+        {
+            camposAusentes.Add($"{Secao}:ApiKey");
+        }
+
+        if (string.IsNullOrWhiteSpace(RemetenteEmail))
+        {
+            camposAusentes.Add($"{Secao}:RemetenteEmail");
+        }
+
+        if (string.IsNullOrWhiteSpace(UrlApp))
+        {
+            camposAusentes.Add($"{Secao}:UrlApp");
+        }
+
+        return camposAusentes.Count == 0
+            ? null
+            : $"O envio automático de e-mail não está configurado. Preencha: {string.Join(", ", camposAusentes)}.";
     }
 
     public string ObterBaseUrl()

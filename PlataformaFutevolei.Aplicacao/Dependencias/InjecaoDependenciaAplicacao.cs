@@ -23,6 +23,7 @@ public static class InjecaoDependenciaAplicacao
         services.AddScoped<IGrupoAtletaServico, GrupoAtletaServico>();
         services.AddScoped<ICategoriaCompeticaoServico, CategoriaCompeticaoServico>();
         services.AddScoped<IInscricaoCampeonatoServico, InscricaoCampeonatoServico>();
+        services.AddScoped<IResolvedorAtletaDuplaServico, ResolvedorAtletaDuplaServico>();
         services.AddScoped<IPartidaServico, PartidaServico>();
         services.AddScoped<IRankingServico, RankingServico>();
         services.AddScoped<IImportacaoServico, ImportacaoServico>();

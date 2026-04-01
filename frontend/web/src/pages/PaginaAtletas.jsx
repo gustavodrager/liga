@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { extrairMensagemErro } from '../utils/erros';
@@ -243,12 +244,12 @@ export function PaginaAtletas() {
 
         <div className="acoes-formulario campo-largo">
           <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : atletaEdicaoId ? 'Atualizar atleta' : 'Cadastrar atleta'}
+            {salvando ? 'Salvando...' : 'Salvar'}
           </button>
 
           {atletaEdicaoId && (
             <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              Cancelar
+              <ConteudoBotao icone="cancelar" texto="Cancelar" />
             </button>
           )}
         </div>
@@ -277,10 +278,10 @@ export function PaginaAtletas() {
 
               <div className="acoes-item">
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(atleta)}>
-                  Editar
+                  <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerAtleta(atleta.id)}>
-                  Excluir
+                  <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>
             </article>

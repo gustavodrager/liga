@@ -16,7 +16,8 @@ public class GrupoAtletaServico(
     IAtletaRepositorio atletaRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
-    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
 ) : IGrupoAtletaServico
 {
     public async Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
@@ -47,19 +48,7 @@ public class GrupoAtletaServico(
         await ObterGrupoValidoAsync(competicaoId, cancellationToken);
 
         var (nome, apelido) = NormalizadorNomeAtleta.NormalizarNomeEApelido(dto.NomeAtleta, dto.ApelidoAtleta);
-        var atleta = await atletaRepositorio.ObterPorNomeAsync(nome, cancellationToken);
-        if (atleta is null)
-        {
-            atleta = new Atleta
-            {
-                Nome = nome,
-                Apelido = apelido,
-                CadastroPendente = true,
-                Lado = LadoAtleta.Ambos
-            };
-
-            await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
-        }
+        var atleta = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaAsync(nome, apelido, true, cancellationToken);
 
         var grupoAtletaExistente = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(competicaoId, atleta.Id, cancellationToken);
         if (grupoAtletaExistente is not null)

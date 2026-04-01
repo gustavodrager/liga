@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { atletasServico } from '../services/atletasServico';
 import { usuariosServico } from '../services/usuariosServico';
 import { extrairMensagemErro } from '../utils/erros';
@@ -149,7 +150,7 @@ export function PaginaUsuarios() {
 
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={carregando}>
-            {carregando ? 'Filtrando...' : 'Filtrar'}
+            <ConteudoBotao icone="filtro" texto={carregando ? 'Filtrando...' : 'Filtrar'} />
           </button>
         </div>
       </form>
@@ -235,7 +236,10 @@ export function PaginaUsuarios() {
                       onClick={() => buscarAtletas(usuario.id)}
                       disabled={buscandoAtletaId === usuario.id}
                     >
-                      {buscandoAtletaId === usuario.id ? 'Buscando...' : 'Buscar atleta'}
+                      <ConteudoBotao
+                        icone="buscar"
+                        texto={buscandoAtletaId === usuario.id ? 'Buscando...' : 'Buscar atleta'}
+                      />
                     </button>
                     <button
                       type="button"
@@ -245,7 +249,7 @@ export function PaginaUsuarios() {
                         atualizarEdicao(usuario.id, 'nomeAtleta', '');
                       }}
                     >
-                      Desvincular atleta
+                      <ConteudoBotao icone="desvincular" texto="Desvincular atleta" />
                     </button>
                   </div>
 
@@ -276,7 +280,7 @@ export function PaginaUsuarios() {
                       onClick={() => salvarUsuario(usuario.id)}
                       disabled={salvandoId === usuario.id}
                     >
-                      {salvandoId === usuario.id ? 'Salvando...' : 'Salvar usuário'}
+                      {salvandoId === usuario.id ? 'Salvando...' : 'Salvar'}
                     </button>
                   </div>
                 </div>

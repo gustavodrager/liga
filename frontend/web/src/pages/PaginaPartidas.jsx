@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ConteudoBotao, IconeAcao } from '../components/ConteudoBotao';
+import { atletasServico } from '../services/atletasServico';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { duplasServico } from '../services/duplasServico';
@@ -24,9 +26,13 @@ function criarEstadoInicial() {
     duplaAId: '',
     duplaBId: '',
     duplaAAtleta1Id: '',
+    duplaAAtleta1Nome: '',
     duplaAAtleta2Id: '',
+    duplaAAtleta2Nome: '',
     duplaBAtleta1Id: '',
+    duplaBAtleta1Nome: '',
     duplaBAtleta2Id: '',
+    duplaBAtleta2Nome: '',
     faseCampeonato: '',
     status: '1',
     placarDuplaA: '',
@@ -325,79 +331,43 @@ function compararInscricoesMaisRecentesPrimeiro(a, b) {
   return (b?.id || '').localeCompare(a?.id || '', 'pt-BR');
 }
 
-function IconeAcao({ nome }) {
-  switch (nome) {
-    case 'sortear':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3 4h3l2 2m5 6h-3l-2-2m0-4 2-2h3M3 12h3l6-8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'aprovar':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'excluir':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3.5 4.5h9m-7.5 0 .5 8h3l.5-8M6 4.5l.3-1h3.4l.3 1" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'tabela':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3 3.5h10v9H3zm0 3h10M7.5 3.5v9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'lista':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4.5 4.5h8M4.5 8h8M4.5 11.5h8M3 4.5h0M3 8h0M3 11.5h0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'grupo':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M5 4.5a1.5 1.5 0 1 1 0 .01M11 4.5a1.5 1.5 0 1 1 0 .01M8 11a1.5 1.5 0 1 1 0 .01M6.2 5.7 7.2 9M9.8 5.7 8.8 9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'salvar':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4 3.5h6l2 2v7H4zm1 .5v3h5V4M6 11h4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'editar':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="m10.5 3.5 2 2m-7 7 5.8-5.8-2-2L3.5 10.5V12.5z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 'cancelar':
-      return (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      );
-    default:
-      return null;
-  }
+function normalizarNome(valor) {
+  return (valor || '')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(' ');
 }
 
-function ConteudoBotao({ icone, texto }) {
-  return (
-    <span className="botao-com-icone">
-      <IconeAcao nome={icone} />
-      <span>{texto}</span>
-    </span>
-  );
+function buscarSugestoesAtleta(atletas, termo, atletaSelecionadoId, idsBloqueados = []) {
+  if (!termo.trim() || atletaSelecionadoId) {
+    return [];
+  }
+
+  const termos = normalizarNome(termo).split(' ').filter(Boolean);
+  if (termos.length === 0) {
+    return [];
+  }
+
+  const idsBloqueadosSet = new Set(idsBloqueados.filter(Boolean));
+
+  return atletas
+    .filter((atleta) => !idsBloqueadosSet.has(atleta.id))
+    .filter((atleta) => {
+      const nome = normalizarNome(atleta.nome);
+      const apelido = normalizarNome(atleta.apelido || '');
+      return termos.every((parte) => nome.includes(parte) || apelido.includes(parte));
+    })
+    .slice(0, 6);
 }
 
 export function PaginaPartidas() {
   const { usuario } = useAutenticacao();
   const usuarioAtleta = ehAtleta(usuario);
+  const atletaUsuarioId = usuario?.atletaId || '';
+  const atletaUsuarioNome = usuario?.atleta?.nome || usuario?.nome || '';
+  const atletaUsuarioSemVinculo = usuarioAtleta && !atletaUsuarioId;
 
   const [competicoes, setCompeticoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -416,6 +386,13 @@ export function PaginaPartidas() {
   const [removendoTabela, setRemovendoTabela] = useState(false);
   const [placaresRapidos, setPlacaresRapidos] = useState({});
   const [salvandoResultadoIds, setSalvandoResultadoIds] = useState({});
+  const [sugestoesAtletasGrupo, setSugestoesAtletasGrupo] = useState({
+    duplaAAtleta1: [],
+    duplaAAtleta2: [],
+    duplaBAtleta1: [],
+    duplaBAtleta2: []
+  });
+  const [modoCadastroPartida, setModoCadastroPartida] = useState('duplas');
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
   const formularioRef = useRef(null);
@@ -449,18 +426,24 @@ export function PaginaPartidas() {
     competicaoSelecionada?.tipo === 3 &&
     competicaoSelecionada?.usuarioOrganizadorId === usuario?.id;
   const administradorLogado = Number(usuario?.perfil) === PERFIS_USUARIO.administrador;
+  const usuarioPodeGerenciarPagina = ehGestorCompeticao(usuario) || usuarioAtleta;
   const organizadorDaCompeticaoSelecionada =
     Number(usuario?.perfil) === PERFIS_USUARIO.organizador &&
     competicaoSelecionada?.usuarioOrganizadorId === usuario?.id;
   const tabelaJogosAprovada = Boolean(categoriaSelecionada?.tabelaJogosAprovada);
   const aguardandoAprovacaoSorteio = competicaoComInscricoes && partidas.length > 0 && !tabelaJogosAprovada;
-  const podeEditarPartidas = grupoSelecionado
-    ? ehGestorCompeticao(usuario) || gerenciaGrupoSelecionado
-    : administradorLogado || organizadorDaCompeticaoSelecionada;
+  const podeEditarPartidas = competicaoSelecionada
+    ? grupoSelecionado
+      ? ehGestorCompeticao(usuario) || gerenciaGrupoSelecionado
+      : administradorLogado || organizadorDaCompeticaoSelecionada
+    : usuarioPodeGerenciarPagina;
   const podeSortearPartidas = competicaoComInscricoes && (administradorLogado || organizadorDaCompeticaoSelecionada);
   const podeAprovarSorteio = podeSortearPartidas && aguardandoAprovacaoSorteio;
-  const podeRegistrarManual = grupoSelecionado;
+  const usandoCadastroPorAtletas = !competicaoSelecionada || grupoSelecionado || modoCadastroPartida === 'atletas';
+  const podeRegistrarManual = usuarioPodeGerenciarPagina;
   const podeExibirFormulario = podeEditarPartidas && (podeRegistrarManual || Boolean(partidaEdicaoId));
+  const faltandoContextoMinimo = !competicaoId || (!grupoSelecionado && !formulario.categoriaCompeticaoId);
+  const podeSalvarFormulario = !salvando && !(grupoSelecionado && atletaUsuarioSemVinculo);
   const podeLancarResultado = grupoSelecionado || !competicaoComInscricoes || tabelaJogosAprovada;
   const podeLancarResultadoDireto = competicaoComInscricoes && tabelaJogosAprovada && podeEditarPartidas;
   const placaresFormularioPreenchidos = formulario.placarDuplaA !== '' && formulario.placarDuplaB !== '';
@@ -472,7 +455,7 @@ export function PaginaPartidas() {
       : podeLancarResultado && placaresFormularioPreenchidos
         ? 2
         : Number(formulario.status);
-  const exibirCamposPlacarFormulario = grupoSelecionado || (Boolean(partidaEdicaoId) && podeLancarResultado);
+  const exibirCamposPlacarFormulario = grupoSelecionado || (podeLancarResultado && (Boolean(partidaEdicaoId) || competicaoComInscricoes));
   const rotuloPlacarDuplaA = grupoSelecionado ? 'Pontos da Dupla A' : 'Placar Dupla A';
   const rotuloPlacarDuplaB = grupoSelecionado ? 'Pontos da Dupla B' : 'Placar Dupla B';
   const estruturaTabelaJogos = useMemo(() => {
@@ -963,19 +946,59 @@ export function PaginaPartidas() {
     () => [...inscricoesCategoria].sort(compararInscricoesMaisRecentesPrimeiro),
     [inscricoesCategoria]
   );
+  const atletasBaseCadastroAssistido = useMemo(() => {
+    if (grupoSelecionado) {
+      return grupoAtletas.map((item) => ({
+        id: item.atletaId,
+        nome: item.nomeAtleta,
+        apelido: item.apelidoAtleta,
+        cadastroPendente: item.cadastroPendente
+      }));
+    }
 
-  const opcoesDuplaAAtleta1 = grupoAtletas;
-  const opcoesDuplaAAtleta2 = grupoAtletas.filter((item) => item.atletaId !== formulario.duplaAAtleta1Id);
-  const opcoesDuplaBAtleta1 = grupoAtletas.filter(
-    (item) => ![formulario.duplaAAtleta1Id, formulario.duplaAAtleta2Id].includes(item.atletaId)
-  );
-  const opcoesDuplaBAtleta2 = grupoAtletas.filter(
-    (item) => ![
-      formulario.duplaAAtleta1Id,
-      formulario.duplaAAtleta2Id,
-      formulario.duplaBAtleta1Id
-    ].includes(item.atletaId)
-  );
+    const mapa = new Map();
+    inscricoesCategoria.forEach((inscricao) => {
+      if (!mapa.has(inscricao.atleta1Id)) {
+        mapa.set(inscricao.atleta1Id, {
+          id: inscricao.atleta1Id,
+          nome: inscricao.nomeAtleta1,
+          apelido: '',
+          cadastroPendente: false
+        });
+      }
+
+      if (!mapa.has(inscricao.atleta2Id)) {
+        mapa.set(inscricao.atleta2Id, {
+          id: inscricao.atleta2Id,
+          nome: inscricao.nomeAtleta2,
+          apelido: '',
+          cadastroPendente: false
+        });
+      }
+    });
+
+    return Array.from(mapa.values());
+  }, [grupoAtletas, grupoSelecionado, inscricoesCategoria]);
+
+  useEffect(() => {
+    if (grupoSelecionado) {
+      setModoCadastroPartida('atletas');
+      return;
+    }
+
+    if (!competicaoComInscricoes) {
+      setModoCadastroPartida('duplas');
+      return;
+    }
+
+    setModoCadastroPartida((anterior) => {
+      if (anterior === 'atletas') {
+        return 'atletas';
+      }
+
+      return duplasDisponiveis.length === 0 ? 'atletas' : 'duplas';
+    });
+  }, [competicaoComInscricoes, duplasDisponiveis.length, grupoSelecionado]);
 
   useEffect(() => {
     setFormulario((anterior) => ({
@@ -986,6 +1009,10 @@ export function PaginaPartidas() {
   }, [duplasDisponiveis]);
 
   useEffect(() => {
+    if (!grupoSelecionado) {
+      return;
+    }
+
     setFormulario((anterior) => ({
       ...anterior,
       duplaAAtleta1Id: grupoAtletas.some((item) => item.atletaId === anterior.duplaAAtleta1Id) ? anterior.duplaAAtleta1Id : '',
@@ -993,7 +1020,117 @@ export function PaginaPartidas() {
       duplaBAtleta1Id: grupoAtletas.some((item) => item.atletaId === anterior.duplaBAtleta1Id) ? anterior.duplaBAtleta1Id : '',
       duplaBAtleta2Id: grupoAtletas.some((item) => item.atletaId === anterior.duplaBAtleta2Id) ? anterior.duplaBAtleta2Id : ''
     }));
-  }, [grupoAtletas]);
+  }, [grupoAtletas, grupoSelecionado]);
+
+  useEffect(() => {
+    if (!grupoSelecionado || !usuarioAtleta || partidaEdicaoId) {
+      return;
+    }
+
+    setFormulario((anterior) => ({
+      ...anterior,
+      duplaAAtleta1Id: atletaUsuarioId,
+      duplaAAtleta1Nome: atletaUsuarioNome
+    }));
+  }, [atletaUsuarioId, atletaUsuarioNome, grupoSelecionado, partidaEdicaoId, usuarioAtleta]);
+
+  useEffect(() => {
+    if (!usandoCadastroPorAtletas) {
+      setSugestoesAtletasGrupo({
+        duplaAAtleta1: [],
+        duplaAAtleta2: [],
+        duplaBAtleta1: [],
+        duplaBAtleta2: []
+      });
+      return;
+    }
+
+    const campos = [
+      {
+        chave: 'duplaAAtleta1',
+        id: formulario.duplaAAtleta1Id,
+        nome: formulario.duplaAAtleta1Nome,
+        idsBloqueados: [formulario.duplaAAtleta2Id, formulario.duplaBAtleta1Id, formulario.duplaBAtleta2Id],
+        bloqueado: usuarioAtleta
+      },
+      {
+        chave: 'duplaAAtleta2',
+        id: formulario.duplaAAtleta2Id,
+        nome: formulario.duplaAAtleta2Nome,
+        idsBloqueados: [formulario.duplaAAtleta1Id, formulario.duplaBAtleta1Id, formulario.duplaBAtleta2Id]
+      },
+      {
+        chave: 'duplaBAtleta1',
+        id: formulario.duplaBAtleta1Id,
+        nome: formulario.duplaBAtleta1Nome,
+        idsBloqueados: [formulario.duplaAAtleta1Id, formulario.duplaAAtleta2Id, formulario.duplaBAtleta2Id]
+      },
+      {
+        chave: 'duplaBAtleta2',
+        id: formulario.duplaBAtleta2Id,
+        nome: formulario.duplaBAtleta2Nome,
+        idsBloqueados: [formulario.duplaAAtleta1Id, formulario.duplaAAtleta2Id, formulario.duplaBAtleta1Id]
+      }
+    ];
+
+    const timeout = setTimeout(async () => {
+      const proximasSugestoes = {
+        duplaAAtleta1: [],
+        duplaAAtleta2: [],
+        duplaBAtleta1: [],
+        duplaBAtleta2: []
+      };
+
+      await Promise.all(campos.map(async (campo) => {
+        if (campo.bloqueado) {
+          return;
+        }
+
+        const sugestoesLocais = buscarSugestoesAtleta(
+          atletasBaseCadastroAssistido,
+          campo.nome || '',
+          campo.id,
+          campo.idsBloqueados
+        );
+
+        let sugestoesRemotas = [];
+        if ((campo.nome || '').trim() && !campo.id) {
+          try {
+            sugestoesRemotas = await atletasServico.buscar(campo.nome.trim());
+          } catch {
+            sugestoesRemotas = [];
+          }
+        }
+
+        const mapa = new Map();
+        [...sugestoesLocais, ...sugestoesRemotas]
+          .filter((atleta) => !campo.idsBloqueados.includes(atleta.id))
+          .forEach((atleta) => {
+            if (!mapa.has(atleta.id)) {
+              mapa.set(atleta.id, atleta);
+            }
+          });
+
+        proximasSugestoes[campo.chave] = Array.from(mapa.values()).slice(0, 6);
+      }));
+
+      setSugestoesAtletasGrupo(proximasSugestoes);
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [
+    formulario.duplaAAtleta1Id,
+    formulario.duplaAAtleta1Nome,
+    formulario.duplaAAtleta2Id,
+    formulario.duplaAAtleta2Nome,
+    formulario.duplaBAtleta1Id,
+    formulario.duplaBAtleta1Nome,
+    formulario.duplaBAtleta2Id,
+    formulario.duplaBAtleta2Nome,
+    atletasBaseCadastroAssistido,
+    usandoCadastroPorAtletas,
+    usuarioAtleta
+  ]);
 
   function atualizarParametrosUrl(proximoCompeticaoId, proximaCategoriaId = '', proximaVisualizacao = modoVisualizacao) {
     const parametros = {};
@@ -1088,10 +1225,14 @@ export function PaginaPartidas() {
           categoriaCompeticaoId,
           duplaAId: '',
           duplaBId: '',
-          duplaAAtleta1Id: '',
+          duplaAAtleta1Id: ehGrupo && usuarioAtleta ? atletaUsuarioId : '',
+          duplaAAtleta1Nome: ehGrupo && usuarioAtleta ? atletaUsuarioNome : '',
           duplaAAtleta2Id: '',
+          duplaAAtleta2Nome: '',
           duplaBAtleta1Id: '',
-          duplaBAtleta2Id: ''
+          duplaBAtleta1Nome: '',
+          duplaBAtleta2Id: '',
+          duplaBAtleta2Nome: ''
         };
       });
     } catch (error) {
@@ -1162,10 +1303,14 @@ export function PaginaPartidas() {
       if (campo === 'categoriaCompeticaoId') {
         proximo.duplaAId = '';
         proximo.duplaBId = '';
-        proximo.duplaAAtleta1Id = '';
+        proximo.duplaAAtleta1Id = grupoSelecionado && usuarioAtleta ? atletaUsuarioId : '';
+        proximo.duplaAAtleta1Nome = grupoSelecionado && usuarioAtleta ? atletaUsuarioNome : '';
         proximo.duplaAAtleta2Id = '';
+        proximo.duplaAAtleta2Nome = '';
         proximo.duplaBAtleta1Id = '';
+        proximo.duplaBAtleta1Nome = '';
         proximo.duplaBAtleta2Id = '';
+        proximo.duplaBAtleta2Nome = '';
       }
 
       if (campo === 'status' && Number(valor) === 1) {
@@ -1181,6 +1326,43 @@ export function PaginaPartidas() {
     }
   }
 
+  function atualizarAtletaGrupo(campoBase, valor) {
+    const campoId = `${campoBase}Id`;
+    const campoNome = `${campoBase}Nome`;
+
+    setFormulario((anterior) => ({
+      ...anterior,
+      [campoId]: '',
+      [campoNome]: valor
+    }));
+  }
+
+  function selecionarAtletaGrupo(campoBase, atleta) {
+    const campoId = `${campoBase}Id`;
+    const campoNome = `${campoBase}Nome`;
+
+    setFormulario((anterior) => ({
+      ...anterior,
+      [campoId]: atleta.id,
+      [campoNome]: atleta.nome
+    }));
+  }
+
+  function renderizarResumoSelecaoAtletaGrupo(campoBase, textoQuandoVinculado = 'Atleta existente selecionado. A API vai reaproveitar esse cadastro neste lançamento.') {
+    const campoId = `${campoBase}Id`;
+    const campoNome = `${campoBase}Nome`;
+
+    if (!formulario[campoId]) {
+      return null;
+    }
+
+    return (
+      <p className="campo-largo">
+        <strong>{formulario[campoNome]}</strong>. {textoQuandoVinculado}
+      </p>
+    );
+  }
+
   function iniciarEdicao(partida) {
     if (!podeEditarPartidas) {
       return;
@@ -1194,14 +1376,21 @@ export function PaginaPartidas() {
 
     setPartidaEdicaoId(partida.id);
     setMensagem('');
+    if (!grupoSelecionado) {
+      setModoCadastroPartida('duplas');
+    }
     setFormulario({
       categoriaCompeticaoId: partida.categoriaCompeticaoId,
       duplaAId: grupoSelecionado ? '' : partida.duplaAId,
       duplaBId: grupoSelecionado ? '' : partida.duplaBId,
       duplaAAtleta1Id: partida.duplaAAtleta1Id || '',
+      duplaAAtleta1Nome: partida.nomeDuplaAAtleta1 || '',
       duplaAAtleta2Id: partida.duplaAAtleta2Id || '',
+      duplaAAtleta2Nome: partida.nomeDuplaAAtleta2 || '',
       duplaBAtleta1Id: partida.duplaBAtleta1Id || '',
+      duplaBAtleta1Nome: partida.nomeDuplaBAtleta1 || '',
       duplaBAtleta2Id: partida.duplaBAtleta2Id || '',
+      duplaBAtleta2Nome: partida.nomeDuplaBAtleta2 || '',
       faseCampeonato: partida.faseCampeonato || '',
       status: grupoSelecionado || categoriaAprovada ? String(partida.status) : '1',
       placarDuplaA: (grupoSelecionado || categoriaAprovada) && partida.status === 2 ? String(partida.placarDuplaA) : '',
@@ -1217,6 +1406,8 @@ export function PaginaPartidas() {
     setFormulario((anterior) => ({
       ...criarEstadoInicial(),
       categoriaCompeticaoId: anterior.categoriaCompeticaoId,
+      duplaAAtleta1Id: grupoSelecionado && usuarioAtleta ? atletaUsuarioId : '',
+      duplaAAtleta1Nome: grupoSelecionado && usuarioAtleta ? atletaUsuarioNome : '',
       status: grupoSelecionado ? '2' : '1'
     }));
   }
@@ -1225,6 +1416,11 @@ export function PaginaPartidas() {
     evento.preventDefault();
     setErro('');
     setMensagem('');
+
+    if (competicaoId && !grupoSelecionado && !formulario.categoriaCompeticaoId) {
+      setErro('Selecione a categoria antes de salvar a partida.');
+      return;
+    }
 
     if (placaresFormularioParciais) {
       setErro('Informe os pontos das duas duplas para encerrar a partida.');
@@ -1236,12 +1432,16 @@ export function PaginaPartidas() {
     const dados = {
       competicaoId: competicaoSelecionada?.id || null,
       categoriaCompeticaoId: formulario.categoriaCompeticaoId || null,
-      duplaAId: grupoSelecionado ? null : formulario.duplaAId,
-      duplaBId: grupoSelecionado ? null : formulario.duplaBId,
-      duplaAAtleta1Id: grupoSelecionado ? formulario.duplaAAtleta1Id || null : null,
-      duplaAAtleta2Id: grupoSelecionado ? formulario.duplaAAtleta2Id || null : null,
-      duplaBAtleta1Id: grupoSelecionado ? formulario.duplaBAtleta1Id || null : null,
-      duplaBAtleta2Id: grupoSelecionado ? formulario.duplaBAtleta2Id || null : null,
+      duplaAId: usandoCadastroPorAtletas ? null : formulario.duplaAId,
+      duplaBId: usandoCadastroPorAtletas ? null : formulario.duplaBId,
+      duplaAAtleta1Id: usandoCadastroPorAtletas ? formulario.duplaAAtleta1Id || null : null,
+      duplaAAtleta1Nome: usandoCadastroPorAtletas ? formulario.duplaAAtleta1Nome.trim() || null : null,
+      duplaAAtleta2Id: usandoCadastroPorAtletas ? formulario.duplaAAtleta2Id || null : null,
+      duplaAAtleta2Nome: usandoCadastroPorAtletas ? formulario.duplaAAtleta2Nome.trim() || null : null,
+      duplaBAtleta1Id: usandoCadastroPorAtletas ? formulario.duplaBAtleta1Id || null : null,
+      duplaBAtleta1Nome: usandoCadastroPorAtletas ? formulario.duplaBAtleta1Nome.trim() || null : null,
+      duplaBAtleta2Id: usandoCadastroPorAtletas ? formulario.duplaBAtleta2Id || null : null,
+      duplaBAtleta2Nome: usandoCadastroPorAtletas ? formulario.duplaBAtleta2Nome.trim() || null : null,
       faseCampeonato: competicaoSelecionada?.tipo === 1 ? formulario.faseCampeonato || null : null,
       status: statusFormularioEfetivo,
       placarDuplaA: statusFormularioEfetivo === 2 && podeLancarResultado ? Number(formulario.placarDuplaA) : null,
@@ -1251,10 +1451,11 @@ export function PaginaPartidas() {
     };
 
     try {
+      let partidaSalva;
       if (partidaEdicaoId) {
-        await partidasServico.atualizar(partidaEdicaoId, dados);
+        partidaSalva = await partidasServico.atualizar(partidaEdicaoId, dados);
       } else {
-        await partidasServico.criar(dados);
+        partidaSalva = await partidasServico.criar(dados);
       }
 
       cancelarEdicao();
@@ -1265,8 +1466,24 @@ export function PaginaPartidas() {
             : 'Partida atualizada com sucesso.'
           : 'Partida registrada com sucesso.'
       );
+
+      if (!competicaoId && partidaSalva?.categoriaCompeticaoId) {
+        const categoriaSalva = await categoriasServico.obterPorId(partidaSalva.categoriaCompeticaoId);
+        setCompeticaoId(categoriaSalva.competicaoId);
+        setFormulario((anterior) => ({
+          ...anterior,
+          categoriaCompeticaoId: categoriaSalva.id
+        }));
+        await carregarCategorias(categoriaSalva.competicaoId);
+        await carregarPartidasPorCategoria(categoriaSalva.id);
+        return;
+      }
+
       if (grupoSelecionado && !formulario.categoriaCompeticaoId && competicaoSelecionada?.id) {
         await carregarCategorias(competicaoSelecionada.id);
+      }
+      if (grupoSelecionado && competicaoSelecionada?.id) {
+        await carregarGrupoAtletas(competicaoSelecionada.id);
       }
       if (formulario.categoriaCompeticaoId) {
         await carregarPartidasPorCategoria(formulario.categoriaCompeticaoId);
@@ -1552,7 +1769,7 @@ export function PaginaPartidas() {
           onClick={() => salvarResultadoRapido(partida)}
           disabled={salvandoResultado}
         >
-          <ConteudoBotao icone="salvar" texto={salvandoResultado ? 'Salvando...' : 'Salvar resultado'} />
+          {salvandoResultado ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
     );
@@ -1860,8 +2077,10 @@ export function PaginaPartidas() {
         <p>
           {podeEditarPartidas
             ? usuarioAtleta
-              ? 'Escolha um grupo criado por você, informe quem jogou na direita e na esquerda de cada dupla e registre os jogos.'
-              : 'Gere a tabela de jogos, acompanhe os confrontos sorteados e registre os resultados por categoria.'
+              ? 'Escolha um grupo criado por você, informe parceiro e adversários na própria tela e registre a partida sem cadastros prévios.'
+              : grupoSelecionado
+                ? 'Informe ou selecione os atletas na própria tela. O sistema reaproveita ou cria atletas e duplas no mesmo fluxo.'
+                : 'Você pode usar duplas inscritas ou informar os atletas na própria tela. O sistema reaproveita ou cria a dupla no fluxo e valida a inscrição da categoria no backend.'
             : 'Acompanhe os jogos sorteados e os resultados de cada categoria.'}
         </p>
         {competicaoSelecionada && (
@@ -1880,7 +2099,7 @@ export function PaginaPartidas() {
           <p>Final reset: {competicaoSelecionada?.possuiFinalReset ? 'habilitada' : 'desabilitada'}.</p>
         )}
         {competicaoComInscricoes && (
-          <p>Para campeonatos e eventos, o sorteio usa as duplas inscritas da categoria selecionada.</p>
+          <p>Para campeonatos e eventos, você pode usar as duplas inscritas da categoria ou informar os atletas na própria tela. A dupla precisa estar inscrita na categoria para a partida ser salva.</p>
         )}
         {grupoSelecionado && (
           <p>Para grupos, a categoria é opcional. Se você não escolher nenhuma, o jogo será lançado sem categoria informada.</p>
@@ -1914,11 +2133,11 @@ export function PaginaPartidas() {
           </select>
         </label>
 
-        <label>
-          {grupoSelecionado ? 'Categoria opcional' : 'Categoria'}
-          <select
-            value={formulario.categoriaCompeticaoId}
-            onChange={(evento) => atualizarCampo('categoriaCompeticaoId', evento.target.value)}
+          <label>
+            {grupoSelecionado ? 'Categoria opcional' : 'Categoria'}
+            <select
+              value={formulario.categoriaCompeticaoId}
+              onChange={(evento) => atualizarCampo('categoriaCompeticaoId', evento.target.value)}
             required={!grupoSelecionado}
           >
             <option value="">{grupoSelecionado ? 'Todas / sem categoria' : 'Selecione'}</option>
@@ -1926,9 +2145,15 @@ export function PaginaPartidas() {
               <option key={categoria.id} value={categoria.id}>
                 {categoria.nome}
               </option>
-            ))}
-          </select>
-        </label>
+              ))}
+            </select>
+          </label>
+
+          {grupoSelecionado && (
+            <p className="campo-largo">
+              Você pode registrar a partida sem cadastro prévio. Deixe a categoria em branco se quiser lançar o jogo direto no grupo.
+            </p>
+          )}
 
         {podeSortearPartidas && (
           <div className="acoes-item acoes-item-compactas">
@@ -2026,7 +2251,17 @@ export function PaginaPartidas() {
         <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
           {grupoSelecionado && (
             <p className="campo-largo">
-              Informe os pontos das duas duplas para registrar o resultado da partida do grupo.
+              Digite nomes completos ou escolha atletas já existentes nas sugestões. Ao salvar, a API reaproveita ou cria atletas, monta as duplas e registra a partida no mesmo fluxo.
+            </p>
+          )}
+          {!competicaoId && (
+            <p className="campo-largo">
+              Você já pode preencher os atletas e o placar. Selecione a competição antes de salvar a partida.
+            </p>
+          )}
+          {!grupoSelecionado && competicaoId && !formulario.categoriaCompeticaoId && (
+            <p className="campo-largo">
+              Você já pode preencher os dados da partida. Selecione a categoria antes de salvar.
             </p>
           )}
           {competicaoComInscricoes && partidaEdicaoId && (
@@ -2037,41 +2272,99 @@ export function PaginaPartidas() {
             </p>
           )}
 
-          {grupoSelecionado ? (
+          {competicaoComInscricoes && !partidaEdicaoId && (
+            <div className="campo-largo acoes-item acoes-item-compactas">
+              <button
+                type="button"
+                className={`${modoCadastroPartida === 'duplas' ? 'botao-primario' : 'botao-terciario'} botao-compacto`}
+                onClick={() => setModoCadastroPartida('duplas')}
+              >
+                Usar duplas inscritas
+              </button>
+              <button
+                type="button"
+                className={`${modoCadastroPartida === 'atletas' ? 'botao-primario' : 'botao-terciario'} botao-compacto`}
+                onClick={() => setModoCadastroPartida('atletas')}
+              >
+                Informar atletas
+              </button>
+            </div>
+          )}
+
+          {usandoCadastroPorAtletas ? (
             <>
-              <label>
-                Dupla A · Direita
-                <select
-                  value={formulario.duplaAAtleta1Id}
-                  onChange={(evento) => atualizarCampo('duplaAAtleta1Id', evento.target.value)}
-                  disabled={!competicaoId}
-                  required
-                >
-                  <option value="">Selecione</option>
-                  {opcoesDuplaAAtleta1.map((item) => (
-                    <option key={item.id} value={item.atletaId}>
-                      {item.nomeAtleta}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {competicaoComInscricoes && !grupoSelecionado && (
+                <p className="campo-largo">
+                  Você pode informar os atletas sem ter a dupla pré-cadastrada. A API reaproveita ou cria a dupla no fluxo, mas a dupla ainda precisa estar inscrita na categoria para a partida ser salva.
+                </p>
+              )}
 
               <label>
-                Dupla A · Esquerda
-                <select
-                  value={formulario.duplaAAtleta2Id}
-                  onChange={(evento) => atualizarCampo('duplaAAtleta2Id', evento.target.value)}
-                  disabled={!competicaoId}
+                {usuarioAtleta ? 'Seu atleta' : 'Dupla A · Jogador 1'}
+                <input
+                  type="text"
+                  value={formulario.duplaAAtleta1Nome}
+                  onChange={(evento) => atualizarAtletaGrupo('duplaAAtleta1', evento.target.value)}
+                  disabled={grupoSelecionado && usuarioAtleta}
+                  readOnly={grupoSelecionado && usuarioAtleta}
+                  placeholder="Nome completo"
                   required
-                >
-                  <option value="">Selecione</option>
-                  {opcoesDuplaAAtleta2.map((item) => (
-                    <option key={item.id} value={item.atletaId}>
-                      {item.nomeAtleta}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
+
+              {renderizarResumoSelecaoAtletaGrupo(
+                'duplaAAtleta1',
+                usuarioAtleta
+                  ? 'Este é o atleta vinculado ao seu usuário e ele será a base da sua dupla.'
+                  : 'Atleta existente selecionado. A API vai reaproveitar esse cadastro neste lançamento.'
+              )}
+
+              {!(grupoSelecionado && usuarioAtleta) && sugestoesAtletasGrupo.duplaAAtleta1.length > 0 && (
+                <div className="campo-largo lista-sugestoes">
+                  {sugestoesAtletasGrupo.duplaAAtleta1.map((atleta) => (
+                    <button
+                      key={atleta.id}
+                      type="button"
+                      className="item-sugestao"
+                      onClick={() => selecionarAtletaGrupo('duplaAAtleta1', atleta)}
+                    >
+                      {atleta.nome}
+                      {atleta.apelido ? ` (${atleta.apelido})` : ''}
+                      {atleta.cadastroPendente ? ' [pendente]' : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <label>
+                {usuarioAtleta ? 'Parceiro' : 'Dupla A · Jogador 2'}
+                <input
+                  type="text"
+                  value={formulario.duplaAAtleta2Nome}
+                  onChange={(evento) => atualizarAtletaGrupo('duplaAAtleta2', evento.target.value)}
+                  placeholder="Nome completo"
+                  required
+                />
+              </label>
+
+              {renderizarResumoSelecaoAtletaGrupo('duplaAAtleta2')}
+
+              {sugestoesAtletasGrupo.duplaAAtleta2.length > 0 && (
+                <div className="campo-largo lista-sugestoes">
+                  {sugestoesAtletasGrupo.duplaAAtleta2.map((atleta) => (
+                    <button
+                      key={atleta.id}
+                      type="button"
+                      className="item-sugestao"
+                      onClick={() => selecionarAtletaGrupo('duplaAAtleta2', atleta)}
+                    >
+                      {atleta.nome}
+                      {atleta.apelido ? ` (${atleta.apelido})` : ''}
+                      {atleta.cadastroPendente ? ' [pendente]' : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {exibirCamposPlacarFormulario && (
                 <label>
@@ -2086,38 +2379,64 @@ export function PaginaPartidas() {
               )}
 
               <label>
-                Dupla B · Direita
-                <select
-                  value={formulario.duplaBAtleta1Id}
-                  onChange={(evento) => atualizarCampo('duplaBAtleta1Id', evento.target.value)}
-                  disabled={!competicaoId}
+                Adversário 1
+                <input
+                  type="text"
+                  value={formulario.duplaBAtleta1Nome}
+                  onChange={(evento) => atualizarAtletaGrupo('duplaBAtleta1', evento.target.value)}
+                  placeholder="Nome completo"
                   required
-                >
-                  <option value="">Selecione</option>
-                  {opcoesDuplaBAtleta1.map((item) => (
-                    <option key={item.id} value={item.atletaId}>
-                      {item.nomeAtleta}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
-              <label>
-                Dupla B · Esquerda
-                <select
-                  value={formulario.duplaBAtleta2Id}
-                  onChange={(evento) => atualizarCampo('duplaBAtleta2Id', evento.target.value)}
-                  disabled={!competicaoId}
-                  required
-                >
-                  <option value="">Selecione</option>
-                  {opcoesDuplaBAtleta2.map((item) => (
-                    <option key={item.id} value={item.atletaId}>
-                      {item.nomeAtleta}
-                    </option>
+              {renderizarResumoSelecaoAtletaGrupo('duplaBAtleta1')}
+
+              {sugestoesAtletasGrupo.duplaBAtleta1.length > 0 && (
+                <div className="campo-largo lista-sugestoes">
+                  {sugestoesAtletasGrupo.duplaBAtleta1.map((atleta) => (
+                    <button
+                      key={atleta.id}
+                      type="button"
+                      className="item-sugestao"
+                      onClick={() => selecionarAtletaGrupo('duplaBAtleta1', atleta)}
+                    >
+                      {atleta.nome}
+                      {atleta.apelido ? ` (${atleta.apelido})` : ''}
+                      {atleta.cadastroPendente ? ' [pendente]' : ''}
+                    </button>
                   ))}
-                </select>
+                </div>
+              )}
+
+              <label>
+                Adversário 2
+                <input
+                  type="text"
+                  value={formulario.duplaBAtleta2Nome}
+                  onChange={(evento) => atualizarAtletaGrupo('duplaBAtleta2', evento.target.value)}
+                  placeholder="Nome completo"
+                  required
+                />
               </label>
+
+              {renderizarResumoSelecaoAtletaGrupo('duplaBAtleta2')}
+
+              {sugestoesAtletasGrupo.duplaBAtleta2.length > 0 && (
+                <div className="campo-largo lista-sugestoes">
+                  {sugestoesAtletasGrupo.duplaBAtleta2.map((atleta) => (
+                    <button
+                      key={atleta.id}
+                      type="button"
+                      className="item-sugestao"
+                      onClick={() => selecionarAtletaGrupo('duplaBAtleta2', atleta)}
+                    >
+                      {atleta.nome}
+                      {atleta.apelido ? ` (${atleta.apelido})` : ''}
+                      {atleta.cadastroPendente ? ' [pendente]' : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {exibirCamposPlacarFormulario && (
                 <label>
@@ -2230,17 +2549,8 @@ export function PaginaPartidas() {
           </label>
 
           <div className="acoes-formulario">
-            <button type="submit" className="botao-primario botao-compacto" disabled={salvando}>
-              <ConteudoBotao
-                icone="salvar"
-                texto={salvando
-                  ? 'Salvando...'
-                  : partidaEdicaoId
-                    ? tabelaJogosAprovada || grupoSelecionado
-                      ? 'Atualizar'
-                      : 'Salvar confronto'
-                    : 'Registrar'}
-              />
+            <button type="submit" className="botao-primario botao-compacto" disabled={!podeSalvarFormulario}>
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
 
             {partidaEdicaoId && (
@@ -2256,7 +2566,7 @@ export function PaginaPartidas() {
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
 
       {competicaoComInscricoes && formulario.categoriaCompeticaoId && duplasDisponiveis.length === 0 && (
-        <p>Nenhuma dupla inscrita nesta categoria da competição.</p>
+        <p>Nenhuma dupla inscrita nesta categoria da competição. Você ainda pode informar os atletas na própria tela para reaproveitar ou montar a dupla no fluxo.</p>
       )}
 
       {competicaoComInscricoes &&
@@ -2274,8 +2584,18 @@ export function PaginaPartidas() {
         </p>
       )}
 
-      {grupoSelecionado && grupoAtletas.length < 4 && podeEditarPartidas && (
-        <p>Cadastre pelo menos quatro atletas no grupo para registrar uma partida.</p>
+      {grupoSelecionado && podeEditarPartidas && (
+        <p>Você pode informar nomes novos ou selecionar atletas já existentes. O sistema vincula ao grupo, reaproveita as duplas e registra a partida no mesmo fluxo.</p>
+      )}
+
+      {grupoSelecionado && grupoAtletas.length === 0 && podeEditarPartidas && (
+        <p>Ainda não há atletas vinculados a este grupo, mas isso não bloqueia o lançamento. Você pode digitar os nomes na própria tela e o sistema cria ou reaproveita os atletas ao salvar.</p>
+      )}
+
+      {grupoSelecionado && atletaUsuarioSemVinculo && (
+        <p className="texto-aviso">
+          Vincule um atleta ao seu usuário antes de registrar partidas no grupo. O primeiro atleta da sua dupla precisa ser o atleta vinculado ao seu perfil.
+        </p>
       )}
 
       {!podeEditarPartidas && partidas.length > 0 && competicaoComInscricoes && (

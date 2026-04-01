@@ -16,7 +16,8 @@ public class ConviteCadastroServico(
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IEnvioEmailConviteCadastroServico envioEmailConviteCadastroServico
+    IEnvioEmailConviteCadastroServico envioEmailConviteCadastroServico,
+    IEnvioWhatsappConviteCadastroServico envioWhatsappConviteCadastroServico
 ) : IConviteCadastroServico
 {
     private static readonly TimeSpan ValidadePadrao = TimeSpan.FromDays(7);
@@ -73,11 +74,13 @@ public class ConviteCadastroServico(
             throw new RegraNegocioException("Neste momento, convites de cadastro só podem criar usuários com perfil organizador.");
         }
 
+        var telefoneNormalizado = NormalizarTelefone(dto.Telefone);
+        ValidarCanalEnvio(dto.CanalEnvio, telefoneNormalizado);
         var expiraEmUtc = NormalizarExpiracao(dto.ExpiraEmUtc);
         var convite = new ConviteCadastro
         {
             Email = emailNormalizado,
-            Telefone = NormalizarTexto(dto.Telefone),
+            Telefone = telefoneNormalizado,
             Token = await GerarTokenUnicoAsync(cancellationToken),
             PerfilDestino = perfilDestino,
             ExpiraEmUtc = expiraEmUtc,
@@ -93,6 +96,7 @@ public class ConviteCadastroServico(
             ?? throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
 
         await TentarEnviarEmailAutomaticoAsync(conviteCriado, cancellationToken);
+        await TentarEnviarWhatsappAutomaticoAsync(conviteCriado, cancellationToken);
 
         return conviteCriado.ParaDto();
     }
@@ -108,6 +112,20 @@ public class ConviteCadastroServico(
 
         ValidarConviteParaEnvioEmail(convite);
         await EnviarEmailConviteAsync(convite, falharSemConfiguracao: true, falharQuandoNaoEnviado: true, cancellationToken);
+        return convite.ParaDto();
+    }
+
+    public async Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await GarantirAdministradorAsync(cancellationToken);
+        var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
+        if (convite is null)
+        {
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        }
+
+        ValidarConviteParaEnvioWhatsapp(convite);
+        await EnviarWhatsappConviteAsync(convite, falharSemConfiguracao: true, falharQuandoNaoEnviado: true, cancellationToken);
         return convite.ParaDto();
     }
 
@@ -157,6 +175,16 @@ public class ConviteCadastroServico(
         return string.IsNullOrWhiteSpace(textoNormalizado) ? null : textoNormalizado;
     }
 
+    private static string? NormalizarTelefone(string? telefone)
+    {
+        var telefoneNormalizado = new string((telefone ?? string.Empty)
+            .Where(c => char.IsDigit(c) || c == '+' || c == ' ')
+            .ToArray())
+            .Trim();
+
+        return string.IsNullOrWhiteSpace(telefoneNormalizado) ? null : telefoneNormalizado;
+    }
+
     private async Task TentarEnviarEmailAutomaticoAsync(
         ConviteCadastro conviteCadastro,
         CancellationToken cancellationToken)
@@ -167,6 +195,22 @@ public class ConviteCadastroServico(
         }
 
         await EnviarEmailConviteAsync(
+            conviteCadastro,
+            falharSemConfiguracao: false,
+            falharQuandoNaoEnviado: false,
+            cancellationToken);
+    }
+
+    private async Task TentarEnviarWhatsappAutomaticoAsync(
+        ConviteCadastro conviteCadastro,
+        CancellationToken cancellationToken)
+    {
+        if (!DeveEnviarWhatsappAutomaticamente(conviteCadastro.CanalEnvio))
+        {
+            return;
+        }
+
+        await EnviarWhatsappConviteAsync(
             conviteCadastro,
             falharSemConfiguracao: false,
             falharQuandoNaoEnviado: false,
@@ -210,6 +254,12 @@ public class ConviteCadastroServico(
             || canalEnvio.Contains("e-mail", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool DeveEnviarWhatsappAutomaticamente(string? canalEnvio)
+    {
+        return !string.IsNullOrWhiteSpace(canalEnvio)
+            && canalEnvio.Contains("whatsapp", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task EnviarEmailConviteAsync(
         ConviteCadastro conviteCadastro,
         bool falharSemConfiguracao,
@@ -221,7 +271,8 @@ public class ConviteCadastroServico(
         {
             if (falharSemConfiguracao)
             {
-                throw new RegraNegocioException("O envio automático de e-mail não está configurado.");
+                throw new RegraNegocioException(
+                    resultado.Erro ?? "O envio automático de e-mail não está configurado.");
             }
 
             return;
@@ -245,6 +296,55 @@ public class ConviteCadastroServico(
         }
     }
 
+    private async Task EnviarWhatsappConviteAsync(
+        ConviteCadastro conviteCadastro,
+        bool falharSemConfiguracao,
+        bool falharQuandoNaoEnviado,
+        CancellationToken cancellationToken)
+    {
+        var resultado = await envioWhatsappConviteCadastroServico.EnviarAsync(conviteCadastro, cancellationToken);
+        if (!resultado.TentativaRealizada)
+        {
+            if (falharSemConfiguracao)
+            {
+                throw new RegraNegocioException(
+                    resultado.Erro ?? "O envio automático de WhatsApp não está configurado.");
+            }
+
+            return;
+        }
+
+        if (resultado.Enviado)
+        {
+            conviteCadastro.RegistrarEnvioWhatsappComSucesso(DateTime.UtcNow);
+        }
+        else
+        {
+            conviteCadastro.RegistrarFalhaEnvioWhatsapp(resultado.Erro, DateTime.UtcNow);
+        }
+
+        conviteCadastroRepositorio.Atualizar(conviteCadastro);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        if (falharQuandoNaoEnviado && !resultado.Enviado)
+        {
+            throw new RegraNegocioException(conviteCadastro.ErroEnvioWhatsapp ?? "Falha ao enviar o WhatsApp do convite.");
+        }
+    }
+
+    private static void ValidarCanalEnvio(string? canalEnvio, string? telefone)
+    {
+        if (!DeveEnviarWhatsappAutomaticamente(canalEnvio))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(telefone))
+        {
+            throw new RegraNegocioException("Telefone é obrigatório quando o canal de envio inclui WhatsApp.");
+        }
+    }
+
     private static void ValidarConviteParaEnvioEmail(ConviteCadastro conviteCadastro)
     {
         var agoraUtc = DateTime.UtcNow;
@@ -261,6 +361,30 @@ public class ConviteCadastroServico(
         if (conviteCadastro.EstaExpirado(agoraUtc))
         {
             throw new RegraNegocioException("Este convite está expirado e não pode ser reenviado.");
+        }
+    }
+
+    private static void ValidarConviteParaEnvioWhatsapp(ConviteCadastro conviteCadastro)
+    {
+        var agoraUtc = DateTime.UtcNow;
+        if (!conviteCadastro.Ativo)
+        {
+            throw new RegraNegocioException("Este convite está cancelado e não pode ser enviado.");
+        }
+
+        if (conviteCadastro.FoiUtilizado())
+        {
+            throw new RegraNegocioException("Este convite já foi utilizado e não pode ser reenviado.");
+        }
+
+        if (conviteCadastro.EstaExpirado(agoraUtc))
+        {
+            throw new RegraNegocioException("Este convite está expirado e não pode ser reenviado.");
+        }
+
+        if (string.IsNullOrWhiteSpace(conviteCadastro.Telefone))
+        {
+            throw new RegraNegocioException("Informe um telefone válido no convite antes de enviar por WhatsApp.");
         }
     }
 }

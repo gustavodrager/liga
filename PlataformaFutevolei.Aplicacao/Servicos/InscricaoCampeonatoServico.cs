@@ -14,10 +14,10 @@ public class InscricaoCampeonatoServico(
     IInscricaoCampeonatoRepositorio inscricaoRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
-    IAtletaRepositorio atletaRepositorio,
     IDuplaRepositorio duplaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
-    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
 ) : IInscricaoCampeonatoServico
 {
     public async Task<IReadOnlyList<InscricaoCampeonatoDto>> ListarPorCampeonatoAsync(
@@ -230,7 +230,10 @@ public class InscricaoCampeonatoServico(
         CancellationToken cancellationToken)
     {
         var atletaUsuarioId = ObterAtletaUsuarioIdObrigatorio(usuario);
-        var atletaUsuario = await ObterAtletaExistenteAsync(atletaUsuarioId, cancellationToken);
+        var atletaUsuario = await resolvedorAtletaDuplaServico.ObterAtletaExistenteAsync(
+            atletaUsuarioId,
+            "Você precisa ter um atleta válido vinculado para se inscrever.",
+            cancellationToken);
 
         if (dto.DuplaId.HasValue)
         {
@@ -249,7 +252,7 @@ public class InscricaoCampeonatoServico(
         }
 
         var (parceiro, parceiroCadastroPendente) = await ResolverParceiroAutoInscricaoAsync(atletaUsuario, dto, cancellationToken);
-        var dupla = await ObterOuCriarDuplaAsync(atletaUsuario, parceiro, cancellationToken);
+        var dupla = await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atletaUsuario, parceiro, cancellationToken);
         return (dupla, parceiroCadastroPendente);
     }
 
@@ -337,83 +340,28 @@ public class InscricaoCampeonatoServico(
             return duplaExistente;
         }
 
-        var atleta1 = dto.Atleta1Id.HasValue
-            ? await ObterAtletaExistenteAsync(dto.Atleta1Id.Value, cancellationToken)
-            : await ObterOuCriarAtletaAsync(dto.NomeAtleta1, dto.ApelidoAtleta1, dto.Atleta1CadastroPendente, cancellationToken);
+        var atleta1 = await resolvedorAtletaDuplaServico.ResolverAtletaAsync(
+            dto.Atleta1Id,
+            dto.NomeAtleta1,
+            dto.ApelidoAtleta1,
+            "Os atletas informados para a inscrição não foram encontrados.",
+            dto.Atleta1CadastroPendente,
+            cancellationToken);
 
-        var atleta2 = dto.Atleta2Id.HasValue
-            ? await ObterAtletaExistenteAsync(dto.Atleta2Id.Value, cancellationToken)
-            : await ObterOuCriarAtletaAsync(dto.NomeAtleta2, dto.ApelidoAtleta2, dto.Atleta2CadastroPendente, cancellationToken);
+        var atleta2 = await resolvedorAtletaDuplaServico.ResolverAtletaAsync(
+            dto.Atleta2Id,
+            dto.NomeAtleta2,
+            dto.ApelidoAtleta2,
+            "Os atletas informados para a inscrição não foram encontrados.",
+            dto.Atleta2CadastroPendente,
+            cancellationToken);
 
         if (atleta1.Id == atleta2.Id)
         {
             throw new RegraNegocioException("Um atleta não pode formar dupla com ele mesmo.");
         }
 
-        return await ObterOuCriarDuplaAsync(atleta1, atleta2, cancellationToken);
-    }
-
-    private async Task<Atleta> ObterAtletaExistenteAsync(Guid atletaId, CancellationToken cancellationToken)
-    {
-        if (atletaId == Guid.Empty)
-        {
-            throw new RegraNegocioException("A inscrição deve informar dois atletas válidos.");
-        }
-
-        var atleta = await atletaRepositorio.ObterPorIdAsync(atletaId, cancellationToken);
-        if (atleta is null)
-        {
-            throw new RegraNegocioException("Os atletas informados para a inscrição não foram encontrados.");
-        }
-
-        return atleta;
-    }
-
-    private async Task<Atleta> ObterOuCriarAtletaAsync(
-        string? nomeInformado,
-        string? apelidoInformado,
-        bool cadastroPendente,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(nomeInformado))
-        {
-            throw new RegraNegocioException("Informe o nome completo dos dois jogadores quando a dupla não estiver cadastrada.");
-        }
-
-        var nomeBase = NormalizadorNomeAtleta.NormalizarTexto(nomeInformado);
-        var complemento = NormalizadorNomeAtleta.NormalizarTexto(apelidoInformado);
-
-        if (string.IsNullOrWhiteSpace(nomeBase))
-        {
-            throw new RegraNegocioException("Informe um nome válido para o atleta.");
-        }
-
-        if (string.IsNullOrWhiteSpace(complemento))
-        {
-            var atletaExistente = await atletaRepositorio.ObterPorNomeAsync(nomeBase, cancellationToken);
-            if (atletaExistente is not null)
-            {
-                return atletaExistente;
-            }
-        }
-
-        var (nomeFinal, apelidoFinal) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nomeBase, complemento);
-        var atletaComNomeFinal = await atletaRepositorio.ObterPorNomeAsync(nomeFinal, cancellationToken);
-        if (atletaComNomeFinal is not null)
-        {
-            return atletaComNomeFinal;
-        }
-
-        var atleta = new Atleta
-        {
-            Nome = nomeFinal,
-            Apelido = apelidoFinal,
-            CadastroPendente = cadastroPendente,
-            Lado = LadoAtleta.Ambos
-        };
-
-        await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
-        return atleta;
+        return await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atleta1, atleta2, cancellationToken);
     }
 
     private async Task<(Atleta atleta, bool cadastroPendente)> ResolverParceiroAutoInscricaoAsync(
@@ -421,25 +369,15 @@ public class InscricaoCampeonatoServico(
         CriarInscricaoCampeonatoDto dto,
         CancellationToken cancellationToken)
     {
-        if (dto.Atleta2Id.HasValue)
+        if (dto.Atleta2Id.HasValue || !string.IsNullOrWhiteSpace(dto.NomeAtleta2))
         {
-            var atleta = await ObterAtletaExistenteAsync(dto.Atleta2Id.Value, cancellationToken);
-            if (atleta.Id == atletaUsuario.Id)
-            {
-                throw new RegraNegocioException("Um atleta não pode formar dupla com ele mesmo.");
-            }
-
-            return (atleta, false);
-        }
-
-        if (!string.IsNullOrWhiteSpace(dto.NomeAtleta2))
-        {
-            var atleta = await ObterOuCriarAtletaAsync(
+            var atleta = await resolvedorAtletaDuplaServico.ResolverAtletaAsync(
+                dto.Atleta2Id,
                 dto.NomeAtleta2,
                 dto.ApelidoAtleta2,
+                "Os atletas informados para a inscrição não foram encontrados.",
                 dto.Atleta2CadastroPendente,
                 cancellationToken);
-
             if (atleta.Id == atletaUsuario.Id)
             {
                 throw new RegraNegocioException("Um atleta não pode formar dupla com ele mesmo.");
@@ -449,7 +387,11 @@ public class InscricaoCampeonatoServico(
         }
 
         var nomeParceiroPendente = CriarNomeAtletaPendente(atletaUsuario.Nome);
-        var atletaPendente = await ObterOuCriarAtletaAsync(nomeParceiroPendente, null, true, cancellationToken);
+        var atletaPendente = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaAsync(
+            nomeParceiroPendente,
+            null,
+            true,
+            cancellationToken);
         if (atletaPendente.Id == atletaUsuario.Id)
         {
             throw new RegraNegocioException("Um atleta não pode formar dupla com ele mesmo.");
@@ -457,37 +399,6 @@ public class InscricaoCampeonatoServico(
 
         return (atletaPendente, true);
     }
-
-    private async Task<Dupla> ObterOuCriarDuplaAsync(Atleta atleta1, Atleta atleta2, CancellationToken cancellationToken)
-    {
-        var dupla = await duplaRepositorio.ObterPorAtletasAsync(atleta1.Id, atleta2.Id, cancellationToken);
-        if (dupla is not null)
-        {
-            return dupla;
-        }
-
-        var (atletaNormalizado1Id, atletaNormalizado2Id) = NormalizarAtletas(atleta1.Id, atleta2.Id);
-        var atletaNormalizado1 = atleta1.Id == atletaNormalizado1Id ? atleta1 : atleta2;
-        var atletaNormalizado2 = atleta2.Id == atletaNormalizado2Id ? atleta2 : atleta1;
-
-        var novaDupla = new Dupla
-        {
-            Nome = $"{atletaNormalizado1.Nome} / {atletaNormalizado2.Nome}",
-            Atleta1Id = atletaNormalizado1Id,
-            Atleta2Id = atletaNormalizado2Id
-        };
-
-        await duplaRepositorio.AdicionarAsync(novaDupla, cancellationToken);
-        return novaDupla;
-    }
-
-    private static (Guid atleta1Id, Guid atleta2Id) NormalizarAtletas(Guid atleta1Id, Guid atleta2Id)
-    {
-        return atleta1Id.CompareTo(atleta2Id) <= 0
-            ? (atleta1Id, atleta2Id)
-            : (atleta2Id, atleta1Id);
-    }
-
     private static Guid ObterAtletaUsuarioIdObrigatorio(Usuario usuario)
     {
         if (!usuario.AtletaId.HasValue)

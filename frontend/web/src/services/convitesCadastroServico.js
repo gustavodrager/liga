@@ -26,6 +26,11 @@ export const convitesCadastroServico = {
     return resposta.data;
   },
 
+  async enviarWhatsapp(id) {
+    const resposta = await http.post(`/convites-cadastro/${id}/enviar-whatsapp`);
+    return resposta.data;
+  },
+
   async desativar(id) {
     await http.delete(`/convites-cadastro/${id}`);
   }

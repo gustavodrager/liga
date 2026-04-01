@@ -1,10 +1,14 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
 import { ehAdministrador, ehAtleta, ehGestorCompeticao, nomePerfil } from '../utils/perfis';
 
 export function LayoutPrincipal() {
   const { usuario, sair } = useAutenticacao();
+  const location = useLocation();
+  const [menuAberto, setMenuAberto] = useState(false);
   const administrador = ehAdministrador(usuario);
   const gestorCompeticao = ehGestorCompeticao(usuario);
   const atleta = ehAtleta(usuario);
@@ -27,6 +31,10 @@ export function LayoutPrincipal() {
     { caminho: '/convites-cadastro', nome: 'Convites', visivel: administrador }
   ].filter((item) => item.visivel);
 
+  useEffect(() => {
+    setMenuAberto(false);
+  }, [location.pathname]);
+
   return (
     <div className="layout-app">
       <header className="topo-app">
@@ -40,13 +48,40 @@ export function LayoutPrincipal() {
 
         <div className="usuario-topo">
           <span>{usuario?.nome} · {nomePerfil(usuario?.perfil)}</span>
+          <button
+            type="button"
+            className="botao-terciario botao-menu-mobile"
+            onClick={() => setMenuAberto((aberto) => !aberto)}
+            aria-expanded={menuAberto}
+            aria-controls="menu-principal-app"
+            aria-label={menuAberto ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+            title={menuAberto ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              {menuAberto ? (
+                <path
+                  d="M6.7 5.3 12 10.6l5.3-5.3 1.4 1.4L13.4 12l5.3 5.3-1.4 1.4L12 13.4l-5.3 5.3-1.4-1.4L10.6 12 5.3 6.7Z"
+                  fill="currentColor"
+                />
+              ) : (
+                <path
+                  d="M4 6.5h16v2H4zm0 4.5h16v2H4zm0 4.5h16v2H4z"
+                  fill="currentColor"
+                />
+              )}
+            </svg>
+          </button>
           <button type="button" className="botao-secundario" onClick={sair}>
-            Sair
+            <ConteudoBotao icone="sair" texto="Sair" />
           </button>
         </div>
       </header>
 
-      <nav className="menu-principal" aria-label="Navegação principal">
+      <nav
+        id="menu-principal-app"
+        className={`menu-principal ${menuAberto ? 'aberto' : ''}`}
+        aria-label="Navegação principal"
+      >
         {itensMenu.map((item) => (
           <NavLink
             key={item.caminho}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { duplasServico } from '../services/duplasServico';
@@ -179,12 +180,12 @@ export function PaginaDuplas() {
 
         <div className="acoes-formulario">
           <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : duplaEdicaoId ? 'Atualizar dupla' : 'Cadastrar dupla'}
+            {salvando ? 'Salvando...' : 'Salvar'}
           </button>
 
           {duplaEdicaoId && (
             <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              Cancelar
+              <ConteudoBotao icone="cancelar" texto="Cancelar" />
             </button>
           )}
         </div>
@@ -205,10 +206,10 @@ export function PaginaDuplas() {
 
               <div className="acoes-item">
                 <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(dupla)}>
-                  Editar
+                  <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerDupla(dupla.id)}>
-                  Excluir
+                  <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>
             </article>
