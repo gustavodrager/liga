@@ -9,9 +9,14 @@ public interface IAtletaServico
         bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default);
     Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AtletaDto> CriarAsync(CriarAtletaDto dto, CancellationToken cancellationToken = default);
     Task<AtletaDto> AtualizarAsync(Guid id, AtualizarAtletaDto dto, CancellationToken cancellationToken = default);
+    Task<AtletaPendenciaDto> InformarEmailPendenteAsync(
+        Guid atletaId,
+        AtualizarEmailAtletaPendenteDto dto,
+        CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
@@ -120,6 +125,11 @@ public interface IResolvedorAtletaDuplaServico
         string? nomeInformado,
         string? apelidoInformado,
         bool cadastroPendente,
+        CancellationToken cancellationToken = default);
+
+    Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(
+        string nomeInformado,
+        string emailInformado,
         CancellationToken cancellationToken = default);
 
     Task<Dupla> ObterOuCriarDuplaAsync(

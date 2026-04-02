@@ -17,7 +17,8 @@ public class AutenticacaoServico(
     IUnidadeTrabalho unidadeTrabalho,
     ISenhaServico senhaServico,
     ITokenJwtServico tokenJwtServico,
-    IUsuarioContexto usuarioContexto
+    IUsuarioContexto usuarioContexto,
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
 ) : IAutenticacaoServico
 {
     public async Task<RespostaAutenticacaoDto> RegistrarAsync(RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken = default)
@@ -48,7 +49,7 @@ public class AutenticacaoServico(
             Ativo = true
         };
 
-        VincularAtletaPendenteSeNecessario(usuario);
+        await VincularAtletaPendenteSeNecessarioAsync(usuario, dto.Nome, cancellationToken);
         conviteCadastro.MarcarComoUtilizado(DateTime.UtcNow);
 
         await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
@@ -205,23 +206,20 @@ public class AutenticacaoServico(
         }
     }
 
-    private static void VincularAtletaPendenteSeNecessario(Usuario usuario)
+    private async Task VincularAtletaPendenteSeNecessarioAsync(
+        Usuario usuario,
+        string nomeUsuario,
+        CancellationToken cancellationToken)
     {
         if (usuario.Perfil != PerfilUsuario.Atleta)
         {
             return;
         }
 
-        var (nomeAtleta, apelidoAtleta) = NormalizadorNomeAtleta.NormalizarNomeEApelido(usuario.Nome, null);
-        var atleta = new Atleta
-        {
-            Nome = nomeAtleta,
-            Apelido = apelidoAtleta,
-            Email = usuario.Email,
-            CadastroPendente = true,
-            Lado = LadoAtleta.Ambos
-        };
-
+        var atleta = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaParaUsuarioAsync(
+            nomeUsuario,
+            usuario.Email,
+            cancellationToken);
         usuario.AtletaId = atleta.Id;
         usuario.Atleta = atleta;
     }

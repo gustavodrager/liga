@@ -16,6 +16,7 @@ import { PaginaCategorias } from './pages/PaginaCategorias';
 import { PaginaInscricoesCampeonato } from './pages/PaginaInscricoesCampeonato';
 import { PaginaPartidas } from './pages/PaginaPartidas';
 import { PaginaMeuPerfil } from './pages/PaginaMeuPerfil';
+import { PaginaPendenciasAtletas } from './pages/PaginaPendenciasAtletas';
 import { PaginaUsuarios } from './pages/PaginaUsuarios';
 import { PaginaConvitesCadastro } from './pages/PaginaConvitesCadastro';
 import { PaginaCadastroConvite } from './pages/PaginaCadastroConvite';
@@ -37,6 +38,14 @@ export default function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<PaginaDashboard />} />
         <Route path="/meu-perfil" element={<PaginaMeuPerfil />} />
+        <Route
+          path="/pendencias-atletas"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador, PERFIS_USUARIO.atleta]}>
+              <PaginaPendenciasAtletas />
+            </RotaProtegida>
+          }
+        />
         <Route
           path="/atletas"
           element={

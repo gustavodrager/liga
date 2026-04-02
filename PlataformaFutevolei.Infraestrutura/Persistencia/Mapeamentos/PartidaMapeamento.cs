@@ -29,6 +29,7 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.CategoriaCompeticaoId).HasColumnName("categoria_competicao_id").IsRequired();
+        builder.Property(x => x.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id");
         builder.Property(x => x.DuplaAId).HasColumnName("dupla_a_id").IsRequired();
         builder.Property(x => x.DuplaBId).HasColumnName("dupla_b_id").IsRequired();
         builder.Property(x => x.FaseCampeonato).HasColumnName("fase_campeonato").HasMaxLength(100);
@@ -46,6 +47,11 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
             .HasForeignKey(x => x.CategoriaCompeticaoId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(x => x.CriadoPorUsuario)
+            .WithMany()
+            .HasForeignKey(x => x.CriadoPorUsuarioId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne(x => x.DuplaA)
             .WithMany(x => x.PartidasComoDuplaA)
             .HasForeignKey(x => x.DuplaAId)
@@ -62,6 +68,7 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.CategoriaCompeticaoId);
+        builder.HasIndex(x => x.CriadoPorUsuarioId);
         builder.HasIndex(x => x.DuplaAId);
         builder.HasIndex(x => x.DuplaBId);
         builder.HasIndex(x => x.DuplaVencedoraId);

@@ -5,6 +5,7 @@ using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -434,7 +435,7 @@ public class RankingServico(
     {
         if (!atletas.TryGetValue(atleta.Id, out var item))
         {
-            item = new RankingAtletaAcumulado(atleta.Id, atleta.Nome, atleta.Apelido, atleta.Lado);
+            item = CriarRankingAtletaAcumulado(atleta);
             atletas[atleta.Id] = item;
         }
 
@@ -531,6 +532,10 @@ public class RankingServico(
                 atleta.NomeAtleta,
                 atleta.ApelidoAtleta,
                 atleta.Lado,
+                atleta.PossuiUsuarioVinculado,
+                atleta.CadastroPendente,
+                atleta.TemEmail,
+                atleta.StatusPendencia,
                 atleta.Jogos,
                 atleta.Vitorias,
                 atleta.Derrotas,
@@ -560,7 +565,7 @@ public class RankingServico(
     {
         if (!acumulado.TryGetValue(atleta.Id, out var item))
         {
-            item = new RankingAtletaAcumulado(atleta.Id, atleta.Nome, atleta.Apelido, atleta.Lado);
+            item = CriarRankingAtletaAcumulado(atleta);
             acumulado[atleta.Id] = item;
         }
 
@@ -630,18 +635,39 @@ public class RankingServico(
         Guid atletaId,
         string nomeAtleta,
         string? apelidoAtleta,
-        LadoAtleta lado)
+        LadoAtleta lado,
+        bool possuiUsuarioVinculado,
+        bool cadastroPendente,
+        bool temEmail,
+        string statusPendencia)
     {
         public Guid AtletaId { get; } = atletaId;
         public string NomeAtleta { get; } = nomeAtleta;
         public string? ApelidoAtleta { get; } = apelidoAtleta;
         public LadoAtleta Lado { get; } = lado;
+        public bool PossuiUsuarioVinculado { get; } = possuiUsuarioVinculado;
+        public bool CadastroPendente { get; } = cadastroPendente;
+        public bool TemEmail { get; } = temEmail;
+        public string StatusPendencia { get; } = statusPendencia;
         public int Jogos { get; set; }
         public int Vitorias { get; set; }
         public int Derrotas { get; set; }
         public int Empates { get; set; }
         public decimal Pontos { get; set; }
         public List<RankingPartidaDto> Partidas { get; } = [];
+    }
+
+    private static RankingAtletaAcumulado CriarRankingAtletaAcumulado(Atleta atleta)
+    {
+        return new RankingAtletaAcumulado(
+            atleta.Id,
+            atleta.Nome,
+            atleta.Apelido,
+            atleta.Lado,
+            StatusCadastroAtletaUtil.PossuiUsuarioVinculado(atleta),
+            atleta.CadastroPendente,
+            StatusCadastroAtletaUtil.TemEmail(atleta),
+            StatusCadastroAtletaUtil.ObterStatusPendencia(atleta));
     }
 
     private sealed class RankingCategoriaAcumulado(

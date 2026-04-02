@@ -1,4 +1,5 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 
 namespace PlataformaFutevolei.Aplicacao.Mapeadores;
@@ -87,7 +88,8 @@ internal static class MapeadorEntidades
             atleta.Email,
             atleta.Instagram,
             atleta.Cpf,
-            atleta.CadastroPendente
+            atleta.CadastroPendente,
+            atleta.Lado
         );
 
     public static AtletaDto ParaDto(this Atleta atleta)
@@ -259,6 +261,7 @@ internal static class MapeadorEntidades
         var duplaAAtleta2Id = metadadosLados?.DuplaAEsquerdaId ?? partida.DuplaA?.Atleta2Id ?? Guid.Empty;
         var duplaBAtleta1Id = metadadosLados?.DuplaBDireitaId ?? partida.DuplaB?.Atleta1Id ?? Guid.Empty;
         var duplaBAtleta2Id = metadadosLados?.DuplaBEsquerdaId ?? partida.DuplaB?.Atleta2Id ?? Guid.Empty;
+        var atletasPendentes = ObterAtletasPendentesPartida(partida);
 
         return new PartidaDto(
             partida.Id,
@@ -287,7 +290,10 @@ internal static class MapeadorEntidades
             partida.DataPartida,
             LimparObservacoesSistema(partida.Observacoes),
             partida.DataCriacao,
-            partida.DataAtualizacao
+            partida.DataAtualizacao,
+            atletasPendentes.Count,
+            atletasPendentes.Count(x => !x.TemEmail),
+            atletasPendentes
         );
     }
 
@@ -328,6 +334,27 @@ internal static class MapeadorEntidades
             .ToList();
 
         return linhas.Count == 0 ? null : string.Join(Environment.NewLine, linhas);
+    }
+
+    private static IReadOnlyList<PartidaAtletaPendenteDto> ObterAtletasPendentesPartida(Partida partida)
+    {
+        return new[]
+        {
+            partida.DuplaA?.Atleta1,
+            partida.DuplaA?.Atleta2,
+            partida.DuplaB?.Atleta1,
+            partida.DuplaB?.Atleta2
+        }
+        .OfType<Atleta>()
+        .Where(atleta => !StatusCadastroAtletaUtil.PossuiUsuarioVinculado(atleta))
+        .DistinctBy(atleta => atleta.Id)
+        .Select(atleta => new PartidaAtletaPendenteDto(
+            atleta.Id,
+            atleta.Nome,
+            atleta.Email,
+            StatusCadastroAtletaUtil.TemEmail(atleta),
+            StatusCadastroAtletaUtil.ObterStatusPendencia(atleta)))
+        .ToList();
     }
 
     private static string ObterNomeAtletaDupla(Dupla? dupla, Guid atletaId)

@@ -4,6 +4,7 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarPartidaDto(
     Guid? CompeticaoId,
+    string? NomeGrupo,
     Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
     Guid? DuplaBId,
@@ -25,6 +26,7 @@ public record CriarPartidaDto(
 
 public record AtualizarPartidaDto(
     Guid? CompeticaoId,
+    string? NomeGrupo,
     Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
     Guid? DuplaBId,
@@ -97,6 +99,14 @@ public record SituacaoDuplaCompeticaoDto(
     string? NomePartidaPendente
 );
 
+public record PartidaAtletaPendenteDto(
+    Guid AtletaId,
+    string NomeAtleta,
+    string? Email,
+    bool TemEmail,
+    string StatusPendencia
+);
+
 public record PartidaDto(
     Guid Id,
     Guid CategoriaCompeticaoId,
@@ -124,5 +134,8 @@ public record PartidaDto(
     DateTime? DataPartida,
     string? Observacoes,
     DateTime DataCriacao,
-    DateTime DataAtualizacao
+    DateTime DataAtualizacao,
+    int QuantidadeAtletasPendentes,
+    int QuantidadeAtletasPendentesSemEmail,
+    IReadOnlyList<PartidaAtletaPendenteDto> AtletasPendentes
 );

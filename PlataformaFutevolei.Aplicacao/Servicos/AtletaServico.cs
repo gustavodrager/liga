@@ -12,9 +12,11 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class AtletaServico(
     IAtletaRepositorio atletaRepositorio,
+    IPartidaRepositorio partidaRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
-    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
 ) : IAtletaServico
 {
     public async Task<IReadOnlyList<AtletaDto>> ListarAsync(
@@ -39,6 +41,34 @@ public class AtletaServico(
         await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var atletas = await atletaRepositorio.BuscarAsync(termo, cancellationToken);
         return atletas.Select(x => x.ParaResumoDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var partidas = await partidaRepositorio.ListarComAtletasPendentesPorUsuarioCriadorAsync(usuario.Id, cancellationToken);
+
+        return partidas
+            .SelectMany(EnumerarPendencias)
+            .GroupBy(x => x.Atleta.Id)
+            .Select(grupo =>
+            {
+                var atleta = grupo.First().Atleta;
+                return new AtletaPendenciaDto(
+                    atleta.Id,
+                    atleta.Nome,
+                    atleta.Apelido,
+                    atleta.Email,
+                    atleta.CadastroPendente,
+                    StatusCadastroAtletaUtil.PossuiUsuarioVinculado(atleta),
+                    StatusCadastroAtletaUtil.TemEmail(atleta),
+                    StatusCadastroAtletaUtil.ObterStatusPendencia(atleta),
+                    grupo.Select(x => x.PartidaId).Distinct().Count(),
+                    grupo.Select(x => x.NomeCompeticao).Distinct().OrderBy(x => x).ToList());
+            })
+            .OrderBy(x => x.TemEmail)
+            .ThenBy(x => x.NomeAtleta)
+            .ToList();
     }
 
     public async Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -82,21 +112,37 @@ public class AtletaServico(
             : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
 
-        var atleta = new Atleta
-        {
-            Nome = dados.Nome,
-            Apelido = dados.Apelido,
-            Telefone = dados.Telefone,
-            Email = dados.Email,
-            Instagram = dados.Instagram,
-            Cpf = dados.Cpf,
-            CadastroPendente = dto.CadastroPendente,
-            Lado = dto.Lado,
-            DataNascimento = dataNascimento
-        };
+        var criandoMeuProprioAtleta = !usuario.AtletaId.HasValue &&
+            usuario.Perfil is not PerfilUsuario.Administrador &&
+            !string.IsNullOrWhiteSpace(dados.Email) &&
+            string.Equals(dados.Email, usuario.Email, StringComparison.OrdinalIgnoreCase);
 
-        await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
-        if (usuarioComum)
+        Atleta atleta;
+        if (criandoMeuProprioAtleta)
+        {
+            atleta = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaParaUsuarioAsync(
+                dados.Nome,
+                dados.Email!,
+                cancellationToken);
+        }
+        else
+        {
+            atleta = new Atleta();
+            await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+        }
+
+        atleta.Nome = dados.Nome;
+        atleta.Apelido = dados.Apelido;
+        atleta.Telefone = dados.Telefone;
+        atleta.Email = dados.Email;
+        atleta.Instagram = dados.Instagram;
+        atleta.Cpf = dados.Cpf;
+        atleta.CadastroPendente = criandoMeuProprioAtleta ? false : dto.CadastroPendente;
+        atleta.Lado = dto.Lado;
+        atleta.DataNascimento = dataNascimento;
+        atleta.AtualizarDataModificacao();
+
+        if (usuarioComum || criandoMeuProprioAtleta)
         {
             usuario.AtletaId = atleta.Id;
             usuario.AtualizarDataModificacao();
@@ -144,6 +190,57 @@ public class AtletaServico(
         atletaRepositorio.Atualizar(atleta);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         return atleta.ParaDto();
+    }
+
+    public async Task<AtletaPendenciaDto> InformarEmailPendenteAsync(
+        Guid atletaId,
+        AtualizarEmailAtletaPendenteDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (atletaId == Guid.Empty)
+        {
+            throw new RegraNegocioException("Atleta é obrigatório.");
+        }
+
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var emailNormalizado = NormalizarEmailPendente(dto.Email);
+        var atleta = await atletaRepositorio.ObterPorIdAsync(atletaId, cancellationToken);
+        if (atleta is null)
+        {
+            throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+        }
+
+        var usuarioVinculado = await usuarioRepositorio.ObterPorAtletaIdAsync(atletaId, cancellationToken);
+        if (usuarioVinculado is not null)
+        {
+            throw new RegraNegocioException("Este atleta já possui usuário vinculado.");
+        }
+
+        var podeEditar = await partidaRepositorio.ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(
+            usuario.Id,
+            atletaId,
+            cancellationToken);
+        if (!podeEditar)
+        {
+            throw new RegraNegocioException("Você só pode informar e-mail para atletas pendentes de partidas registradas por você.");
+        }
+
+        atleta.Email = emailNormalizado;
+        atleta.AtualizarDataModificacao();
+        atletaRepositorio.Atualizar(atleta);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return new AtletaPendenciaDto(
+            atleta.Id,
+            atleta.Nome,
+            atleta.Apelido,
+            atleta.Email,
+            atleta.CadastroPendente,
+            false,
+            true,
+            StatusCadastroAtletaUtil.ObterStatusPendencia(atleta),
+            0,
+            []);
     }
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
@@ -247,5 +344,42 @@ public class AtletaServico(
         }
 
         return dataNormalizada;
+    }
+
+    private static IEnumerable<(Atleta Atleta, Guid PartidaId, string NomeCompeticao)> EnumerarPendencias(Partida partida)
+    {
+        var nomeCompeticao = partida.CategoriaCompeticao?.Competicao?.Nome ?? "Partidas avulsas";
+
+        return new[]
+        {
+            partida.DuplaA?.Atleta1,
+            partida.DuplaA?.Atleta2,
+            partida.DuplaB?.Atleta1,
+            partida.DuplaB?.Atleta2
+        }
+        .OfType<Atleta>()
+        .Where(atleta => !StatusCadastroAtletaUtil.PossuiUsuarioVinculado(atleta))
+        .DistinctBy(atleta => atleta.Id)
+        .Select(atleta => (atleta, partida.Id, nomeCompeticao));
+    }
+
+    private static string NormalizarEmailPendente(string email)
+    {
+        var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(emailNormalizado))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(emailNormalizado);
+        }
+        catch
+        {
+            throw new RegraNegocioException("E-mail inválido.");
+        }
+
+        return emailNormalizado;
     }
 }

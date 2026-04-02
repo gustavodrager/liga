@@ -33,6 +33,8 @@ public interface IAtletaRepositorio
     Task<IReadOnlyList<Atleta>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> ListarPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> ListarPorEmailAsync(string email, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default);
     void Atualizar(Atleta atleta);
     void Remover(Atleta atleta);
@@ -122,6 +124,11 @@ public interface IPartidaRepositorio
 {
     Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default);
+    Task<bool> ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(
+        Guid usuarioId,
+        Guid atletaId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<Guid?> ObterUltimaCompeticaoComPartidaEncerradaAsync(

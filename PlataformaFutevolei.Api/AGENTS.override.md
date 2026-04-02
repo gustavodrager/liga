@@ -16,3 +16,5 @@
 - Em importação ou criação em lote, reutilizar os serviços já existentes de atleta, dupla, inscrição e partida; não criar atalho direto no controller
 - Em fluxos que dependem de dupla inscrita no campeonato, considerar a ordem normalizada dos atletas para evitar falso negativo de inscrição
 - No registro manual de partidas de grupo, o controller deve continuar fino; o frontend envia ids e/ou nomes completos e a aplicação resolve reaproveitamento/criação de atleta, vínculo ao grupo e reaproveitamento/criação da dupla
+- Pendências de atletas devem sair de consulta sobre partidas já registradas; evitar controller ou endpoint paralelo que recalcule pontos ou mantenha fila duplicada
+- Se a pendência depender de quem lançou a partida, persistir a autoria na própria partida e manter autorização dessa edição na aplicação

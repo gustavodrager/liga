@@ -34,7 +34,8 @@ public record AtletaResumoDto(
     string? Email,
     string? Instagram,
     string? Cpf,
-    bool CadastroPendente
+    bool CadastroPendente,
+    LadoAtleta Lado
 );
 
 public record AtletaDto(
@@ -50,4 +51,21 @@ public record AtletaDto(
     DateTime? DataNascimento,
     DateTime DataCriacao,
     DateTime DataAtualizacao
+);
+
+public record AtletaPendenciaDto(
+    Guid AtletaId,
+    string NomeAtleta,
+    string? ApelidoAtleta,
+    string? Email,
+    bool CadastroPendente,
+    bool PossuiUsuarioVinculado,
+    bool TemEmail,
+    string StatusPendencia,
+    int QuantidadePartidas,
+    IReadOnlyList<string> Competicoes
+);
+
+public record AtualizarEmailAtletaPendenteDto(
+    string Email
 );

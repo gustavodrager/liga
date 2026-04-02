@@ -24,4 +24,6 @@ Seguir o `AGENTS.md` da raiz. Neste diretório, além disso:
 - `Partidas` em grupo deve permitir fluxo único: frontend coleta nomes completos ou seleção de atletas existentes, e a API reaproveita ou cria atleta e dupla no próprio registro da partida
 - Em dupla eliminação, `Partidas` deve deixar claro se o jogo pertence à chave vencedora, perdedora, final ou final reset
 - `Ranking` já possui modos de liga e competição; o da liga é consolidado e o da competição segue separado por categoria
+- `Ranking` deve exibir atletas sem usuário como pendentes no mesmo ranking, sem tela ou cálculo paralelo de pontos
+- `Pendências` deve permitir completar depois o e-mail de atletas sem usuário criados em partidas do usuário logado, sem bloquear o registro inicial
 - `Modelos de importação` já oferece download e upload CSV por tipo de cadastro

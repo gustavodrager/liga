@@ -95,6 +95,29 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
             .FirstOrDefaultAsync(x => x.Nome.ToLower() == chave, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Atleta>> ListarPorNomeAsync(string nome, CancellationToken cancellationToken = default)
+    {
+        var nomeNormalizado = NormalizadorNomeAtleta.NormalizarTexto(nome);
+        var chave = nomeNormalizado.ToLowerInvariant();
+
+        return await dbContext.Atletas
+            .Include(x => x.Usuario)
+            .Where(x => x.Nome.ToLower() == chave)
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Atleta>> ListarPorEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
+
+        return await dbContext.Atletas
+            .Include(x => x.Usuario)
+            .Where(x => x.Email != null && x.Email.ToLower() == emailNormalizado)
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default)
     {
         await dbContext.Atletas.AddAsync(atleta, cancellationToken);

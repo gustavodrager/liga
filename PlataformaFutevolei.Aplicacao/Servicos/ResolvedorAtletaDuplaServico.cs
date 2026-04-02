@@ -10,8 +10,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class ResolvedorAtletaDuplaServico(
     IAtletaRepositorio atletaRepositorio,
     IDuplaRepositorio duplaRepositorio,
-    IGrupoAtletaRepositorio grupoAtletaRepositorio,
-    ICompeticaoRepositorio competicaoRepositorio
+    IGrupoAtletaRepositorio grupoAtletaRepositorio
 ) : IResolvedorAtletaDuplaServico
 {
     public async Task<Atleta> ObterAtletaExistenteAsync(
@@ -101,6 +100,51 @@ public class ResolvedorAtletaDuplaServico(
         return atleta;
     }
 
+    public async Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(
+        string nomeInformado,
+        string emailInformado,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(nomeInformado))
+        {
+            throw new RegraNegocioException("Nome do atleta é obrigatório.");
+        }
+
+        if (string.IsNullOrWhiteSpace(emailInformado))
+        {
+            throw new RegraNegocioException("E-mail do atleta é obrigatório.");
+        }
+
+        var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(emailInformado).ToLowerInvariant();
+        var (nomeFinal, apelidoFinal) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nomeInformado, null);
+
+        var atletaPorEmail = await ObterCandidatoUnicoPorEmailAsync(emailNormalizado, cancellationToken);
+        if (atletaPorEmail is not null)
+        {
+            PrepararAtletaParaUsuario(atletaPorEmail, nomeFinal, apelidoFinal, emailNormalizado);
+            return atletaPorEmail;
+        }
+
+        var atletaPorNome = await ObterCandidatoUnicoPorNomeAsync(nomeFinal, emailNormalizado, cancellationToken);
+        if (atletaPorNome is not null)
+        {
+            PrepararAtletaParaUsuario(atletaPorNome, nomeFinal, apelidoFinal, emailNormalizado);
+            return atletaPorNome;
+        }
+
+        var atleta = new Atleta
+        {
+            Nome = nomeFinal,
+            Apelido = apelidoFinal,
+            Email = emailNormalizado,
+            CadastroPendente = false,
+            Lado = LadoAtleta.Ambos
+        };
+
+        await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+        return atleta;
+    }
+
     public async Task<Dupla> ObterOuCriarDuplaAsync(
         Atleta atleta1,
         Atleta atleta2,
@@ -146,14 +190,10 @@ public class ResolvedorAtletaDuplaServico(
             return grupoAtletaExistente;
         }
 
-        var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken)
-            ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
-
         var grupoAtleta = new GrupoAtleta
         {
             CompeticaoId = competicaoId,
             AtletaId = atleta.Id,
-            Competicao = competicao,
             Atleta = atleta
         };
 
@@ -166,5 +206,50 @@ public class ResolvedorAtletaDuplaServico(
         return atleta1Id.CompareTo(atleta2Id) <= 0
             ? (atleta1Id, atleta2Id)
             : (atleta2Id, atleta1Id);
+    }
+
+    private async Task<Atleta?> ObterCandidatoUnicoPorEmailAsync(
+        string emailNormalizado,
+        CancellationToken cancellationToken)
+    {
+        var candidatos = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        var candidatosDisponiveis = candidatos
+            .Where(x => x.Usuario is null)
+            .ToList();
+
+        return candidatosDisponiveis.Count == 1
+            ? candidatosDisponiveis[0]
+            : null;
+    }
+
+    private async Task<Atleta?> ObterCandidatoUnicoPorNomeAsync(
+        string nomeNormalizado,
+        string emailNormalizado,
+        CancellationToken cancellationToken)
+    {
+        var candidatos = await atletaRepositorio.ListarPorNomeAsync(nomeNormalizado, cancellationToken);
+        var candidatosDisponiveis = candidatos
+            .Where(x =>
+                x.Usuario is null &&
+                (string.IsNullOrWhiteSpace(x.Email) ||
+                 string.Equals(x.Email, emailNormalizado, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        return candidatosDisponiveis.Count == 1
+            ? candidatosDisponiveis[0]
+            : null;
+    }
+
+    private static void PrepararAtletaParaUsuario(
+        Atleta atleta,
+        string nomeNormalizado,
+        string apelidoNormalizado,
+        string emailNormalizado)
+    {
+        atleta.Nome = nomeNormalizado;
+        atleta.Apelido = apelidoNormalizado;
+        atleta.Email = emailNormalizado;
+        atleta.CadastroPendente = false;
+        atleta.AtualizarDataModificacao();
     }
 }

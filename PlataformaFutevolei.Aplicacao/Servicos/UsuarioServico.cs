@@ -85,10 +85,9 @@ public class UsuarioServico(
         }
 
         usuario.AtletaId = atleta.Id;
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            atleta.Email ??= usuario.Email;
-        }
+        atleta.Email = usuario.Email;
+        atleta.CadastroPendente = false;
+        atleta.AtualizarDataModificacao();
 
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
@@ -165,6 +164,15 @@ public class UsuarioServico(
         usuario.Ativo = dto.Ativo;
         usuario.AtletaId = dto.AtletaId;
         usuario.AtualizarDataModificacao();
+
+        if (dto.AtletaId.HasValue)
+        {
+            var atleta = await atletaRepositorio.ObterPorIdAsync(dto.AtletaId.Value, cancellationToken)
+                ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+            atleta.Email = emailNormalizado;
+            atleta.CadastroPendente = false;
+            atleta.AtualizarDataModificacao();
+        }
 
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);

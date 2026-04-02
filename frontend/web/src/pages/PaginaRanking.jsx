@@ -44,6 +44,14 @@ function normalizarRanking(lista, tipoConsulta) {
     });
 }
 
+function classeStatusPendencia(item) {
+  if (item.possuiUsuarioVinculado) {
+    return 'tag-status-sucesso';
+  }
+
+  return item.temEmail ? 'tag-status-alerta' : 'tag-status-erro';
+}
+
 export function PaginaRanking() {
   const { usuario } = useAutenticacao();
   const usuarioAtleta = ehAtleta(usuario);
@@ -217,6 +225,7 @@ export function PaginaRanking() {
             : 'Consulte o ranking consolidado da liga ou o ranking da competição.'}
         </p>
         {!usuarioAtleta && <p>No ranking da liga, os pontos somam todas as competições vinculadas à liga.</p>}
+        <p>O ranking continua contando todos os pontos; o que muda é o estado do atleta no app.</p>
       </div>
 
       <div className="formulario-grid">
@@ -290,6 +299,7 @@ export function PaginaRanking() {
                     <tr>
                       <th>Pos.</th>
                       <th>Atleta</th>
+                      <th>Status</th>
                       <th>Pontuação</th>
                       <th>Jogos</th>
                       <th>Vitórias</th>
@@ -327,6 +337,11 @@ export function PaginaRanking() {
                                 ))}
                               </div>
                             )}
+                          </td>
+                          <td>
+                            <span className={`tag-status ${classeStatusPendencia(item)}`}>
+                              {item.statusPendencia}
+                            </span>
                           </td>
                           <td>{item.pontos}</td>
                           <td>{item.jogos}</td>

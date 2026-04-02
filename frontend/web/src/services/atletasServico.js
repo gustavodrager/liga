@@ -17,6 +17,11 @@ export const atletasServico = {
     return resposta.data;
   },
 
+  async listarPendencias() {
+    const resposta = await http.get('/atletas/pendencias');
+    return resposta.data;
+  },
+
   async obterPorId(id) {
     const resposta = await http.get(`/atletas/${id}`);
     return resposta.data;
@@ -29,6 +34,11 @@ export const atletasServico = {
 
   async atualizar(id, dados) {
     const resposta = await http.put(`/atletas/${id}`, dados);
+    return resposta.data;
+  },
+
+  async informarEmailPendente(id, email) {
+    const resposta = await http.put(`/atletas/pendencias/${id}/email`, { email });
     return resposta.data;
   },
 

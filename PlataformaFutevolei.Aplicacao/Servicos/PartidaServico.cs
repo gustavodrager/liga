@@ -254,8 +254,10 @@ public class PartidaServico(
 
     public async Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
     {
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var (categoria, duplaA, duplaB, metadadosLados) = await ValidarRelacionamentosAsync(
             dto.CompeticaoId,
+            dto.NomeGrupo,
             dto.CategoriaCompeticaoId,
             dto.DuplaAId,
             dto.DuplaBId,
@@ -274,6 +276,7 @@ public class PartidaServico(
         var partida = new Partida
         {
             CategoriaCompeticaoId = categoria.Id,
+            CriadoPorUsuarioId = usuarioAtual.Id,
             DuplaAId = duplaA.Id,
             DuplaBId = duplaB.Id,
             FaseCampeonato = NormalizarFaseCampeonato(dto.FaseCampeonato),
@@ -317,6 +320,7 @@ public class PartidaServico(
 
         var (categoria, duplaA, duplaB, metadadosLadosAtualizados) = await ValidarRelacionamentosAsync(
             dto.CompeticaoId,
+            dto.NomeGrupo,
             dto.CategoriaCompeticaoId,
             dto.DuplaAId,
             dto.DuplaBId,
@@ -437,6 +441,7 @@ public class PartidaServico(
 
     private async Task<(CategoriaCompeticao categoria, Dupla duplaA, Dupla duplaB, MetadadosLados? metadadosLados)> ValidarRelacionamentosAsync(
         Guid? competicaoId,
+        string? nomeGrupo,
         Guid? categoriaCompeticaoId,
         Guid? duplaAId,
         Guid? duplaBId,
@@ -465,10 +470,11 @@ public class PartidaServico(
         }
         else
         {
-            var competicao = competicaoId.HasValue
+            var competicaoExistente = competicaoId.HasValue && competicaoId.Value != Guid.Empty
                 ? await competicaoRepositorio.ObterPorIdAsync(competicaoId.Value, cancellationToken)
-                    ?? throw new RegraNegocioException("Competição não encontrada.")
-                : await ObterOuCriarCompeticaoPartidasAvulsasAsync(cancellationToken);
+                : null;
+            var competicao = competicaoExistente
+                ?? await ObterOuCriarCompeticaoPartidasAvulsasAsync(nomeGrupo, cancellationToken);
 
             if (competicao.Tipo != TipoCompeticao.Grupo)
             {
@@ -568,18 +574,23 @@ public class PartidaServico(
         return categoria;
     }
 
-    private async Task<Competicao> ObterOuCriarCompeticaoPartidasAvulsasAsync(CancellationToken cancellationToken)
+    private async Task<Competicao> ObterOuCriarCompeticaoPartidasAvulsasAsync(
+        string? nomeGrupo,
+        CancellationToken cancellationToken)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var usuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta
             ? (Guid?)usuario.Id
             : null;
+        var nomeCompeticao = string.IsNullOrWhiteSpace(nomeGrupo)
+            ? NomeCompeticaoPartidasAvulsas
+            : nomeGrupo.Trim();
 
         var competicaoExistente = (await competicaoRepositorio.ListarAsync(cancellationToken))
             .FirstOrDefault(competicao =>
                 competicao.Tipo == TipoCompeticao.Grupo &&
                 competicao.UsuarioOrganizadorId == usuarioOrganizadorId &&
-                string.Equals(competicao.Nome, NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase));
+                string.Equals(competicao.Nome, nomeCompeticao, StringComparison.OrdinalIgnoreCase));
 
         if (competicaoExistente is not null)
         {
@@ -589,9 +600,11 @@ public class PartidaServico(
 
         var competicao = new Competicao
         {
-            Nome = NomeCompeticaoPartidasAvulsas,
+            Nome = nomeCompeticao,
             Tipo = TipoCompeticao.Grupo,
-            Descricao = "Criada automaticamente para lançamento de partidas sem contexto prévio.",
+            Descricao = string.Equals(nomeCompeticao, NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase)
+                ? "Criada automaticamente para lançamento de partidas sem contexto prévio."
+                : "Criada automaticamente a partir do registro rápido de partidas.",
             DataInicio = DateTime.UtcNow,
             UsuarioOrganizadorId = usuarioOrganizadorId,
             ContaRankingLiga = false,
@@ -1154,8 +1167,33 @@ public class PartidaServico(
     {
         if (competicao.Tipo == TipoCompeticao.Grupo)
         {
-            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicao.Id, cancellationToken);
-            return;
+            var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+            if (usuarioAtual.Perfil == PerfilUsuario.Administrador)
+            {
+                return;
+            }
+
+            if (usuarioAtual.Perfil == PerfilUsuario.Organizador)
+            {
+                if (competicao.UsuarioOrganizadorId != usuarioAtual.Id)
+                {
+                    throw new RegraNegocioException("O organizador só pode alterar competições vinculadas ao próprio usuário.");
+                }
+
+                return;
+            }
+
+            if (usuarioAtual.Perfil == PerfilUsuario.Atleta)
+            {
+                if (competicao.UsuarioOrganizadorId != usuarioAtual.Id)
+                {
+                    throw new RegraNegocioException("Você só pode alterar grupos vinculados ao próprio usuário.");
+                }
+
+                return;
+            }
+
+            throw new RegraNegocioException("Apenas administradores, organizadores ou o atleta dono do grupo podem gerenciar competições.");
         }
 
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);

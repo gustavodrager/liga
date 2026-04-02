@@ -289,6 +289,12 @@ export function PaginaMeuPerfil() {
         {!usuarioDetalhe?.atletaId && usuarioEhAtleta && (
           <p>Preencha os dados abaixo para se tornar um atleta cadastrado.</p>
         )}
+        {!usuarioDetalhe?.atletaId && !usuarioEhAtleta && (
+          <p>Se você já apareceu em partidas anteriores, o sistema tenta reaproveitar esse atleta ao concluir este cadastro.</p>
+        )}
+        {usuarioDetalhe?.atletaId && (
+          <p>Quando o usuário é vinculado a um atleta já existente, os pontos anteriores passam a aparecer como ativos no ranking automaticamente.</p>
+        )}
       </div>
 
       {usuarioDetalhe?.atletaId ? (

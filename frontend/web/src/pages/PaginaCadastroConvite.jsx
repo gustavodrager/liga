@@ -112,6 +112,9 @@ export function PaginaCadastroConvite() {
                   Este link é pessoal e só permite concluir o acesso com o e-mail acima.
                   Depois de definir sua senha, você entra automaticamente no app e segue para o seu perfil para completar os dados.
                 </p>
+                <p>
+                  Se você já tiver participado de partidas antes de criar o acesso, o app tentará reaproveitar esse atleta quando você concluir o perfil.
+                </p>
 
                 {convite.podeSerUsado && (
                   <form onSubmit={aoSubmeter} className="formulario-grid unico">

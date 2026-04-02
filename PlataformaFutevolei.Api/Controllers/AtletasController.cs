@@ -30,6 +30,14 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
         return Ok(atletas);
     }
 
+    [HttpGet("pendencias")]
+    [ProducesResponseType(typeof(IReadOnlyList<AtletaPendenciaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarPendencias(CancellationToken cancellationToken)
+    {
+        var pendencias = await atletaServico.ListarPendenciasAsync(cancellationToken);
+        return Ok(pendencias);
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(AtletaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
@@ -51,6 +59,17 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
     public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarAtletaDto dto, CancellationToken cancellationToken)
     {
         var atleta = await atletaServico.AtualizarAsync(id, dto, cancellationToken);
+        return Ok(atleta);
+    }
+
+    [HttpPut("pendencias/{id:guid}/email")]
+    [ProducesResponseType(typeof(AtletaPendenciaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> InformarEmailPendente(
+        Guid id,
+        [FromBody] AtualizarEmailAtletaPendenteDto dto,
+        CancellationToken cancellationToken)
+    {
+        var atleta = await atletaServico.InformarEmailPendenteAsync(id, dto, cancellationToken);
         return Ok(atleta);
     }
 

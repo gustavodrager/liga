@@ -527,6 +527,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("categoria_competicao_id");
 
+                    b.Property<Guid?>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
                     b.Property<Guid>("CompeticaoId")
                         .HasColumnType("uuid")
                         .HasColumnName("competicao_id");
@@ -715,6 +719,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasKey("Id");
 
                     b.HasIndex("CategoriaCompeticaoId");
+
+                    b.HasIndex("CriadoPorUsuarioId");
 
                     b.HasIndex("DuplaAId");
 
@@ -1033,6 +1039,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "CriadoPorUsuario")
+                        .WithMany()
+                        .HasForeignKey("CriadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.Dupla", "DuplaA")
                         .WithMany("PartidasComoDuplaA")
                         .HasForeignKey("DuplaAId")
@@ -1051,6 +1062,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CategoriaCompeticao");
+
+                    b.Navigation("CriadoPorUsuario");
 
                     b.Navigation("DuplaA");
 

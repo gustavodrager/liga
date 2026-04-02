@@ -5,6 +5,7 @@ namespace PlataformaFutevolei.Dominio.Entidades;
 public class Partida : EntidadeBase
 {
     public Guid CategoriaCompeticaoId { get; set; }
+    public Guid? CriadoPorUsuarioId { get; set; }
     public Guid DuplaAId { get; set; }
     public Guid DuplaBId { get; set; }
     public string? FaseCampeonato { get; set; }
@@ -16,6 +17,7 @@ public class Partida : EntidadeBase
     public string? Observacoes { get; set; }
 
     public CategoriaCompeticao CategoriaCompeticao { get; set; } = default!;
+    public Usuario? CriadoPorUsuario { get; set; }
     public Dupla DuplaA { get; set; } = default!;
     public Dupla DuplaB { get; set; } = default!;
     public Dupla? DuplaVencedora { get; set; }
