@@ -5,19 +5,21 @@ import { autenticacaoServico } from '../services/autenticacaoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import logoLiga from '../assets/logo-liga.svg';
 
+const EMAIL_LOGIN_DESENVOLVIMENTO = import.meta.env.DEV ? 'admin@teste.com' : '';
+
 export function PaginaLogin() {
   const [modo, setModo] = useState('login');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [email, setEmail] = useState(EMAIL_LOGIN_DESENVOLVIMENTO);
+  const [codigoLogin, setCodigoLogin] = useState('');
   const [codigoRedefinicao, setCodigoRedefinicao] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
-  const [codigoMvp, setCodigoMvp] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [carregandoCodigo, setCarregandoCodigo] = useState(false);
+  const [codigoLoginEnviado, setCodigoLoginEnviado] = useState(false);
 
-  const { entrar, token } = useAutenticacao();
+  const { solicitarCodigoLogin, entrarComCodigo, token } = useAutenticacao();
   const navegar = useNavigate();
   const localizacao = useLocation();
 
@@ -34,7 +36,8 @@ export function PaginaLogin() {
     setModo(novoModo);
     setErro('');
     setMensagem('');
-    setCodigoMvp('');
+    setCodigoLogin('');
+    setCodigoLoginEnviado(false);
     setCodigoRedefinicao('');
     setNovaSenha('');
   }
@@ -56,7 +59,7 @@ export function PaginaLogin() {
         setCodigoRedefinicao('');
         setNovaSenha('');
       } else {
-        await entrar(email, senha);
+        await entrarComCodigo(email, codigoLogin);
       }
 
       if (!emModoRecuperacao) {
@@ -72,14 +75,22 @@ export function PaginaLogin() {
   async function aoSolicitarCodigo() {
     setErro('');
     setMensagem('');
-    setCodigoMvp('');
     setCarregandoCodigo(true);
 
     try {
-      const resposta = await autenticacaoServico.solicitarRedefinicaoSenha({ email });
-      setMensagem(resposta.mensagem);
-      if (resposta.codigo) {
-        setCodigoMvp(resposta.codigo);
+      const resposta = emModoRecuperacao
+        ? await autenticacaoServico.solicitarRedefinicaoSenha({ email })
+        : await solicitarCodigoLogin(email);
+
+      if (!emModoRecuperacao && resposta.codigoDesenvolvimento) {
+        setCodigoLogin(resposta.codigoDesenvolvimento);
+        setMensagem(`${resposta.mensagem} Código de desenvolvimento: ${resposta.codigoDesenvolvimento}`);
+      } else {
+        setMensagem(resposta.mensagem);
+      }
+
+      if (!emModoRecuperacao) {
+        setCodigoLoginEnviado(true);
       }
     } catch (error) {
       setErro(extrairMensagemErro(error));
@@ -95,7 +106,7 @@ export function PaginaLogin() {
         <h1>Plataforma de Futevôlei</h1>
         <p>Registre partidas, atletas e competições em um fluxo simples.</p>
 
-        <p>O cadastro público foi desativado. Novas contas só podem ser criadas por convite. Se você recebeu um link de acesso, abra-o para criar sua senha e entrar pela primeira vez.</p>
+        <p>O cadastro público foi desativado. Novas contas só podem ser criadas por convite. Para entrar, informe seu e-mail e receba um código de acesso.</p>
 
         <form onSubmit={aoSubmeter} className="formulario-grid unico">
           <label>
@@ -110,16 +121,31 @@ export function PaginaLogin() {
           </label>
 
           {!emModoRecuperacao && (
-            <label>
-              Senha
-              <input
-                type="password"
-                value={senha}
-                onChange={(evento) => setSenha(evento.target.value)}
-                placeholder="******"
-                required
-              />
-            </label>
+            <>
+              <div className="acoes-formulario">
+                <button
+                  type="button"
+                  className="botao-secundario"
+                  onClick={aoSolicitarCodigo}
+                  disabled={carregandoCodigo || carregando}
+                >
+                  {carregandoCodigo
+                    ? 'Enviando código...'
+                    : (codigoLoginEnviado ? 'Reenviar código' : 'Enviar código')}
+                </button>
+              </div>
+
+              <label>
+                Código de acesso
+                <input
+                  type="text"
+                  value={codigoLogin}
+                  onChange={(evento) => setCodigoLogin(evento.target.value)}
+                  placeholder="Digite o código recebido por e-mail"
+                  required
+                />
+              </label>
+            </>
           )}
 
           {emModoRecuperacao && (
@@ -134,12 +160,6 @@ export function PaginaLogin() {
                   {carregandoCodigo ? 'Enviando código...' : 'Enviar código'}
                 </button>
               </div>
-
-              {codigoMvp && (
-                <p className="texto-aviso">
-                  Código de redefinição (MVP): <strong>{codigoMvp}</strong>
-                </p>
-              )}
 
               <label>
                 Código de redefinição
@@ -171,7 +191,7 @@ export function PaginaLogin() {
           <button type="submit" className="botao-primario" disabled={carregando}>
             {carregando
               ? (emModoRecuperacao ? 'Redefinindo...' : 'Entrando...')
-              : (emModoRecuperacao ? 'Redefinir senha' : 'Entrar')}
+              : (emModoRecuperacao ? 'Redefinir senha' : 'Entrar com código')}
           </button>
 
           {!emModoRecuperacao && (

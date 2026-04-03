@@ -20,6 +20,7 @@ public class ResendEmailConviteCadastroServico(
 
     public async Task<ResultadoEnvioEmailConviteDto> EnviarAsync(
         ConviteCadastro conviteCadastro,
+        string codigoConvite,
         CancellationToken cancellationToken = default)
     {
         var mensagemConfiguracaoIncompleta = configuracao.ObterMensagemConfiguracaoIncompleta();
@@ -32,12 +33,12 @@ public class ResendEmailConviteCadastroServico(
             return new ResultadoEnvioEmailConviteDto(false, false, mensagemConfiguracaoIncompleta, null);
         }
 
-        var linkConvite = ConteudoConviteCadastro.MontarLinkConvite(configuracao.ObterUrlAppBase(), conviteCadastro.Token);
-        var payload = CriarPayload(conviteCadastro, linkConvite);
+        var linkConvite = ConteudoConviteCadastro.MontarLinkConvite(configuracao.ObterUrlAppBase(), conviteCadastro.IdentificadorPublico);
+        var payload = CriarPayload(conviteCadastro, linkConvite, codigoConvite);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuracao.ApiKey.Trim());
-        request.Headers.Add("Idempotency-Key", $"convite-cadastro-{conviteCadastro.Id:N}");
+        request.Headers.Add("Idempotency-Key", $"convite-cadastro-{conviteCadastro.Id:N}-{conviteCadastro.DataAtualizacao.Ticks}");
         request.Content = JsonContent.Create(payload);
 
         try
@@ -70,11 +71,11 @@ public class ResendEmailConviteCadastroServico(
         }
     }
 
-    private object CriarPayload(ConviteCadastro conviteCadastro, string linkConvite)
+    private object CriarPayload(ConviteCadastro conviteCadastro, string linkConvite, string codigoConvite)
     {
         var assunto = ConteudoConviteCadastro.MontarAssuntoEmail();
-        var texto = ConteudoConviteCadastro.MontarTextoEmail(conviteCadastro, linkConvite);
-        var html = ConteudoConviteCadastro.MontarHtmlEmail(conviteCadastro, linkConvite);
+        var texto = ConteudoConviteCadastro.MontarTextoEmail(conviteCadastro, linkConvite, codigoConvite);
+        var html = ConteudoConviteCadastro.MontarHtmlEmail(conviteCadastro, linkConvite, codigoConvite);
 
         if (string.IsNullOrWhiteSpace(configuracao.ReplyTo))
         {

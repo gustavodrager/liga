@@ -24,7 +24,8 @@ public interface IConviteCadastroServico
 {
     Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<ConviteCadastroPublicoDto> ObterPublicoPorTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ConviteCadastroPublicoDto> ObterPublicoAsync(string identificadorOuToken, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> CriarAsync(CriarConviteCadastroDto dto, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default);
@@ -104,6 +105,28 @@ public interface IPartidaServico
     Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default);
     Task<PartidaDto> AtualizarAsync(Guid id, AtualizarPartidaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IPendenciaServico
+{
+    Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
+    Task<PendenciaUsuarioDto> AprovarPartidaAsync(
+        Guid pendenciaId,
+        ResponderPendenciaPartidaDto dto,
+        CancellationToken cancellationToken = default);
+    Task<PendenciaUsuarioDto> ContestarPartidaAsync(
+        Guid pendenciaId,
+        ResponderPendenciaPartidaDto dto,
+        CancellationToken cancellationToken = default);
+    Task<PendenciaUsuarioDto> CompletarContatoAsync(
+        Guid pendenciaId,
+        AtualizarContatoPendenciaDto dto,
+        CancellationToken cancellationToken = default);
+    Task InicializarFluxoPartidaAsync(
+        Partida partida,
+        Guid usuarioRegistradorId,
+        CancellationToken cancellationToken = default);
+    Task SincronizarAposVinculoAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
 }
 
 public interface IResolvedorAtletaDuplaServico

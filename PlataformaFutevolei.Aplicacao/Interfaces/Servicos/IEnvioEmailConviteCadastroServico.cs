@@ -7,5 +7,6 @@ public interface IEnvioEmailConviteCadastroServico
 {
     Task<ResultadoEnvioEmailConviteDto> EnviarAsync(
         ConviteCadastro conviteCadastro,
+        string codigoConvite,
         CancellationToken cancellationToken = default);
 }

@@ -7,5 +7,6 @@ public interface IEnvioWhatsappConviteCadastroServico
 {
     Task<ResultadoEnvioWhatsappConviteDto> EnviarAsync(
         ConviteCadastro conviteCadastro,
+        string codigoConvite,
         CancellationToken cancellationToken = default);
 }

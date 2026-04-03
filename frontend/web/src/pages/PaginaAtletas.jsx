@@ -5,6 +5,7 @@ import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarData, paraInputData } from '../utils/formatacao';
+import { nomeNivelAtleta, opcoesNivelAtleta } from '../utils/niveisAtleta';
 import { rolarParaElemento } from '../utils/rolagem';
 import { ehOrganizador } from '../utils/perfis';
 
@@ -15,7 +16,10 @@ const estadoInicial = {
   email: '',
   instagram: '',
   cpf: '',
+  cidade: '',
+  estado: '',
   cadastroPendente: false,
+  nivel: '',
   lado: '3',
   dataNascimento: ''
 };
@@ -83,7 +87,10 @@ export function PaginaAtletas() {
       email: atleta.email || '',
       instagram: atleta.instagram || '',
       cpf: atleta.cpf || '',
+      cidade: atleta.cidade || '',
+      estado: atleta.estado || '',
       cadastroPendente: Boolean(atleta.cadastroPendente),
+      nivel: atleta.nivel ? String(atleta.nivel) : '',
       lado: String(atleta.lado || 3),
       dataNascimento: paraInputData(atleta.dataNascimento)
     });
@@ -107,7 +114,10 @@ export function PaginaAtletas() {
       email: formulario.email.trim() || null,
       instagram: formulario.instagram.trim() || null,
       cpf: formulario.cpf.trim() || null,
+      cidade: formulario.cidade.trim() || null,
+      estado: formulario.estado.trim() || null,
       cadastroPendente: Boolean(formulario.cadastroPendente),
+      nivel: formulario.nivel ? Number(formulario.nivel) : null,
       lado: Number(formulario.lado),
       dataNascimento: formulario.dataNascimento || null
     };
@@ -209,6 +219,39 @@ export function PaginaAtletas() {
           />
         </label>
 
+        <label>
+          Nível
+          <select
+            value={formulario.nivel}
+            onChange={(evento) => atualizarCampo('nivel', evento.target.value)}
+          >
+            <option value="">Selecione</option>
+            {opcoesNivelAtleta.map((opcao) => (
+              <option key={opcao.valor} value={opcao.valor}>
+                {opcao.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Cidade
+          <input
+            type="text"
+            value={formulario.cidade}
+            onChange={(evento) => atualizarCampo('cidade', evento.target.value)}
+          />
+        </label>
+
+        <label>
+          Estado
+          <input
+            type="text"
+            value={formulario.estado}
+            onChange={(evento) => atualizarCampo('estado', evento.target.value)}
+          />
+        </label>
+
         <label className="campo-checkbox">
           <input
             type="checkbox"
@@ -270,6 +313,9 @@ export function PaginaAtletas() {
                 <p>E-mail: {atleta.email || '-'}</p>
                 <p>Instagram: {atleta.instagram || '-'}</p>
                 <p>CPF: {atleta.cpf || '-'}</p>
+                <p>Nível: {nomeNivelAtleta(atleta.nivel)}</p>
+                <p>Cidade: {atleta.cidade || '-'}</p>
+                <p>Estado: {atleta.estado || '-'}</p>
                 <p>Status: {atleta.cadastroPendente ? 'Cadastro pendente' : 'Cadastro completo'}</p>
                 <p>Lado: {lados.find((lado) => Number(lado.valor) === atleta.lado)?.rotulo || '-'}</p>
                 <p>Nascimento: {formatarData(atleta.dataNascimento)}</p>

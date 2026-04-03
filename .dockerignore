@@ -1,0 +1,15 @@
+.git
+.github
+.codex
+.tmp
+.vscode
+.DS_Store
+
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/build
+**/publish
+
+/.env

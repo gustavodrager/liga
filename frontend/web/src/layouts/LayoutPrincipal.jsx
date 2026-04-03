@@ -15,7 +15,8 @@ export function LayoutPrincipal() {
   const itensMenu = [
     { caminho: '/dashboard', nome: 'Dashboard', visivel: true },
     { caminho: '/meu-perfil', nome: 'Meu Perfil', visivel: true },
-    { caminho: '/pendencias-atletas', nome: 'Pendências', visivel: gestorCompeticao || atleta },
+    { caminho: '/perfil-usuario', nome: 'Perfil Usuário', visivel: administrador },
+    { caminho: '/pendencias', nome: 'Pendências', visivel: true },
     { caminho: '/atletas', nome: 'Atletas', visivel: gestorCompeticao },
     { caminho: '/duplas', nome: 'Duplas', visivel: gestorCompeticao },
     { caminho: '/ligas', nome: 'Ligas', visivel: administrador },

@@ -3,7 +3,8 @@ using PlataformaFutevolei.Dominio.Enums;
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record RegistrarUsuarioRequisicaoDto(
-    string TokenConvite,
+    string? ConviteIdPublico,
+    string? CodigoConvite,
     string Nome,
     string Email,
     string Senha
@@ -12,6 +13,20 @@ public record RegistrarUsuarioRequisicaoDto(
 public record LoginRequisicaoDto(
     string Email,
     string Senha
+);
+
+public record SolicitarCodigoLoginRequisicaoDto(
+    string Email
+);
+
+public record SolicitarCodigoLoginRespostaDto(
+    string Mensagem,
+    string? CodigoDesenvolvimento = null
+);
+
+public record LoginCodigoRequisicaoDto(
+    string Email,
+    string Codigo
 );
 
 public record EsqueciSenhaRequisicaoDto(
@@ -25,8 +40,15 @@ public record RedefinirSenhaRequisicaoDto(
 );
 
 public record SolicitarRedefinicaoSenhaRespostaDto(
-    string Mensagem,
-    string? Codigo
+    string Mensagem
+);
+
+public record ResultadoEnvioEmailCodigoLoginDto(
+    bool TentativaRealizada,
+    bool Enviado,
+    string? Erro,
+    string? IdentificadorMensagem,
+    string? CodigoDesenvolvimento = null
 );
 
 public record UsuarioLogadoDto(

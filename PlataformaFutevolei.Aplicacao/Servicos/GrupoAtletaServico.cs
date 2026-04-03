@@ -17,7 +17,8 @@ public class GrupoAtletaServico(
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IPendenciaServico pendenciaServico
 ) : IGrupoAtletaServico
 {
     public async Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
@@ -125,6 +126,7 @@ public class GrupoAtletaServico(
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await pendenciaServico.SincronizarAposVinculoAtletaAsync(grupoAtleta.AtletaId, cancellationToken);
 
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");

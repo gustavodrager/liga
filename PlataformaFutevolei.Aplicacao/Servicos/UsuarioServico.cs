@@ -13,7 +13,8 @@ public class UsuarioServico(
     IUsuarioRepositorio usuarioRepositorio,
     IAtletaRepositorio atletaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
-    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IPendenciaServico pendenciaServico
 ) : IUsuarioServico
 {
     public async Task<UsuarioLogadoDto> ObterMeuUsuarioAsync(CancellationToken cancellationToken = default)
@@ -92,6 +93,7 @@ public class UsuarioServico(
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await pendenciaServico.SincronizarAposVinculoAtletaAsync(atleta.Id, cancellationToken);
 
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
@@ -176,6 +178,10 @@ public class UsuarioServico(
 
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        if (dto.AtletaId.HasValue)
+        {
+            await pendenciaServico.SincronizarAposVinculoAtletaAsync(dto.AtletaId.Value, cancellationToken);
+        }
 
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");

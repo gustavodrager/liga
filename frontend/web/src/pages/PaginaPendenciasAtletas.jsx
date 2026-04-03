@@ -1,20 +1,67 @@
 import { useEffect, useMemo, useState } from 'react';
-import { atletasServico } from '../services/atletasServico';
+import { pendenciasServico } from '../services/pendenciasServico';
 import { extrairMensagemErro } from '../utils/erros';
+import { formatarDataHora } from '../utils/formatacao';
+
+const TIPOS_PENDENCIA = {
+  aprovarPartida: 1,
+  completarContato: 2
+};
+
+const STATUS_APROVACAO = {
+  pendenteDeVinculos: 1,
+  pendenteAprovacao: 2,
+  aprovada: 3,
+  contestada: 4
+};
 
 function criarEstadoEmails(lista) {
   const proximo = {};
   (lista || []).forEach((item) => {
-    proximo[item.atletaId] = item.email || '';
+    if (item.tipo === TIPOS_PENDENCIA.completarContato) {
+      proximo[item.id] = item.emailAtleta || '';
+    }
   });
   return proximo;
+}
+
+function obterTituloPendencia(tipo) {
+  return tipo === TIPOS_PENDENCIA.aprovarPartida
+    ? 'Aprovação de partida'
+    : 'Completar contato do atleta';
+}
+
+function obterRotuloStatusAprovacao(status) {
+  switch (status) {
+    case STATUS_APROVACAO.pendenteDeVinculos:
+      return 'Pendente de vínculos';
+    case STATUS_APROVACAO.pendenteAprovacao:
+      return 'Pendente de aprovação';
+    case STATUS_APROVACAO.aprovada:
+      return 'Aprovada';
+    case STATUS_APROVACAO.contestada:
+      return 'Contestada';
+    default:
+      return 'Sem status';
+  }
+}
+
+function obterClasseStatusAprovacao(status) {
+  switch (status) {
+    case STATUS_APROVACAO.aprovada:
+      return 'tag-status-sucesso';
+    case STATUS_APROVACAO.contestada:
+      return 'tag-status-erro';
+    default:
+      return 'tag-status-alerta';
+  }
 }
 
 export function PaginaPendenciasAtletas() {
   const [pendencias, setPendencias] = useState([]);
   const [emails, setEmails] = useState({});
   const [carregando, setCarregando] = useState(true);
-  const [salvandoId, setSalvandoId] = useState(null);
+  const [processandoId, setProcessandoId] = useState(null);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
 
@@ -23,7 +70,7 @@ export function PaginaPendenciasAtletas() {
   }, []);
 
   const totalSemContato = useMemo(
-    () => pendencias.filter((item) => !item.temEmail).length,
+    () => pendencias.filter((item) => item.tipo === TIPOS_PENDENCIA.completarContato && !item.emailAtleta).length,
     [pendencias]
   );
 
@@ -32,7 +79,7 @@ export function PaginaPendenciasAtletas() {
     setErro('');
 
     try {
-      const lista = await atletasServico.listarPendencias();
+      const lista = await pendenciasServico.listar();
       setPendencias(lista);
       setEmails(criarEstadoEmails(lista));
     } catch (error) {
@@ -43,32 +90,54 @@ export function PaginaPendenciasAtletas() {
     }
   }
 
-  async function salvarEmail(atletaId) {
+  async function salvarEmail(pendenciaId) {
     setErro('');
     setMensagem('');
-    setSalvandoId(atletaId);
+    setProcessandoId(pendenciaId);
 
     try {
-      await atletasServico.informarEmailPendente(atletaId, emails[atletaId] || '');
-      setMensagem('E-mail salvo. O atleta continua pendente até concluir o cadastro, mas já pode receber convite depois.');
+      await pendenciasServico.completarContato(pendenciaId, emails[pendenciaId] || '');
+      setMensagem('Contato atualizado. A pendência continua aberta até o atleta ficar apto a aprovar.');
       await carregarPendencias();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
-      setSalvandoId(null);
+      setProcessandoId(null);
+    }
+  }
+
+  async function responderPartida(pendenciaId, acao) {
+    setErro('');
+    setMensagem('');
+    setProcessandoId(pendenciaId);
+
+    try {
+      if (acao === 'contestar') {
+        await pendenciasServico.contestarPartida(pendenciaId);
+        setMensagem('Contestação registrada com sucesso.');
+      } else {
+        await pendenciasServico.aprovarPartida(pendenciaId);
+        setMensagem('Aprovação registrada com sucesso.');
+      }
+
+      await carregarPendencias();
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setProcessandoId(null);
     }
   }
 
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
-        <h2>Pendências de atletas</h2>
-        <p>Complete depois o e-mail dos atletas pendentes das partidas registradas por você.</p>
+        <h2>Pendências</h2>
+        <p>Centralize aqui as aprovações de partidas e a regularização de atletas que ainda não podem aprovar.</p>
         {!carregando && pendencias.length > 0 && (
           <p>
             {totalSemContato > 0
-              ? `${totalSemContato} atleta(s) ainda sem contato.`
-              : 'Todos os atletas pendentes já possuem e-mail informado.'}
+              ? `${totalSemContato} pendência(s) ainda sem e-mail informado.`
+              : 'Todas as pendências de contato já possuem e-mail informado.'}
           </p>
         )}
       </div>
@@ -79,46 +148,84 @@ export function PaginaPendenciasAtletas() {
       {carregando ? (
         <p>Carregando pendências...</p>
       ) : pendencias.length === 0 ? (
-        <p>Nenhuma pendência encontrada para as partidas registradas por você.</p>
+        <p>Nenhuma pendência encontrada para o seu usuário.</p>
       ) : (
         <div className="lista-cartoes">
           {pendencias.map((item) => (
-            <article key={item.atletaId} className="cartao-lista">
+            <article key={item.id} className="cartao-lista">
               <div className="linha-entre">
                 <div>
-                  <h3>{item.nomeAtleta}</h3>
-                  <p>Status: <strong>{item.statusPendencia}</strong></p>
-                  <p>Partidas relacionadas: {item.quantidadePartidas}</p>
-                  <p>Competições: {item.competicoes?.join(', ') || 'Sem competição definida'}</p>
+                  <h3>{obterTituloPendencia(item.tipo)}</h3>
+                  {item.nomeAtleta && <p>Atleta: {item.nomeAtleta}</p>}
+                  {item.partidaId && (
+                    <>
+                      <p>Partida: {item.nomeDuplaA} x {item.nomeDuplaB}</p>
+                      <p>Jogadores: {item.nomeDuplaAAtleta1}, {item.nomeDuplaAAtleta2}, {item.nomeDuplaBAtleta1}, {item.nomeDuplaBAtleta2}</p>
+                      <p>Placar: {item.placarDuplaA ?? '-'} x {item.placarDuplaB ?? '-'}</p>
+                      <p>Registrada por: {item.nomeCriadoPorUsuario || 'Não informado'}</p>
+                      <p>Data da partida: {formatarDataHora(item.dataPartida)}</p>
+                    </>
+                  )}
+                  <p>Criada em: {formatarDataHora(item.dataCriacao)}</p>
+                  {item.observacao && <p>Obs: {item.observacao}</p>}
                 </div>
-                <span className={`tag-status ${item.temEmail ? 'tag-status-alerta' : 'tag-status-erro'}`}>
-                  {item.temEmail ? 'Com contato' : 'Sem contato'}
-                </span>
+                {item.statusAprovacaoPartida ? (
+                  <span className={`tag-status ${obterClasseStatusAprovacao(item.statusAprovacaoPartida)}`}>
+                    {obterRotuloStatusAprovacao(item.statusAprovacaoPartida)}
+                  </span>
+                ) : (
+                  <span className={`tag-status ${item.emailAtleta ? 'tag-status-alerta' : 'tag-status-erro'}`}>
+                    {item.emailAtleta ? 'Com contato' : 'Sem contato'}
+                  </span>
+                )}
               </div>
 
-              <label className="campo-largo">
-                E-mail do atleta
-                <input
-                  type="email"
-                  value={emails[item.atletaId] || ''}
-                  onChange={(evento) => setEmails((anterior) => ({
-                    ...anterior,
-                    [item.atletaId]: evento.target.value
-                  }))}
-                  placeholder="atleta@exemplo.com"
-                />
-              </label>
+              {item.tipo === TIPOS_PENDENCIA.completarContato ? (
+                <>
+                  <label className="campo-largo">
+                    E-mail do atleta
+                    <input
+                      type="email"
+                      value={emails[item.id] || ''}
+                      onChange={(evento) => setEmails((anterior) => ({
+                        ...anterior,
+                        [item.id]: evento.target.value
+                      }))}
+                      placeholder="atleta@exemplo.com"
+                    />
+                  </label>
 
-              <div className="acoes-item">
-                <button
-                  type="button"
-                  className="botao-primario"
-                  onClick={() => salvarEmail(item.atletaId)}
-                  disabled={salvandoId === item.atletaId}
-                >
-                  {salvandoId === item.atletaId ? 'Salvando...' : 'Salvar e-mail'}
-                </button>
-              </div>
+                  <div className="acoes-item">
+                    <button
+                      type="button"
+                      className="botao-primario"
+                      onClick={() => salvarEmail(item.id)}
+                      disabled={processandoId === item.id}
+                    >
+                      {processandoId === item.id ? 'Salvando...' : 'Salvar e-mail'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="acoes-item">
+                  <button
+                    type="button"
+                    className="botao-primario"
+                    onClick={() => responderPartida(item.id, 'aprovar')}
+                    disabled={processandoId === item.id}
+                  >
+                    {processandoId === item.id ? 'Processando...' : 'Aprovar'}
+                  </button>
+                  <button
+                    type="button"
+                    className="botao-perigo"
+                    onClick={() => responderPartida(item.id, 'contestar')}
+                    disabled={processandoId === item.id}
+                  >
+                    {processandoId === item.id ? 'Processando...' : 'Contestar'}
+                  </button>
+                </div>
+              )}
             </article>
           ))}
         </div>

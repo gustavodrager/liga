@@ -8,7 +8,6 @@ using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using System.Security.Cryptography;
-
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class AutenticacaoServico(
@@ -18,9 +17,13 @@ public class AutenticacaoServico(
     ISenhaServico senhaServico,
     ITokenJwtServico tokenJwtServico,
     IUsuarioContexto usuarioContexto,
-    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IPendenciaServico pendenciaServico,
+    IEnvioEmailCodigoLoginServico envioEmailCodigoLoginServico
 ) : IAutenticacaoServico
 {
+    private static readonly TimeSpan ValidadeCodigoLogin = TimeSpan.FromMinutes(15);
+
     public async Task<RespostaAutenticacaoDto> RegistrarAsync(RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken = default)
     {
         ValidarRegistro(dto);
@@ -31,8 +34,7 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
         }
 
-        var tokenConvite = dto.TokenConvite.Trim();
-        var conviteCadastro = await conviteCadastroRepositorio.ObterPorTokenParaAtualizacaoAsync(tokenConvite, cancellationToken);
+        var conviteCadastro = await ObterConviteParaRegistroAsync(dto, cancellationToken);
         if (conviteCadastro is null)
         {
             throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
@@ -54,6 +56,10 @@ public class AutenticacaoServico(
 
         await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        if (usuario.AtletaId.HasValue)
+        {
+            await pendenciaServico.SincronizarAposVinculoAtletaAsync(usuario.AtletaId.Value, cancellationToken);
+        }
 
         var token = tokenJwtServico.GerarToken(usuario);
         return new RespostaAutenticacaoDto(token, usuario.ParaDto());
@@ -77,6 +83,85 @@ public class AutenticacaoServico(
         return new RespostaAutenticacaoDto(token, usuario.ParaDto());
     }
 
+    public async Task<SolicitarCodigoLoginRespostaDto> SolicitarCodigoLoginAsync(
+        SolicitarCodigoLoginRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
+        var mensagemPadrao = "Se o e-mail estiver cadastrado, um código de acesso foi enviado.";
+
+        if (usuario is null || !usuario.Ativo)
+        {
+            return new SolicitarCodigoLoginRespostaDto(mensagemPadrao);
+        }
+
+        var codigo = GerarCodigoLogin();
+        usuario.CodigoLoginHash = senhaServico.GerarHash(codigo);
+        usuario.CodigoLoginExpiraEmUtc = DateTime.UtcNow.Add(ValidadeCodigoLogin);
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        var resultado = await envioEmailCodigoLoginServico.EnviarAsync(usuario, codigo, cancellationToken);
+        if (!resultado.TentativaRealizada || !resultado.Enviado)
+        {
+            usuario.CodigoLoginHash = null;
+            usuario.CodigoLoginExpiraEmUtc = null;
+            usuario.AtualizarDataModificacao();
+            usuarioRepositorio.Atualizar(usuario);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+            throw new RegraNegocioException(
+                resultado.Erro ?? "Não foi possível enviar o código de acesso por e-mail.");
+        }
+
+        return new SolicitarCodigoLoginRespostaDto(mensagemPadrao, resultado.CodigoDesenvolvimento);
+    }
+
+    public async Task<RespostaAutenticacaoDto> LoginComCodigoAsync(
+        LoginCodigoRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Codigo))
+        {
+            throw new RegraNegocioException("Código de acesso é obrigatório.");
+        }
+
+        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
+        var codigoValido = usuario is not null
+            && usuario.Ativo
+            && !string.IsNullOrWhiteSpace(usuario.CodigoLoginHash)
+            && usuario.CodigoLoginExpiraEmUtc is not null
+            && usuario.CodigoLoginExpiraEmUtc.Value >= DateTime.UtcNow
+            && senhaServico.Verificar(dto.Codigo.Trim(), usuario.CodigoLoginHash);
+
+        if (!codigoValido)
+        {
+            throw new RegraNegocioException("Código de acesso inválido ou expirado.");
+        }
+
+        usuario!.CodigoLoginHash = null;
+        usuario.CodigoLoginExpiraEmUtc = null;
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        var token = tokenJwtServico.GerarToken(usuario);
+        return new RespostaAutenticacaoDto(token, usuario.ParaDto());
+    }
+
     public async Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
         EsqueciSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default)
@@ -92,7 +177,7 @@ public class AutenticacaoServico(
 
         if (usuario is null || !usuario.Ativo)
         {
-            return new SolicitarRedefinicaoSenhaRespostaDto(mensagemPadrao, null);
+            return new SolicitarRedefinicaoSenhaRespostaDto(mensagemPadrao);
         }
 
         var codigo = GerarCodigoRedefinicao();
@@ -102,7 +187,7 @@ public class AutenticacaoServico(
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        return new SolicitarRedefinicaoSenhaRespostaDto(mensagemPadrao, codigo);
+        return new SolicitarRedefinicaoSenhaRespostaDto(mensagemPadrao);
     }
 
     public async Task RedefinirSenhaAsync(RedefinirSenhaRequisicaoDto dto, CancellationToken cancellationToken = default)
@@ -162,9 +247,12 @@ public class AutenticacaoServico(
 
     private static void ValidarRegistro(RegistrarUsuarioRequisicaoDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.TokenConvite))
+        var usandoFluxoConvite = !string.IsNullOrWhiteSpace(dto.ConviteIdPublico)
+            && !string.IsNullOrWhiteSpace(dto.CodigoConvite);
+
+        if (!usandoFluxoConvite)
         {
-            throw new RegraNegocioException("Token do convite é obrigatório.");
+            throw new RegraNegocioException("Informe um convite válido para continuar o cadastro.");
         }
 
         if (string.IsNullOrWhiteSpace(dto.Nome))
@@ -181,6 +269,28 @@ public class AutenticacaoServico(
         {
             throw new RegraNegocioException("A senha deve ter no mínimo 6 caracteres.");
         }
+    }
+
+    private async Task<ConviteCadastro?> ObterConviteParaRegistroAsync(
+        RegistrarUsuarioRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var conviteCadastro = await conviteCadastroRepositorio.ObterPorIdentificadorPublicoParaAtualizacaoAsync(
+            dto.ConviteIdPublico!.Trim(),
+            cancellationToken);
+
+        if (conviteCadastro is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(conviteCadastro.CodigoConviteHash)
+            || conviteCadastro.CodigoConviteHash != CodigoConviteUtilitario.GerarHash(dto.CodigoConvite!))
+        {
+            throw new RegraNegocioException("Código do convite inválido.");
+        }
+
+        return conviteCadastro;
     }
 
     private static void ValidarConviteParaRegistro(ConviteCadastro conviteCadastro, string emailNormalizado)
@@ -223,8 +333,13 @@ public class AutenticacaoServico(
         usuario.AtletaId = atleta.Id;
         usuario.Atleta = atleta;
     }
-
     private static string GerarCodigoRedefinicao()
+    {
+        var numero = RandomNumberGenerator.GetInt32(100000, 1000000);
+        return numero.ToString();
+    }
+
+    private static string GerarCodigoLogin()
     {
         var numero = RandomNumberGenerator.GetInt32(100000, 1000000);
         return numero.ToString();

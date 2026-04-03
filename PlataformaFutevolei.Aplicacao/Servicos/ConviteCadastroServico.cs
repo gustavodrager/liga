@@ -16,6 +16,7 @@ public class ConviteCadastroServico(
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IGeracaoLinkConviteCadastroServico geracaoLinkConviteCadastroServico,
     IEnvioEmailConviteCadastroServico envioEmailConviteCadastroServico,
     IEnvioWhatsappConviteCadastroServico envioWhatsappConviteCadastroServico
 ) : IConviteCadastroServico
@@ -41,14 +42,33 @@ public class ConviteCadastroServico(
         return convite.ParaDto();
     }
 
-    public async Task<ConviteCadastroPublicoDto> ObterPublicoPorTokenAsync(string token, CancellationToken cancellationToken = default)
+    public async Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(token))
+        await GarantirAdministradorAsync(cancellationToken);
+        var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
+        if (convite is null)
         {
-            throw new RegraNegocioException("Token do convite é obrigatório.");
+            throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
         }
 
-        var convite = await conviteCadastroRepositorio.ObterPorTokenAsync(token.Trim(), cancellationToken);
+        ValidarConviteParaGeracaoAcesso(convite);
+        var codigoConvite = await RegenerarCodigoConviteAsync(convite, cancellationToken);
+
+        return new ConviteCadastroLinkAceiteDto(
+            geracaoLinkConviteCadastroServico.Gerar(convite),
+            codigoConvite);
+    }
+
+    public async Task<ConviteCadastroPublicoDto> ObterPublicoAsync(string identificadorPublico, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(identificadorPublico))
+        {
+            throw new RegraNegocioException("Identificador do convite é obrigatório.");
+        }
+
+        var convite = await conviteCadastroRepositorio.ObterPorIdentificadorPublicoAsync(
+            identificadorPublico.Trim(),
+            cancellationToken);
         if (convite is null)
         {
             throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
@@ -81,7 +101,7 @@ public class ConviteCadastroServico(
         {
             Email = emailNormalizado,
             Telefone = telefoneNormalizado,
-            Token = await GerarTokenUnicoAsync(cancellationToken),
+            IdentificadorPublico = await GerarIdentificadorPublicoUnicoAsync(cancellationToken),
             PerfilDestino = perfilDestino,
             ExpiraEmUtc = expiraEmUtc,
             Ativo = true,
@@ -235,15 +255,26 @@ public class ConviteCadastroServico(
         return expiracaoNormalizada;
     }
 
-    private async Task<string> GerarTokenUnicoAsync(CancellationToken cancellationToken)
+    private async Task<string> RegenerarCodigoConviteAsync(
+        ConviteCadastro conviteCadastro,
+        CancellationToken cancellationToken)
+    {
+        var codigoConvite = CodigoConviteUtilitario.GerarNovo();
+        conviteCadastro.DefinirCodigoConviteHash(CodigoConviteUtilitario.GerarHash(codigoConvite));
+        conviteCadastroRepositorio.Atualizar(conviteCadastro);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return codigoConvite;
+    }
+
+    private async Task<string> GerarIdentificadorPublicoUnicoAsync(CancellationToken cancellationToken)
     {
         while (true)
         {
-            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-            var existente = await conviteCadastroRepositorio.ObterPorTokenAsync(token, cancellationToken);
+            var identificadorPublico = Guid.NewGuid().ToString("N");
+            var existente = await conviteCadastroRepositorio.ObterPorIdentificadorPublicoAsync(identificadorPublico, cancellationToken);
             if (existente is null)
             {
-                return token;
+                return identificadorPublico;
             }
         }
     }
@@ -266,7 +297,8 @@ public class ConviteCadastroServico(
         bool falharQuandoNaoEnviado,
         CancellationToken cancellationToken)
     {
-        var resultado = await envioEmailConviteCadastroServico.EnviarAsync(conviteCadastro, cancellationToken);
+        var codigoConvite = await RegenerarCodigoConviteAsync(conviteCadastro, cancellationToken);
+        var resultado = await envioEmailConviteCadastroServico.EnviarAsync(conviteCadastro, codigoConvite, cancellationToken);
         if (!resultado.TentativaRealizada)
         {
             if (falharSemConfiguracao)
@@ -302,7 +334,8 @@ public class ConviteCadastroServico(
         bool falharQuandoNaoEnviado,
         CancellationToken cancellationToken)
     {
-        var resultado = await envioWhatsappConviteCadastroServico.EnviarAsync(conviteCadastro, cancellationToken);
+        var codigoConvite = await RegenerarCodigoConviteAsync(conviteCadastro, cancellationToken);
+        var resultado = await envioWhatsappConviteCadastroServico.EnviarAsync(conviteCadastro, codigoConvite, cancellationToken);
         if (!resultado.TentativaRealizada)
         {
             if (falharSemConfiguracao)
@@ -361,6 +394,25 @@ public class ConviteCadastroServico(
         if (conviteCadastro.EstaExpirado(agoraUtc))
         {
             throw new RegraNegocioException("Este convite está expirado e não pode ser reenviado.");
+        }
+    }
+
+    private static void ValidarConviteParaGeracaoAcesso(ConviteCadastro conviteCadastro)
+    {
+        var agoraUtc = DateTime.UtcNow;
+        if (!conviteCadastro.Ativo)
+        {
+            throw new RegraNegocioException("Este convite está cancelado e não pode gerar um novo código.");
+        }
+
+        if (conviteCadastro.FoiUtilizado())
+        {
+            throw new RegraNegocioException("Este convite já foi utilizado e não pode gerar um novo código.");
+        }
+
+        if (conviteCadastro.EstaExpirado(agoraUtc))
+        {
+            throw new RegraNegocioException("Este convite está expirado e não pode gerar um novo código.");
         }
     }
 

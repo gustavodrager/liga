@@ -20,6 +20,7 @@ public class TwilioWhatsappConviteCadastroServico(
 
     public async Task<ResultadoEnvioWhatsappConviteDto> EnviarAsync(
         ConviteCadastro conviteCadastro,
+        string codigoConvite,
         CancellationToken cancellationToken = default)
     {
         var mensagemConfiguracaoIncompleta = configuracao.ObterMensagemConfiguracaoIncompleta();
@@ -45,7 +46,7 @@ public class TwilioWhatsappConviteCadastroServico(
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var linkConvite = ConteudoConviteCadastro.MontarLinkConvite(configuracao.ObterUrlAppBase(), conviteCadastro.Token);
+        var linkConvite = ConteudoConviteCadastro.MontarLinkConvite(configuracao.ObterUrlAppBase(), conviteCadastro.IdentificadorPublico);
         var remetente = new PhoneNumber(FormatarEnderecoWhatsapp(configuracao.RemetenteWhatsapp));
         var destinatario = new PhoneNumber(FormatarEnderecoWhatsapp(telefoneDestino));
         var clienteTwilio = new TwilioRestClient(configuracao.AccountSid.Trim(), configuracao.AuthToken.Trim());
@@ -53,7 +54,7 @@ public class TwilioWhatsappConviteCadastroServico(
         {
             PathAccountSid = configuracao.AccountSid.Trim(),
             From = remetente,
-            Body = ConteudoConviteCadastro.MontarTextoWhatsapp(conviteCadastro, linkConvite)
+            Body = ConteudoConviteCadastro.MontarTextoWhatsapp(conviteCadastro, linkConvite, codigoConvite)
         };
 
         try

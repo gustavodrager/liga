@@ -12,10 +12,6 @@ const formularioInicial = {
   expiraEmUtc: ''
 };
 
-function montarLinkConvite(token) {
-  return `${window.location.origin}/cadastro/convite?token=${encodeURIComponent(token)}`;
-}
-
 function canalIncluiWhatsapp(canalEnvio) {
   return (canalEnvio || '').toLowerCase().includes('whatsapp');
 }
@@ -30,6 +26,8 @@ export function PaginaConvitesCadastro() {
   const [cancelandoId, setCancelandoId] = useState(null);
   const [enviandoEmailId, setEnviandoEmailId] = useState(null);
   const [enviandoWhatsappId, setEnviandoWhatsappId] = useState(null);
+  const [obtendoLinkId, setObtendoLinkId] = useState(null);
+  const [acessosAceite, setAcessosAceite] = useState({});
 
   useEffect(() => {
     carregarConvites();
@@ -83,15 +81,29 @@ export function PaginaConvitesCadastro() {
     }
   }
 
-  async function copiarTexto(texto, mensagemSucesso) {
+  async function obterECopiarLinkAceite(conviteId) {
     setErro('');
     setMensagem('');
+    setObtendoLinkId(conviteId);
 
     try {
-      await navigator.clipboard.writeText(texto);
-      setMensagem(mensagemSucesso);
-    } catch {
-      setErro('Não foi possível copiar automaticamente. Copie manualmente o conteúdo exibido.');
+      const resposta = await convitesCadastroServico.obterLinkAceite(conviteId);
+      setAcessosAceite((anterior) => ({
+        ...anterior,
+        [conviteId]: resposta
+      }));
+      const mensagemAcesso = `Link do convite: ${resposta.linkAceite}\nCódigo do convite: ${resposta.codigoConvite}`;
+
+      try {
+        await navigator.clipboard.writeText(mensagemAcesso);
+        setMensagem('Link e código do convite copiados com sucesso.');
+      } catch {
+        setErro('Não foi possível copiar automaticamente. Copie manualmente o link e o código gerados abaixo.');
+      }
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setObtendoLinkId(null);
     }
   }
 
@@ -152,7 +164,7 @@ export function PaginaConvitesCadastro() {
       <div className="cabecalho-pagina">
         <h2>Convites de Cadastro</h2>
         <p>Crie convites fechados para novos organizadores. Quando o canal incluir e-mail, o sistema tenta enviar automaticamente a mensagem com o link direto para criação de senha e primeiro acesso.</p>
-        <p>O WhatsApp usa o mesmo convite e o mesmo link de aceite. Falhas de envio não invalidam o token.</p>
+        <p>O WhatsApp usa o mesmo convite e o mesmo código do convite. Falhas de envio não invalidam o convite.</p>
       </div>
 
       <form className="formulario-grid" onSubmit={aoCriarConvite}>
@@ -227,9 +239,9 @@ export function PaginaConvitesCadastro() {
             <p>Nenhum convite cadastrado até o momento.</p>
           ) : (
             convites.map((convite) => {
-              const linkConvite = montarLinkConvite(convite.token);
               const podeCancelar = convite.ativo && convite.situacao !== 'Usado';
               const podeEnviar = convite.podeSerUsado;
+              const acessoAceite = acessosAceite[convite.id];
 
               return (
                 <article key={convite.id} className="cartao-lista">
@@ -250,7 +262,6 @@ export function PaginaConvitesCadastro() {
                     <p>Expira em: {formatarDataHora(convite.expiraEmUtc)}</p>
                     <p>Usado em: {convite.usadoEmUtc ? formatarDataHora(convite.usadoEmUtc) : 'Ainda não utilizado'}</p>
                     <p>Criado por: {convite.criadoPorUsuarioNome || 'Administrador'}</p>
-                    <p>Token: <code>{convite.token}</code></p>
                   </div>
 
                   <div className="acoes-formulario">
@@ -281,16 +292,14 @@ export function PaginaConvitesCadastro() {
                     <button
                       type="button"
                       className="botao-secundario"
-                      onClick={() => copiarTexto(linkConvite, 'Link do convite copiado com sucesso.')}
+                      onClick={() => obterECopiarLinkAceite(convite.id)}
+                      disabled={obtendoLinkId === convite.id}
                     >
-                      <ConteudoBotao icone="link" texto="Copiar link" somenteIconeNoMobile={false} />
-                    </button>
-                    <button
-                      type="button"
-                      className="botao-secundario"
-                      onClick={() => copiarTexto(convite.token, 'Token do convite copiado com sucesso.')}
-                    >
-                      <ConteudoBotao icone="copiar" texto="Copiar token" somenteIconeNoMobile={false} />
+                      <ConteudoBotao
+                        icone="link"
+                        texto={obtendoLinkId === convite.id ? 'Gerando acesso...' : 'Gerar e copiar link e código'}
+                        somenteIconeNoMobile={false}
+                      />
                     </button>
                     <button
                       type="button"
@@ -306,7 +315,12 @@ export function PaginaConvitesCadastro() {
                     </button>
                   </div>
 
-                  <p>Link pronto: <code>{linkConvite}</code></p>
+                  {acessoAceite ? (
+                    <>
+                      <p>Link gerado sob demanda: <code>{acessoAceite.linkAceite}</code></p>
+                      <p>Código do convite: <code>{acessoAceite.codigoConvite}</code></p>
+                    </>
+                  ) : null}
                 </article>
               );
             })

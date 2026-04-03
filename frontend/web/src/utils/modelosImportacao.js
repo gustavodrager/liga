@@ -25,13 +25,14 @@ export const modelosImportacao = [
     descricao: 'Modelo base para importar atletas.',
     observacoes: [
       'Lado: 1=Direito, 2=Esquerdo, 3=Ambos.',
+      'Nível: 1=Iniciante, 2=Intermediário, 3=Amador, 4=Profissional.',
       'CadastroPendente: true ou false.',
       'Data de nascimento no formato AAAA-MM-DD.',
       'Se CadastroPendente for false, informe ao menos um identificador.'
     ],
     csv: gerarCsv(
-      ['nome', 'apelido', 'telefone', 'email', 'instagram', 'cpf', 'cadastroPendente', 'lado', 'dataNascimento'],
-      ['Maria Silva', 'Mari', '(11)99999-8888', 'maria@email.com', '@mari.silva', '12345678900', false, 3, '1998-04-12']
+      ['nome', 'apelido', 'telefone', 'email', 'instagram', 'cpf', 'cidade', 'estado', 'cadastroPendente', 'nivel', 'lado', 'dataNascimento'],
+      ['Maria Silva', 'Mari', '(11)99999-8888', 'maria@email.com', '@mari.silva', '12345678900', 'Santos', 'SP', false, 2, 3, '1998-04-12']
     )
   },
   {

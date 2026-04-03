@@ -16,6 +16,7 @@ import { PaginaCategorias } from './pages/PaginaCategorias';
 import { PaginaInscricoesCampeonato } from './pages/PaginaInscricoesCampeonato';
 import { PaginaPartidas } from './pages/PaginaPartidas';
 import { PaginaMeuPerfil } from './pages/PaginaMeuPerfil';
+import { PaginaPerfilUsuario } from './pages/PaginaPerfilUsuario';
 import { PaginaPendenciasAtletas } from './pages/PaginaPendenciasAtletas';
 import { PaginaUsuarios } from './pages/PaginaUsuarios';
 import { PaginaConvitesCadastro } from './pages/PaginaConvitesCadastro';
@@ -27,6 +28,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<PaginaLogin />} />
       <Route path="/cadastro/convite" element={<PaginaCadastroConvite />} />
+      <Route path="/cadastro/convite/:identificadorPublico" element={<PaginaCadastroConvite />} />
 
       <Route
         element={
@@ -39,12 +41,24 @@ export default function App() {
         <Route path="/dashboard" element={<PaginaDashboard />} />
         <Route path="/meu-perfil" element={<PaginaMeuPerfil />} />
         <Route
-          path="/pendencias-atletas"
+          path="/perfil-usuario"
+          element={
+            <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador]}>
+              <PaginaPerfilUsuario />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/pendencias"
           element={
             <RotaProtegida perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador, PERFIS_USUARIO.atleta]}>
               <PaginaPendenciasAtletas />
             </RotaProtegida>
           }
+        />
+        <Route
+          path="/pendencias-atletas"
+          element={<Navigate to="/pendencias" replace />}
         />
         <Route
           path="/atletas"

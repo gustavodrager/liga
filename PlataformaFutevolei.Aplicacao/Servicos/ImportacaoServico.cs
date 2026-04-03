@@ -520,7 +520,10 @@ public class ImportacaoServico(
                         registro.ObterOpcional("email"),
                         registro.ObterOpcional("instagram"),
                         registro.ObterOpcional("cpf"),
+                        registro.ObterOpcional("cidade"),
+                        registro.ObterOpcional("estado"),
                         registro.ObterBoolOpcional("cadastropendente") ?? false,
+                        registro.ObterEnumOpcional<NivelAtleta>("nivel"),
                         registro.ObterEnumOpcional<LadoAtleta>("lado") ?? LadoAtleta.Ambos,
                         registro.ObterDateTimeOpcional("datanascimento")),
                     cancellationToken);

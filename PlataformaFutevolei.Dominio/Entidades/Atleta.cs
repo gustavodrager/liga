@@ -10,7 +10,10 @@ public class Atleta : EntidadeBase
     public string? Email { get; set; }
     public string? Instagram { get; set; }
     public string? Cpf { get; set; }
+    public string? Cidade { get; set; }
+    public string? Estado { get; set; }
     public bool CadastroPendente { get; set; }
+    public NivelAtleta? Nivel { get; set; }
     public LadoAtleta Lado { get; set; } = LadoAtleta.Ambos;
     public DateTime? DataNascimento { get; set; }
 

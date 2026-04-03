@@ -69,6 +69,13 @@ public static class InjecaoDependenciaInfraestrutura
             options.UrlApp = secaoEmailConvites["UrlApp"] ?? "http://localhost:5173";
         });
 
+        var secaoCodigoLoginDesenvolvimento = configuration.GetSection(ConfiguracaoCodigoLoginDesenvolvimento.Secao);
+        services.Configure<ConfiguracaoCodigoLoginDesenvolvimento>(options =>
+        {
+            options.HabilitarFallbackSemEmail =
+                secaoCodigoLoginDesenvolvimento.GetValue<bool>("HabilitarFallbackSemEmail");
+        });
+
         var secaoWhatsappConvites = configuration.GetSection(ConfiguracaoWhatsappConviteCadastro.Secao);
         services.Configure<ConfiguracaoWhatsappConviteCadastro>(options =>
         {
@@ -93,9 +100,18 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<ICategoriaCompeticaoRepositorio, CategoriaCompeticaoRepositorio>();
         services.AddScoped<IInscricaoCampeonatoRepositorio, InscricaoCampeonatoRepositorio>();
         services.AddScoped<IPartidaRepositorio, PartidaRepositorio>();
+        services.AddScoped<IPartidaAprovacaoRepositorio, PartidaAprovacaoRepositorio>();
+        services.AddScoped<IPendenciaUsuarioRepositorio, PendenciaUsuarioRepositorio>();
 
         services.AddScoped<ISenhaServico, SenhaServicoBcrypt>();
         services.AddScoped<ITokenJwtServico, TokenJwtServico>();
+        services.AddScoped<IGeracaoLinkConviteCadastroServico, GeracaoLinkConviteCadastroServico>();
+        services.AddHttpClient<IEnvioEmailCodigoLoginServico, ResendEmailCodigoLoginServico>((serviceProvider, client) =>
+        {
+            var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailConviteCadastro>>().Value;
+            client.BaseAddress = new Uri($"{configuracaoEmail.ObterBaseUrl()}/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
         services.AddHttpClient<IEnvioEmailConviteCadastroServico, ResendEmailConviteCadastroServico>((serviceProvider, client) =>
         {
             var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailConviteCadastro>>().Value;

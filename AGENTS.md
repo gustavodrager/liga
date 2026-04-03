@@ -48,6 +48,8 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Competição com liga vinculada conta automaticamente no ranking da liga
 - Ranking da liga soma os pontos de todas as competições da liga; ranking da competição continua separado por categoria
 - Ranking não deve ter estrutura paralela para atletas pendentes; os mesmos pontos continuam valendo e o estado vem do vínculo do atleta com usuário e contato
+- Resultado de partida só vale oficialmente no ranking quando `StatusAprovacao` estiver `Aprovada`; partidas legadas devem permanecer válidas por compatibilidade
+- Jogador sem usuário vinculado não bloqueia o lançamento da partida, mas mantém a partida em `PendenteDeVinculos` até regularização e criação da aprovação correspondente
 - Modelos de importação CSV existentes devem refletir os campos reais da API e reaproveitar os serviços já existentes no backend
 - O usuário que registra partida com atletas pendentes pode completar depois o e-mail desses atletas em uma área de pendências; isso não bloqueia o registro
 - Ao vincular usuário a atleta já existente, evitar duplicidade e ativar automaticamente os pontos já existentes no ranking

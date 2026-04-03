@@ -108,6 +108,11 @@ export function PaginaFormatosCampeonato() {
   }
 
   function iniciarEdicao(formato) {
+    if (formato.ehPadrao) {
+      setErro('Formatos padrão não podem ser alterados.');
+      return;
+    }
+
     setFormatoEdicaoId(formato.id);
     setFormulario({
       nome: formato.nome,
@@ -175,6 +180,12 @@ export function PaginaFormatosCampeonato() {
   }
 
   async function removerFormato(id) {
+    const formato = formatos.find((item) => item.id === id);
+    if (formato?.ehPadrao) {
+      setErro('Formatos padrão não podem ser excluídos.');
+      return;
+    }
+
     if (!window.confirm('Deseja remover este formato de campeonato?')) {
       return;
     }
@@ -399,7 +410,7 @@ export function PaginaFormatosCampeonato() {
           {formatos.map((formato) => (
             <article key={formato.id} className="cartao-lista">
               <div>
-                <h3>{formato.nome}</h3>
+                <h3>{formato.nome}{formato.ehPadrao ? ' (Padrão)' : ''}</h3>
                 <p>Tipo: {descreverTipo(formato.tipoFormato)}</p>
                 <p>Status: {formato.ativo ? 'Ativo' : 'Inativo'}</p>
                 <p>Descrição: {formato.descricao || '-'}</p>
@@ -434,10 +445,20 @@ export function PaginaFormatosCampeonato() {
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(formato)}>
+                <button
+                  type="button"
+                  className="botao-secundario"
+                  onClick={() => iniciarEdicao(formato)}
+                  disabled={formato.ehPadrao}
+                >
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
-                <button type="button" className="botao-perigo" onClick={() => removerFormato(formato.id)}>
+                <button
+                  type="button"
+                  className="botao-perigo"
+                  onClick={() => removerFormato(formato.id)}
+                  disabled={formato.ehPadrao}
+                >
                   <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>
               </div>

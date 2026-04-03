@@ -15,6 +15,9 @@ obj/
 # Logs
 *.log
 
+# Local environment
+/.env
+
 # OS files
 .DS_Store
 Thumbs.db

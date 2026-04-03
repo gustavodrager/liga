@@ -47,6 +47,23 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarComPendenteDeVinculoPorAtletaAsync(
+        Guid atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await CriarConsultaDetalhadaPartidas(usarNoTracking: false)
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.PendenteDeVinculos)
+            .Where(x =>
+                x.DuplaA.Atleta1Id == atletaId ||
+                x.DuplaA.Atleta2Id == atletaId ||
+                x.DuplaB.Atleta1Id == atletaId ||
+                x.DuplaB.Atleta2Id == atletaId)
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(
         Guid usuarioId,
         Guid atletaId,
@@ -87,6 +104,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
                 .ThenInclude(x => x.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
             .Where(x => x.CategoriaCompeticao.Competicao.LigaId == ligaId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -112,6 +130,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
                 .ThenInclude(x => x.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
             .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -124,7 +143,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         var consulta = dbContext.Partidas
             .AsNoTracking()
-            .Where(x => x.Status == StatusPartida.Encerrada);
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada);
 
         if (atletaId.HasValue)
         {

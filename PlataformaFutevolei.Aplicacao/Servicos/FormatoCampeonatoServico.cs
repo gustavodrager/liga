@@ -3,6 +3,7 @@ using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -15,12 +16,18 @@ public class FormatoCampeonatoServico(
 {
     public async Task<IReadOnlyList<FormatoCampeonatoDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
+        await GarantirFormatosPadraoAsync(cancellationToken);
         var formatos = await formatoRepositorio.ListarAsync(cancellationToken);
-        return formatos.Select(x => x.ParaDto()).ToList();
+        return formatos
+            .Select(x => x.ParaDto())
+            .OrderByDescending(x => x.EhPadrao)
+            .ThenBy(x => x.Nome)
+            .ToList();
     }
 
     public async Task<FormatoCampeonatoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await GarantirFormatosPadraoAsync(cancellationToken);
         var formato = await formatoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (formato is null)
         {
@@ -32,6 +39,7 @@ public class FormatoCampeonatoServico(
 
     public async Task<FormatoCampeonatoDto> CriarAsync(CriarFormatoCampeonatoDto dto, CancellationToken cancellationToken = default)
     {
+        await GarantirFormatosPadraoAsync(cancellationToken);
         var nome = await ValidarNomeAsync(dto.Nome, null, cancellationToken);
         var campos = ValidarCampos(dto.TipoFormato, dto.QuantidadeGrupos, dto.ClassificadosPorGrupo, dto.GeraMataMataAposGrupos,
             dto.TurnoEVolta, dto.TipoChave, dto.QuantidadeDerrotasParaEliminacao, dto.PermiteCabecaDeChave, dto.DisputaTerceiroLugar);
@@ -59,10 +67,16 @@ public class FormatoCampeonatoServico(
 
     public async Task<FormatoCampeonatoDto> AtualizarAsync(Guid id, AtualizarFormatoCampeonatoDto dto, CancellationToken cancellationToken = default)
     {
+        await GarantirFormatosPadraoAsync(cancellationToken);
         var formato = await formatoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (formato is null)
         {
             throw new EntidadeNaoEncontradaException("Formato de campeonato não encontrado.");
+        }
+
+        if (FormatosCampeonatoPadrao.EhPadrao(formato.Nome))
+        {
+            throw new RegraNegocioException("Formatos padrão não podem ser alterados.");
         }
 
         var nome = await ValidarNomeAsync(dto.Nome, id, cancellationToken);
@@ -90,14 +104,57 @@ public class FormatoCampeonatoServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await GarantirFormatosPadraoAsync(cancellationToken);
         var formato = await formatoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (formato is null)
         {
             throw new EntidadeNaoEncontradaException("Formato de campeonato não encontrado.");
         }
 
+        if (FormatosCampeonatoPadrao.EhPadrao(formato.Nome))
+        {
+            throw new RegraNegocioException("Formatos padrão não podem ser excluídos.");
+        }
+
         formatoRepositorio.Remover(formato);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private async Task GarantirFormatosPadraoAsync(CancellationToken cancellationToken)
+    {
+        var adicionouFormato = false;
+
+        foreach (var definicao in FormatosCampeonatoPadrao.Lista)
+        {
+            var formatoExistente = await formatoRepositorio.ObterPorNomeAsync(definicao.Nome, cancellationToken);
+            if (formatoExistente is not null)
+            {
+                continue;
+            }
+
+            await formatoRepositorio.AdicionarAsync(new FormatoCampeonato
+            {
+                Nome = definicao.Nome,
+                Descricao = definicao.Descricao,
+                TipoFormato = definicao.TipoFormato,
+                Ativo = definicao.Ativo,
+                QuantidadeGrupos = definicao.QuantidadeGrupos,
+                ClassificadosPorGrupo = definicao.ClassificadosPorGrupo,
+                GeraMataMataAposGrupos = definicao.GeraMataMataAposGrupos,
+                TurnoEVolta = definicao.TurnoEVolta,
+                TipoChave = definicao.TipoChave,
+                QuantidadeDerrotasParaEliminacao = definicao.QuantidadeDerrotasParaEliminacao,
+                PermiteCabecaDeChave = definicao.PermiteCabecaDeChave,
+                DisputaTerceiroLugar = definicao.DisputaTerceiroLugar
+            }, cancellationToken);
+
+            adicionouFormato = true;
+        }
+
+        if (adicionouFormato)
+        {
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
     }
 
     private async Task<string> ValidarNomeAsync(string nome, Guid? idAtual, CancellationToken cancellationToken)

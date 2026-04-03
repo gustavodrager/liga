@@ -6,7 +6,8 @@ public class ConviteCadastro : EntidadeBase
 {
     public string Email { get; set; } = string.Empty;
     public string? Telefone { get; set; }
-    public string Token { get; set; } = string.Empty;
+    public string IdentificadorPublico { get; set; } = string.Empty;
+    public string? CodigoConviteHash { get; set; }
     public PerfilUsuario PerfilDestino { get; set; } = PerfilUsuario.Organizador;
     public DateTime ExpiraEmUtc { get; set; }
     public DateTime? UsadoEmUtc { get; set; }
@@ -76,6 +77,12 @@ public class ConviteCadastro : EntidadeBase
     public void Desativar()
     {
         Ativo = false;
+        AtualizarDataModificacao();
+    }
+
+    public void DefinirCodigoConviteHash(string codigoConviteHash)
+    {
+        CodigoConviteHash = codigoConviteHash;
         AtualizarDataModificacao();
     }
 

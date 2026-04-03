@@ -119,6 +119,32 @@ function obterNomeStatus(status) {
   return opcoesStatusPartida.find((opcao) => Number(opcao.valor) === status)?.rotulo || 'Desconhecido';
 }
 
+function obterNomeStatusAprovacao(status) {
+  switch (status) {
+    case 1:
+      return 'Pendente de vínculos';
+    case 2:
+      return 'Pendente de aprovação';
+    case 3:
+      return 'Aprovada';
+    case 4:
+      return 'Contestada';
+    default:
+      return 'Sem status';
+  }
+}
+
+function obterClasseStatusAprovacao(status) {
+  switch (status) {
+    case 3:
+      return 'tag-status-sucesso';
+    case 4:
+      return 'tag-status-erro';
+    default:
+      return 'tag-status-alerta';
+  }
+}
+
 function extrairNumeroRodada(fase) {
   const correspondencia = (fase || '').match(/rodada\s+(\d+)/i);
   return correspondencia ? Number(correspondencia[1]) : 0;
@@ -1463,25 +1489,6 @@ export function PaginaPartidas() {
     }));
   }
 
-  function renderizarResumoSelecaoAtletaGrupo(
-    campoBase,
-    textoQuandoVinculado = 'Atleta existente selecionado. A API vai reaproveitar esse cadastro neste lançamento.',
-    className = 'campo-largo'
-  ) {
-    const campoId = `${campoBase}Id`;
-    const campoNome = `${campoBase}Nome`;
-
-    if (!formulario[campoId]) {
-      return null;
-    }
-
-    return (
-      <p className={className}>
-        <strong>{formulario[campoNome]}</strong>. {textoQuandoVinculado}
-      </p>
-    );
-  }
-
   function renderizarSugestoesAtletaGrupo(campoBase, className = 'campo-largo lista-sugestoes') {
     const sugestoes = sugestoesAtletasGrupo[campoBase];
     if (!sugestoes?.length) {
@@ -1955,7 +1962,6 @@ export function PaginaPartidas() {
           {coluna.partidas.length === 0 && ehTituloFinais(coluna.titulo) && (
             <div className="chave-jogos-centro-vazio">
               <strong>Próximas fases</strong>
-              <p>Final e demais jogos decisivos aparecem aqui conforme os vencedores avançam nas rodadas anteriores.</p>
             </div>
           )}
           {coluna.partidas.map((partida, indicePartida) => {
@@ -2092,14 +2098,9 @@ export function PaginaPartidas() {
 
     return (
       <section ref={tabelaJogosRef} className="cartao grupos-visualizacao">
-        <div className="grupos-visualizacao-cabecalho">
+      <div className="grupos-visualizacao-cabecalho">
           <div>
             <h3>{exibirFormatoCopa ? 'Fase de grupos' : 'Jogos por rodada'}</h3>
-            <p>
-              {exibirFormatoCopa
-                ? 'Os jogos aparecem separados por grupo e, quando houver classificação, a fase eliminatória fica organizada logo abaixo.'
-                : 'Os confrontos do grupo aparecem organizados por rodada para facilitar a leitura do andamento da competição.'}
-            </p>
           </div>
           <div className="chave-visualizacao-resumo">
             <div className="chave-resumo-item">
@@ -2230,46 +2231,6 @@ export function PaginaPartidas() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Partidas</h2>
-        <p>
-          {podeEditarPartidas
-            ? usuarioAtleta
-              ? 'Escolha um grupo criado por você, informe parceiro e adversários na própria tela e registre a partida sem cadastros prévios.'
-              : grupoSelecionado
-                ? 'Informe ou selecione os atletas na própria tela. O sistema reaproveita ou cria atletas e duplas no mesmo fluxo.'
-                : 'Você pode usar duplas inscritas ou informar os atletas na própria tela. O sistema reaproveita ou cria a dupla no fluxo e valida a inscrição da categoria no backend.'
-            : 'Acompanhe os jogos sorteados e os resultados de cada categoria.'}
-        </p>
-        {podeEditarPartidas && (
-          <p>Sem contexto prévio, você pode registrar rápido: informe um nome de grupo opcional e a API reaproveita ou cria a estrutura mínima no backend.</p>
-        )}
-        {competicaoSelecionada && (
-          <p>
-            Regra atual: mínimo {competicaoSelecionada.pontosMinimosPartidaEfetivo} pontos, diferença mínima{' '}
-            {competicaoSelecionada.diferencaMinimaPartidaEfetiva} e{' '}
-            {competicaoSelecionada.permiteEmpateEfetivo ? 'empate permitido' : 'sem empate'}.
-            Pontuação: vitória {competicaoSelecionada.pontosVitoriaEfetivo} e derrota{' '}
-            {competicaoSelecionada.pontosDerrotaEfetivo}. Participação: {competicaoSelecionada.pontosParticipacaoEfetivo}.
-          </p>
-        )}
-        {categoriaSelecionada?.nomeFormatoCampeonatoEfetivo && (
-          <p>Formato da categoria: {categoriaSelecionada.nomeFormatoCampeonatoEfetivo}.</p>
-        )}
-        {categoriaSelecionada?.nomeFormatoCampeonatoEfetivo?.toLowerCase().includes('dupla') && competicaoSelecionada?.tipo !== 3 && (
-          <p>Final reset: {competicaoSelecionada?.possuiFinalReset ? 'habilitada' : 'desabilitada'}.</p>
-        )}
-        {competicaoComInscricoes && (
-          <p>Para campeonatos e eventos, você pode usar as duplas inscritas da categoria ou informar os atletas na própria tela. A dupla precisa estar inscrita na categoria para a partida ser salva.</p>
-        )}
-        {grupoSelecionado && (
-          <p>Para grupos, a categoria é opcional. Se você não escolher nenhuma, o jogo será lançado sem categoria informada.</p>
-        )}
-        {competicaoComInscricoes && categoriaSelecionada && partidas.length > 0 && (
-          <p>
-            {tabelaJogosAprovada
-              ? `Sorteio aprovado em ${formatarDataHora(categoriaSelecionada.tabelaJogosAprovadaEmUtc)}.`
-              : 'A categoria já possui tabela sorteada, mas os resultados só podem ser lançados após a aprovação do sorteio.'}
-          </p>
-        )}
       </div>
 
       <div className="formulario-grid">
@@ -2306,12 +2267,6 @@ export function PaginaPartidas() {
               ))}
             </select>
           </label>
-
-          {grupoSelecionado && (
-            <p className="campo-largo">
-              Você pode registrar a partida sem cadastro prévio. Deixe a categoria em branco se quiser lançar o jogo direto no grupo.
-            </p>
-          )}
 
         {podeSortearPartidas && (
           <div className="acoes-item acoes-item-compactas">
@@ -2360,15 +2315,6 @@ export function PaginaPartidas() {
         <div className="cartao barra-visualizacao-partidas">
           <div>
             <strong>Modo de visualização</strong>
-            <p>
-              {podeVisualizarGrupo
-                ? 'Use a visão de grupo para acompanhar os jogos por rodada ou volte para a lista detalhada.'
-                : exibirChaveVisual
-                  ? 'Use a tabela em chave para acompanhar o avanço dos confrontos ou volte para a lista detalhada.'
-                  : categoriaSelecionada?.nomeFormatoCampeonatoEfetivo
-                    ? `Esta categoria está no formato ${categoriaSelecionada.nomeFormatoCampeonatoEfetivo}. A visão de grupo só aparece quando o formato efetivo é Fase de grupos.`
-                    : 'Esta categoria ainda não está em fase de chave. A lista detalhada segue como leitura principal.'}
-            </p>
           </div>
 
           <div className="acoes-item acoes-item-compactas">
@@ -2401,35 +2347,8 @@ export function PaginaPartidas() {
         </div>
       )}
 
-      {usuarioAtleta && competicoesDisponiveis.length === 0 && !carregando && (
-        <p>Você ainda não criou nenhum grupo. Se preferir, já pode registrar a primeira partida por aqui informando um nome de grupo opcional.</p>
-      )}
-
       {podeExibirFormulario && (
         <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
-          {grupoSelecionado && (
-            <p className="campo-largo">
-              Digite nomes completos ou escolha atletas já existentes nas sugestões. Ao salvar, a API reaproveita ou cria atletas, monta as duplas e registra a partida no mesmo fluxo.
-            </p>
-          )}
-          {!competicaoId && (
-            <p className="campo-largo">
-              Você pode salvar sem competição prévia. Se informar um nome de grupo, o backend tenta reaproveitar um grupo existente seu ou cria um novo.
-            </p>
-          )}
-          {!grupoSelecionado && competicaoId && !formulario.categoriaCompeticaoId && (
-            <p className="campo-largo">
-              Você já pode preencher os dados da partida. Selecione a categoria antes de salvar.
-            </p>
-          )}
-          {competicaoComInscricoes && partidaEdicaoId && (
-            <p className="campo-largo">
-              {tabelaJogosAprovada
-                ? 'Ajuste as duplas do confronto quando necessário e preencha o resultado da partida sorteada.'
-                : 'Ajuste as duplas e a data do confronto quando necessário. O resultado só pode ser lançado depois da aprovação do sorteio.'}
-            </p>
-          )}
-
           {!competicaoId && (
             <label className="campo-largo">
               Nome do grupo opcional
@@ -2463,12 +2382,6 @@ export function PaginaPartidas() {
 
           {usandoCadastroPorAtletas ? (
             <>
-              {competicaoComInscricoes && !grupoSelecionado && (
-                <p className="campo-largo">
-                  Você pode informar os atletas sem ter a dupla pré-cadastrada. A API reaproveita ou cria a dupla no fluxo, mas a dupla ainda precisa estar inscrita na categoria para a partida ser salva.
-                </p>
-              )}
-
               <section className="campo-largo secao-dupla-partida">
                 <div className="secao-dupla-partida-cabecalho">
                   <strong>Dupla1</strong>
@@ -2488,14 +2401,6 @@ export function PaginaPartidas() {
                     />
                   </label>
 
-                  {renderizarResumoSelecaoAtletaGrupo(
-                    'duplaAAtleta1',
-                    campoBaseAtletaUsuarioPrimeiraDupla === 'duplaAAtleta1' && temAtletaUsuarioVinculado
-                      ? `Este é o atleta vinculado ao seu usuário e ele foi posicionado como ${rotuloCampoAtletaUsuarioPrimeiraDupla.toLowerCase()} da sua primeira dupla.`
-                      : 'Atleta existente selecionado. A API vai reaproveitar esse cadastro neste lançamento.',
-                    'secao-dupla-partida-info'
-                  )}
-
                   {!(bloquearCampoAtletaUsuarioGrupo && campoBaseAtletaUsuarioPrimeiraDupla === 'duplaAAtleta1') &&
                     renderizarSugestoesAtletaGrupo('duplaAAtleta1', 'lista-sugestoes secao-dupla-partida-info')}
 
@@ -2511,14 +2416,6 @@ export function PaginaPartidas() {
                       required
                     />
                   </label>
-
-                  {renderizarResumoSelecaoAtletaGrupo(
-                    'duplaAAtleta2',
-                    campoBaseAtletaUsuarioPrimeiraDupla === 'duplaAAtleta2' && temAtletaUsuarioVinculado
-                      ? `Este é o atleta vinculado ao seu usuário e ele foi posicionado como ${rotuloCampoAtletaUsuarioPrimeiraDupla.toLowerCase()} da sua primeira dupla.`
-                      : undefined,
-                    'secao-dupla-partida-info'
-                  )}
 
                   {!(bloquearCampoAtletaUsuarioGrupo && campoBaseAtletaUsuarioPrimeiraDupla === 'duplaAAtleta2') &&
                     renderizarSugestoesAtletaGrupo('duplaAAtleta2', 'lista-sugestoes secao-dupla-partida-info')}
@@ -2554,8 +2451,6 @@ export function PaginaPartidas() {
                     />
                   </label>
 
-                  {renderizarResumoSelecaoAtletaGrupo('duplaBAtleta1', undefined, 'secao-dupla-partida-info')}
-
                   {renderizarSugestoesAtletaGrupo('duplaBAtleta1', 'lista-sugestoes secao-dupla-partida-info')}
 
                   <label>
@@ -2568,8 +2463,6 @@ export function PaginaPartidas() {
                       required
                     />
                   </label>
-
-                  {renderizarResumoSelecaoAtletaGrupo('duplaBAtleta2', undefined, 'secao-dupla-partida-info')}
 
                   {renderizarSugestoesAtletaGrupo('duplaBAtleta2', 'lista-sugestoes secao-dupla-partida-info')}
 
@@ -2722,8 +2615,8 @@ export function PaginaPartidas() {
             {feedbackPendencias.map((item) => item.nomeAtleta).join(', ')} ainda não possuem e-mail.
             Você pode concluir isso depois sem bloquear o registro da partida.
           </p>
-          <Link className="link-acao" to="/pendencias-atletas">
-            Ir para pendências de atletas
+          <Link className="link-acao" to="/pendencias">
+            Ir para pendências
           </Link>
         </div>
       )}
@@ -2731,45 +2624,10 @@ export function PaginaPartidas() {
       {erro && <p className="texto-erro">{erro}</p>}
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
 
-      {competicaoComInscricoes && formulario.categoriaCompeticaoId && duplasDisponiveis.length === 0 && (
-        <p>Nenhuma dupla inscrita nesta categoria da competição. Você ainda pode informar os atletas na própria tela para reaproveitar ou montar a dupla no fluxo.</p>
-      )}
-
-      {competicaoComInscricoes &&
-        formulario.categoriaCompeticaoId &&
-        duplasDisponiveis.length > 0 &&
-        duplasDisponiveis.length < 4 && (
-          <p>Cadastre ao menos quatro duplas inscritas nesta categoria para liberar o sorteio dos jogos.</p>
-        )}
-
-      {competicaoComInscricoes && podeEditarPartidas && !partidaEdicaoId && (
-        <p>
-          {tabelaJogosAprovada
-            ? 'Os jogos de campeonato e evento são gerados por sorteio. Com o sorteio aprovado, você pode editar o confronto e preencher o resultado.'
-            : 'Os jogos de campeonato e evento são gerados por sorteio. Antes da aprovação, você pode ajustar os confrontos; depois da aprovação, o resultado fica liberado.'}
-        </p>
-      )}
-
-      {grupoSelecionado && podeEditarPartidas && (
-        <p>Você pode informar nomes novos ou selecionar atletas já existentes. O sistema vincula ao grupo, reaproveita as duplas e registra a partida no mesmo fluxo.</p>
-      )}
-
-      {grupoSelecionado && grupoAtletas.length === 0 && podeEditarPartidas && (
-        <p>Ainda não há atletas vinculados a este grupo, mas isso não bloqueia o lançamento. Você pode digitar os nomes na própria tela e o sistema cria ou reaproveita os atletas ao salvar.</p>
-      )}
-
       {grupoSelecionado && atletaUsuarioSemVinculo && (
         <p className="texto-aviso">
           Vincule um atleta ao seu usuário antes de registrar partidas no grupo. O atleta vinculado ao seu perfil precisa compor a primeira dupla no lado informado no cadastro.
         </p>
-      )}
-
-      {!podeEditarPartidas && partidas.length > 0 && competicaoComInscricoes && (
-        <p>Somente administradores ou o organizador da competição podem preencher resultados ou ajustar os confrontos. Aqui você acompanha os jogos e os resultados.</p>
-      )}
-
-      {!podeEditarPartidas && partidas.length > 0 && grupoSelecionado && (
-        <p>Somente administradores, organizadores e responsáveis pelo grupo podem alterar a tabela. Aqui você acompanha os jogos e os resultados.</p>
       )}
 
       {exibirVisaoGrupo && renderizarVisaoGrupo()}
@@ -2779,7 +2637,6 @@ export function PaginaPartidas() {
           <div className="chave-visualizacao-cabecalho">
             <div className="chave-visualizacao-introducao">
               <h3>Tabela de jogos</h3>
-              <p>Os vencedores avançam de uma coluna para a seguinte conforme os resultados lançados. A lista detalhada continua abaixo para consulta e edição.</p>
             </div>
             <div className="chave-visualizacao-resumo">
               <div className="chave-resumo-item">
@@ -2858,6 +2715,13 @@ export function PaginaPartidas() {
                 <p>Dupla B · Direita: {partida.nomeDuplaBAtleta1}</p>
                 <p>Dupla B · Esquerda: {partida.nomeDuplaBAtleta2}</p>
                 <p>Status: {obterNomeStatus(partida.status)}</p>
+                <p>
+                  Validação:{' '}
+                  <span className={`tag-status ${obterClasseStatusAprovacao(partida.statusAprovacao)}`}>
+                    {obterNomeStatusAprovacao(partida.statusAprovacao)}
+                  </span>
+                </p>
+                <p>Registrada por: {partida.nomeCriadoPorUsuario || 'Não informado'}</p>
                 {partida.faseCampeonato && <p>Fase: {partida.faseCampeonato}</p>}
                 {partida.status === 2 ? (
                   <p>Vencedora: {partida.nomeDuplaVencedora || 'Empate'}</p>
@@ -2887,7 +2751,6 @@ export function PaginaPartidas() {
 
           {partidas.length === 0 && competicaoComInscricoes && categoriaSelecionada && inscricoesCategoriaOrdenadas.length > 0 && (
             <>
-              <p>Esta categoria ainda não possui jogos cadastrados. As duplas inscritas aparecem abaixo para conferência antes do sorteio.</p>
               {inscricoesCategoriaOrdenadas.map((inscricao) => (
                 <article key={inscricao.id} className="cartao-lista">
                   <div>
@@ -2907,9 +2770,7 @@ export function PaginaPartidas() {
             <p>{grupoSelecionado && !formulario.categoriaCompeticaoId ? 'Nenhuma partida cadastrada para este grupo.' : 'Nenhuma partida cadastrada para esta categoria.'}</p>
           )}
         </div>
-      ) : (
-        <p>Use "Ver lista detalhada" para consultar todos os dados dos jogos em formato de lista.</p>
-      )}
+      ) : null}
     </section>
   );
 }

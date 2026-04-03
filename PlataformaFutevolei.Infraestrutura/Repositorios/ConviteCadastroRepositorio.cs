@@ -31,19 +31,19 @@ public class ConviteCadastroRepositorio(PlataformaFutevoleiDbContext dbContext) 
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public Task<ConviteCadastro?> ObterPorTokenAsync(string token, CancellationToken cancellationToken = default)
+    public Task<ConviteCadastro?> ObterPorIdentificadorPublicoAsync(string identificadorPublico, CancellationToken cancellationToken = default)
     {
         return dbContext.ConvitesCadastro
             .AsNoTracking()
             .Include(x => x.CriadoPorUsuario)
-            .FirstOrDefaultAsync(x => x.Token == token, cancellationToken);
+            .FirstOrDefaultAsync(x => x.IdentificadorPublico == identificadorPublico, cancellationToken);
     }
 
-    public Task<ConviteCadastro?> ObterPorTokenParaAtualizacaoAsync(string token, CancellationToken cancellationToken = default)
+    public Task<ConviteCadastro?> ObterPorIdentificadorPublicoParaAtualizacaoAsync(string identificadorPublico, CancellationToken cancellationToken = default)
     {
         return dbContext.ConvitesCadastro
             .Include(x => x.CriadoPorUsuario)
-            .FirstOrDefaultAsync(x => x.Token == token, cancellationToken);
+            .FirstOrDefaultAsync(x => x.IdentificadorPublico == identificadorPublico, cancellationToken);
     }
 
     public async Task AdicionarAsync(ConviteCadastro conviteCadastro, CancellationToken cancellationToken = default)

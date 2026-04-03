@@ -34,6 +34,7 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.Property(x => x.DuplaBId).HasColumnName("dupla_b_id").IsRequired();
         builder.Property(x => x.FaseCampeonato).HasColumnName("fase_campeonato").HasMaxLength(100);
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(StatusPartida.Agendada).IsRequired();
+        builder.Property(x => x.StatusAprovacao).HasColumnName("status_aprovacao").HasConversion<int>().HasDefaultValue(StatusAprovacaoPartida.Aprovada).IsRequired();
         builder.Property(x => x.PlacarDuplaA).HasColumnName("placar_dupla_a").IsRequired();
         builder.Property(x => x.PlacarDuplaB).HasColumnName("placar_dupla_b").IsRequired();
         builder.Property(x => x.DuplaVencedoraId).HasColumnName("dupla_vencedora_id");
@@ -72,6 +73,7 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.HasIndex(x => x.DuplaAId);
         builder.HasIndex(x => x.DuplaBId);
         builder.HasIndex(x => x.DuplaVencedoraId);
+        builder.HasIndex(x => x.StatusAprovacao);
         builder.HasIndex(x => new { x.CategoriaCompeticaoId, x.DataPartida });
     }
 }

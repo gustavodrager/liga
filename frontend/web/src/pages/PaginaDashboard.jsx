@@ -10,9 +10,16 @@ export function PaginaDashboard() {
   const atalhos = [
     {
       titulo: 'Meu Perfil',
-      descricao: 'Atualize seus dados de usuário e o vínculo com atleta.',
+      descricao: 'Atualize os dados do atleta vinculados ao seu acesso.',
       rota: '/meu-perfil'
     },
+    ...(administrador ? [
+      {
+        titulo: 'Perfil Usuário',
+        descricao: 'Consulte os dados do usuário autenticado e o vínculo atual com atleta.',
+        rota: '/perfil-usuario'
+      }
+    ] : []),
     ...(atleta ? [
       {
         titulo: 'Competições',

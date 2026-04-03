@@ -4,6 +4,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -17,12 +18,18 @@ public class RegraCompeticaoServico(
 {
     public async Task<IReadOnlyList<RegraCompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
+        await GarantirRegrasPadraoAsync(cancellationToken);
         var regras = await regraRepositorio.ListarAsync(cancellationToken);
-        return regras.Select(x => x.ParaDto()).ToList();
+        return regras
+            .Select(x => x.ParaDto())
+            .OrderByDescending(x => x.EhPadrao)
+            .ThenBy(x => x.Nome)
+            .ToList();
     }
 
     public async Task<RegraCompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await GarantirRegrasPadraoAsync(cancellationToken);
         var regra = await regraRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (regra is null)
         {
@@ -34,6 +41,7 @@ public class RegraCompeticaoServico(
 
     public async Task<RegraCompeticaoDto> CriarAsync(CriarRegraCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
+        await GarantirRegrasPadraoAsync(cancellationToken);
         var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var nome = await ValidarAsync(
             dto.Nome,
@@ -71,11 +79,17 @@ public class RegraCompeticaoServico(
 
     public async Task<RegraCompeticaoDto> AtualizarAsync(Guid id, AtualizarRegraCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
+        await GarantirRegrasPadraoAsync(cancellationToken);
         var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var regra = await regraRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (regra is null)
         {
             throw new EntidadeNaoEncontradaException("Regra não encontrada.");
+        }
+
+        if (RegrasCompeticaoPadrao.EhPadrao(regra.Nome))
+        {
+            throw new RegraNegocioException("Regras padrão não podem ser alteradas.");
         }
 
         GarantirGestaoPermitida(usuario, regra.UsuarioCriadorId, "O organizador só pode alterar regras criadas pelo próprio usuário.");
@@ -111,11 +125,17 @@ public class RegraCompeticaoServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await GarantirRegrasPadraoAsync(cancellationToken);
         var usuario = await ObterUsuarioGestorAsync(cancellationToken);
         var regra = await regraRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (regra is null)
         {
             throw new EntidadeNaoEncontradaException("Regra não encontrada.");
+        }
+
+        if (RegrasCompeticaoPadrao.EhPadrao(regra.Nome))
+        {
+            throw new RegraNegocioException("Regras padrão não podem ser excluídas.");
         }
 
         GarantirGestaoPermitida(usuario, regra.UsuarioCriadorId, "O organizador só pode excluir regras criadas pelo próprio usuário.");
@@ -133,6 +153,42 @@ public class RegraCompeticaoServico(
         }
 
         return usuario;
+    }
+
+    private async Task GarantirRegrasPadraoAsync(CancellationToken cancellationToken)
+    {
+        var adicionouRegra = false;
+
+        foreach (var definicao in RegrasCompeticaoPadrao.Lista)
+        {
+            var regraExistente = await regraRepositorio.ObterPorNomeAsync(definicao.Nome, cancellationToken);
+            if (regraExistente is not null)
+            {
+                continue;
+            }
+
+            await regraRepositorio.AdicionarAsync(new RegraCompeticao
+            {
+                Nome = definicao.Nome,
+                Descricao = definicao.Descricao,
+                PontosMinimosPartida = definicao.PontosMinimosPartida,
+                DiferencaMinimaPartida = definicao.DiferencaMinimaPartida,
+                PermiteEmpate = definicao.PermiteEmpate,
+                PontosVitoria = definicao.PontosVitoria,
+                PontosDerrota = definicao.PontosDerrota,
+                PontosParticipacao = definicao.PontosParticipacao,
+                PontosPrimeiroLugar = definicao.PontosPrimeiroLugar,
+                PontosSegundoLugar = definicao.PontosSegundoLugar,
+                PontosTerceiroLugar = definicao.PontosTerceiroLugar
+            }, cancellationToken);
+
+            adicionouRegra = true;
+        }
+
+        if (adicionouRegra)
+        {
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
     }
 
     private static void GarantirGestaoPermitida(Usuario usuario, Guid? usuarioCriadorId, string mensagem)

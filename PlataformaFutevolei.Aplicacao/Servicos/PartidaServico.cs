@@ -13,11 +13,13 @@ public class PartidaServico(
     IPartidaRepositorio partidaRepositorio,
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IDuplaRepositorio duplaRepositorio,
     IInscricaoCampeonatoRepositorio inscricaoRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IPendenciaServico pendenciaServico
 ) : IPartidaServico
 {
     private const string MarcadorMetadadosChave = "[[chave:";
@@ -97,6 +99,11 @@ public class PartidaServico(
             {
                 throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
             }
+
+            await GarantirAcessoAtletaAoGrupoAsync(
+                usuario,
+                partida.CategoriaCompeticao.CompeticaoId,
+                cancellationToken);
         }
         else
         {
@@ -122,6 +129,7 @@ public class PartidaServico(
 
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
+            await GarantirAcessoAtletaAoGrupoAsync(usuario, competicao.Id, cancellationToken);
             return competicao;
         }
 
@@ -144,6 +152,8 @@ public class PartidaServico(
             {
                 throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
             }
+
+            await GarantirAcessoAtletaAoGrupoAsync(usuario, categoria.CompeticaoId, cancellationToken);
         }
         else
         {
@@ -151,6 +161,27 @@ public class PartidaServico(
         }
 
         return categoria;
+    }
+
+    private async Task GarantirAcessoAtletaAoGrupoAsync(
+        Usuario usuario,
+        Guid competicaoId,
+        CancellationToken cancellationToken)
+    {
+        if (!usuario.AtletaId.HasValue)
+        {
+            throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar partidas do grupo.");
+        }
+
+        var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
+            competicaoId,
+            usuario.AtletaId.Value,
+            cancellationToken);
+
+        if (grupoAtleta is null)
+        {
+            throw new RegraNegocioException("Você só pode visualizar partidas dos grupos em que participa.");
+        }
     }
 
     public async Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
@@ -291,6 +322,7 @@ public class PartidaServico(
 
         await partidaRepositorio.AdicionarAsync(partida, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await pendenciaServico.InicializarFluxoPartidaAsync(partida, usuarioAtual.Id, cancellationToken);
         await ProcessarAvancoChaveAsync(categoria, cancellationToken);
         await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
         var partidaCriada = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken);
@@ -360,6 +392,7 @@ public class PartidaServico(
         partida.CategoriaCompeticaoId = categoria.Id;
         partida.DuplaAId = duplaA.Id;
         partida.DuplaBId = duplaB.Id;
+        partida.CriadoPorUsuarioId ??= (await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken)).Id;
         partida.FaseCampeonato = faseAtualizada;
         partida.Status = dto.Status;
         partida.DataPartida = dto.DataPartida.HasValue ? NormalizarParaUtc(dto.DataPartida.Value) : DateTime.UtcNow;
@@ -376,6 +409,10 @@ public class PartidaServico(
 
         partidaRepositorio.Atualizar(partida);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await pendenciaServico.InicializarFluxoPartidaAsync(
+            partida,
+            partida.CriadoPorUsuarioId ?? Guid.Empty,
+            cancellationToken);
         await ProcessarAvancoChaveAsync(categoria, cancellationToken);
         await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
         var partidaAtualizada = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);

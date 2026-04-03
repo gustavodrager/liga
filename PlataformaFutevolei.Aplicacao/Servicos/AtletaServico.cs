@@ -16,7 +16,8 @@ public class AtletaServico(
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IPendenciaServico pendenciaServico
 ) : IAtletaServico
 {
     public async Task<IReadOnlyList<AtletaDto>> ListarAsync(
@@ -108,9 +109,9 @@ public class AtletaServico(
         }
 
         var dados = usuarioComum
-            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf)
-            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf);
-        var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
+            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
+            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
+        var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
 
         var criandoMeuProprioAtleta = !usuario.AtletaId.HasValue &&
             usuario.Perfil is not PerfilUsuario.Administrador &&
@@ -137,7 +138,10 @@ public class AtletaServico(
         atleta.Email = dados.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
+        atleta.Cidade = dados.Cidade;
+        atleta.Estado = dados.Estado;
         atleta.CadastroPendente = criandoMeuProprioAtleta ? false : dto.CadastroPendente;
+        atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
         atleta.AtualizarDataModificacao();
@@ -150,6 +154,10 @@ public class AtletaServico(
         }
 
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        if (usuarioComum || criandoMeuProprioAtleta)
+        {
+            await pendenciaServico.SincronizarAposVinculoAtletaAsync(atleta.Id, cancellationToken);
+        }
         return atleta.ParaDto();
     }
 
@@ -167,9 +175,9 @@ public class AtletaServico(
         }
 
         var dados = usuarioComum
-            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf)
-            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf);
-        var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
+            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
+            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
+        var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
         var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (atleta is null)
         {
@@ -182,7 +190,10 @@ public class AtletaServico(
         atleta.Email = dados.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
+        atleta.Cidade = dados.Cidade;
+        atleta.Estado = dados.Estado;
         atleta.CadastroPendente = dto.CadastroPendente;
+        atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
         atleta.AtualizarDataModificacao();
@@ -275,6 +286,8 @@ public class AtletaServico(
         string? Email,
         string? Instagram,
         string? Cpf,
+        string? Cidade,
+        string? Estado,
         bool PossuiIdentificador
     ) Normalizar(
         string nome,
@@ -282,13 +295,17 @@ public class AtletaServico(
         string? telefone,
         string? email,
         string? instagram,
-        string? cpf)
+        string? cpf,
+        string? cidade,
+        string? estado)
     {
         var (nomeNormalizado, apelidoNormalizado) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nome, apelido);
         var telefoneNormalizado = NormalizadorNomeAtleta.NormalizarTexto(telefone);
         var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
         var instagramNormalizado = NormalizadorNomeAtleta.NormalizarTexto(instagram);
         var cpfNormalizado = ValidadorCpf.Normalizar(cpf);
+        var cidadeNormalizada = NormalizadorNomeAtleta.NormalizarTexto(cidade);
+        var estadoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(estado);
 
         return (
             nomeNormalizado,
@@ -297,6 +314,8 @@ public class AtletaServico(
             string.IsNullOrWhiteSpace(emailNormalizado) ? null : emailNormalizado,
             string.IsNullOrWhiteSpace(instagramNormalizado) ? null : instagramNormalizado,
             string.IsNullOrWhiteSpace(cpfNormalizado) ? null : cpfNormalizado,
+            string.IsNullOrWhiteSpace(cidadeNormalizada) ? null : cidadeNormalizada,
+            string.IsNullOrWhiteSpace(estadoNormalizado) ? null : estadoNormalizado,
             !string.IsNullOrWhiteSpace(telefoneNormalizado)
                 || !string.IsNullOrWhiteSpace(emailNormalizado)
                 || !string.IsNullOrWhiteSpace(instagramNormalizado)
@@ -308,6 +327,7 @@ public class AtletaServico(
         string nome,
         string? cpf,
         LadoAtleta lado,
+        NivelAtleta? nivel,
         DateTime? dataNascimento,
         bool cadastroPendente,
         bool possuiIdentificador)
@@ -330,6 +350,11 @@ public class AtletaServico(
         if (!Enum.IsDefined(lado))
         {
             throw new RegraNegocioException("Lado do atleta inválido.");
+        }
+
+        if (nivel.HasValue && !Enum.IsDefined(nivel.Value))
+        {
+            throw new RegraNegocioException("Nível do atleta inválido.");
         }
 
         if (!dataNascimento.HasValue)

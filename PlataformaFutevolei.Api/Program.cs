@@ -26,6 +26,17 @@ if (builder.Environment.IsDevelopment())
 
 builder.Configuration.AddEnvironmentVariables();
 
+var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+if (string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
+{
+    applicationInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+}
+
+if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
+{
+    builder.Services.AddApplicationInsightsTelemetry(builder.Configuration);
+}
+
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -53,6 +64,24 @@ var origensFrontend = string.IsNullOrWhiteSpace(origemFrontendConfigurada)
     ? new[] { "http://localhost:5173" }
     : origemFrontendConfigurada
         .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+if (builder.Environment.IsProduction())
+{
+    if (EhChaveJwtPadrao(configuracaoJwt.Chave))
+    {
+        throw new InvalidOperationException(
+            "A configuração JWT de produção está inválida. Defina uma chave forte em Jwt:Chave " +
+            "(ou Jwt__Chave) e não utilize o placeholder do repositório.");
+    }
+
+    if (string.IsNullOrWhiteSpace(origemFrontendConfigurada) || origensFrontend.Any(EhOrigemInvalidaParaProducao))
+    {
+        throw new InvalidOperationException(
+            "A configuração Frontend:Url é obrigatória em produção e não pode apontar para localhost. " +
+            "Defina Frontend:Url (ou Frontend__Url) com a URL pública do frontend.");
+    }
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
@@ -110,6 +139,10 @@ var app = builder.Build();
 
 app.Logger.LogInformation("Inicializando API no ambiente {Ambiente}.", app.Environment.EnvironmentName);
 app.Logger.LogInformation("Origens CORS configuradas: {Origens}.", string.Join(", ", origensFrontend));
+app.Logger.LogInformation(
+    !string.IsNullOrWhiteSpace(applicationInsightsConnectionString)
+        ? "Application Insights habilitado."
+        : "Application Insights desabilitado. Defina ApplicationInsights:ConnectionString ou APPLICATIONINSIGHTS_CONNECTION_STRING para habilitar a telemetria.");
 
 var habilitarSwagger = builder.Configuration.GetValue("Diagnostics:EnableSwagger", true);
 if (habilitarSwagger)
@@ -137,6 +170,7 @@ if (aplicarMigrations)
     {
         app.Logger.LogInformation("Aplicando migrations pendentes...");
         dbContext.Database.Migrate();
+        GarantirCompatibilidadeStatusAprovacaoPartidas(dbContext, app.Logger);
         app.Logger.LogInformation("Migrations aplicadas com sucesso.");
     }
     catch (Exception ex)
@@ -210,3 +244,36 @@ if (habilitarDbTestEndpoint)
 app.MapControllers();
 
 app.Run();
+
+static bool EhChaveJwtPadrao(string? chave)
+{
+    return string.IsNullOrWhiteSpace(chave) ||
+           chave.Contains("MUDAR_EM_PRODUCAO", StringComparison.OrdinalIgnoreCase);
+}
+
+static bool EhOrigemInvalidaParaProducao(string origem)
+{
+    if (!Uri.TryCreate(origem, UriKind.Absolute, out var uri))
+    {
+        return true;
+    }
+
+    return uri.IsLoopback;
+}
+
+static void GarantirCompatibilidadeStatusAprovacaoPartidas(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger logger)
+{
+    dbContext.Database.ExecuteSqlRaw("""
+        ALTER TABLE partidas
+        ADD COLUMN IF NOT EXISTS status_aprovacao integer NOT NULL DEFAULT 3;
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_partidas_status_aprovacao"
+        ON partidas (status_aprovacao);
+        """);
+
+    logger.LogInformation("Compatibilidade de schema para partidas.status_aprovacao verificada.");
+}

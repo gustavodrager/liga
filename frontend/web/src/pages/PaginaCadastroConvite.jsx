@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import logoLiga from '../assets/logo-liga.svg';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { convitesCadastroServico } from '../services/convitesCadastroServico';
@@ -7,10 +7,11 @@ import { extrairMensagemErro } from '../utils/erros';
 import { nomePerfil } from '../utils/perfis';
 
 export function PaginaCadastroConvite() {
-  const [searchParams] = useSearchParams();
-  const tokenConvite = searchParams.get('token') || '';
+  const { identificadorPublico = '' } = useParams();
   const [convite, setConvite] = useState(null);
   const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
+  const [codigoConvite, setCodigoConvite] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmacaoSenha, setConfirmacaoSenha] = useState('');
   const [erro, setErro] = useState('');
@@ -31,14 +32,14 @@ export function PaginaCadastroConvite() {
       setCarregandoConvite(true);
       setErro('');
 
-      if (!tokenConvite) {
-        setErro('Token do convite não informado.');
+      if (!identificadorPublico) {
+        setErro('Convite não informado.');
         setCarregandoConvite(false);
         return;
       }
 
       try {
-        const resposta = await convitesCadastroServico.obterPublicoPorToken(tokenConvite);
+        const resposta = await convitesCadastroServico.obterPublico(identificadorPublico);
         setConvite(resposta);
       } catch (error) {
         setErro(extrairMensagemErro(error));
@@ -48,7 +49,7 @@ export function PaginaCadastroConvite() {
     }
 
     carregarConvite();
-  }, [tokenConvite]);
+  }, [identificadorPublico]);
 
   async function aoSubmeter(evento) {
     evento.preventDefault();
@@ -64,11 +65,22 @@ export function PaginaCadastroConvite() {
       return;
     }
 
+    if (string.IsNullOrWhiteSpace(codigoConvite)) {
+      setErro('Informe o código do convite.');
+      return;
+    }
+
     setSalvando(true);
 
     try {
       setDestinoAposAutenticacao('/meu-perfil');
-      await registrarPorConvite(tokenConvite, nome, convite.email, senha);
+      await registrarPorConvite({
+        conviteIdPublico: identificadorPublico,
+        codigoConvite,
+        nome,
+        email,
+        senha
+      });
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -93,8 +105,8 @@ export function PaginaCadastroConvite() {
               <>
                 <div className="formulario-grid unico">
                   <label>
-                    E-mail do convite
-                    <input type="email" value={convite.email} readOnly />
+                    E-mail liberado para o convite
+                    <input type="text" value={convite.emailMascarado} readOnly />
                   </label>
 
                   <label>
@@ -109,7 +121,8 @@ export function PaginaCadastroConvite() {
                 </div>
 
                 <p>
-                  Este link é pessoal e só permite concluir o acesso com o e-mail acima.
+                  Este link identifica o convite, mas o cadastro só é concluído com o e-mail convidado
+                  {' e o código do convite recebido por e-mail, WhatsApp ou pelo administrador.'}
                   Depois de definir sua senha, você entra automaticamente no app e segue para o seu perfil para completar os dados.
                 </p>
                 <p>
@@ -119,12 +132,34 @@ export function PaginaCadastroConvite() {
                 {convite.podeSerUsado && (
                   <form onSubmit={aoSubmeter} className="formulario-grid unico">
                     <label>
+                      E-mail do convite
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(evento) => setEmail(evento.target.value)}
+                        placeholder="voce@email.com"
+                        required
+                      />
+                    </label>
+
+                    <label>
                       Nome completo
                       <input
                         type="text"
                         value={nome}
                         onChange={(evento) => setNome(evento.target.value)}
                         placeholder="Seu nome completo"
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      Código do convite
+                      <input
+                        type="text"
+                        value={codigoConvite}
+                        onChange={(evento) => setCodigoConvite(evento.target.value)}
+                        placeholder="Informe o código recebido"
                         required
                       />
                     </label>

@@ -1,4 +1,5 @@
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 
@@ -19,8 +20,8 @@ public interface IConviteCadastroRepositorio
     Task<IReadOnlyList<ConviteCadastro>> ListarAsync(CancellationToken cancellationToken = default);
     Task<ConviteCadastro?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastro?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<ConviteCadastro?> ObterPorTokenAsync(string token, CancellationToken cancellationToken = default);
-    Task<ConviteCadastro?> ObterPorTokenParaAtualizacaoAsync(string token, CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterPorIdentificadorPublicoAsync(string identificadorPublico, CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterPorIdentificadorPublicoParaAtualizacaoAsync(string identificadorPublico, CancellationToken cancellationToken = default);
     Task AdicionarAsync(ConviteCadastro conviteCadastro, CancellationToken cancellationToken = default);
     void Atualizar(ConviteCadastro conviteCadastro);
 }
@@ -125,6 +126,7 @@ public interface IPartidaRepositorio
     Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarComPendenteDeVinculoPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<bool> ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(
         Guid usuarioId,
         Guid atletaId,
@@ -139,6 +141,40 @@ public interface IPartidaRepositorio
     Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default);
     void Atualizar(Partida partida);
     void Remover(Partida partida);
+}
+
+public interface IPartidaAprovacaoRepositorio
+{
+    Task<IReadOnlyList<PartidaAprovacao>> ListarPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task<PartidaAprovacao?> ObterPorPartidaEAtletaAsync(
+        Guid partidaId,
+        Guid atletaId,
+        CancellationToken cancellationToken = default);
+    Task AdicionarAsync(PartidaAprovacao partidaAprovacao, CancellationToken cancellationToken = default);
+    void Atualizar(PartidaAprovacao partidaAprovacao);
+    void RemoverIntervalo(IEnumerable<PartidaAprovacao> aprovacoes);
+}
+
+public interface IPendenciaUsuarioRepositorio
+{
+    Task<IReadOnlyList<PendenciaUsuario>> ListarPendentesPorUsuarioAsync(
+        Guid usuarioId,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PendenciaUsuario>> ListarPendentesPorPartidaAsync(
+        Guid partidaId,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PendenciaUsuario>> ListarPendentesPorAtletaAsync(
+        Guid atletaId,
+        CancellationToken cancellationToken = default);
+    Task<PendenciaUsuario?> ObterPendenteAsync(
+        TipoPendenciaUsuario tipo,
+        Guid usuarioId,
+        Guid? partidaId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default);
+    Task<PendenciaUsuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(PendenciaUsuario pendencia, CancellationToken cancellationToken = default);
+    void Atualizar(PendenciaUsuario pendencia);
 }
 
 public interface IInscricaoCampeonatoRepositorio

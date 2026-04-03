@@ -27,12 +27,20 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
         return Ok(convite);
     }
 
-    [AllowAnonymous]
-    [HttpGet("publico/{token}")]
-    [ProducesResponseType(typeof(ConviteCadastroPublicoDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ObterPublicoPorToken(string token, CancellationToken cancellationToken)
+    [HttpGet("{id:guid}/link-aceite")]
+    [ProducesResponseType(typeof(ConviteCadastroLinkAceiteDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterLinkAceite(Guid id, CancellationToken cancellationToken)
     {
-        var convite = await conviteCadastroServico.ObterPublicoPorTokenAsync(token, cancellationToken);
+        var linkAceite = await conviteCadastroServico.ObterLinkAceiteAsync(id, cancellationToken);
+        return Ok(linkAceite);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("publico/{identificadorPublico}")]
+    [ProducesResponseType(typeof(ConviteCadastroPublicoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterPublicoPorIdentificador(string identificadorPublico, CancellationToken cancellationToken)
+    {
+        var convite = await conviteCadastroServico.ObterPublicoAsync(identificadorPublico, cancellationToken);
         return Ok(convite);
     }
 

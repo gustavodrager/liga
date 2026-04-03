@@ -14,7 +14,8 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.Email).HasColumnName("email").HasMaxLength(150).IsRequired();
         builder.Property(x => x.Telefone).HasColumnName("telefone").HasMaxLength(30);
-        builder.Property(x => x.Token).HasColumnName("token").HasMaxLength(80).IsRequired();
+        builder.Property(x => x.IdentificadorPublico).HasColumnName("identificador_publico").HasMaxLength(40).IsRequired();
+        builder.Property(x => x.CodigoConviteHash).HasColumnName("codigo_convite_hash").HasMaxLength(64);
         builder.Property(x => x.PerfilDestino).HasColumnName("perfil_destino").IsRequired();
         builder.Property(x => x.ExpiraEmUtc).HasColumnName("expira_em_utc").IsRequired();
         builder.Property(x => x.UsadoEmUtc).HasColumnName("usado_em_utc");
@@ -30,7 +31,7 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
-        builder.HasIndex(x => x.Token).IsUnique();
+        builder.HasIndex(x => x.IdentificadorPublico).IsUnique();
         builder.HasIndex(x => x.Email);
         builder.HasIndex(x => new { x.Ativo, x.ExpiraEmUtc });
 

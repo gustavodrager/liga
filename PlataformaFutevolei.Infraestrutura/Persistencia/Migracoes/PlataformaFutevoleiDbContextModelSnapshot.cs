@@ -40,6 +40,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasDefaultValue(false)
                         .HasColumnName("cadastro_pendente");
 
+                    b.Property<string>("Cidade")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("cidade");
+
                     b.Property<string>("Cpf")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
@@ -62,6 +67,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(150)")
                         .HasColumnName("email");
 
+                    b.Property<string>("Estado")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("estado");
+
                     b.Property<string>("Instagram")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -72,6 +82,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("integer")
                         .HasDefaultValue(3)
                         .HasColumnName("lado");
+
+                    b.Property<int?>("Nivel")
+                        .HasColumnType("integer")
+                        .HasColumnName("nivel");
 
                     b.Property<string>("Nome")
                         .IsRequired()
@@ -307,6 +321,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expira_em_utc");
 
+                    b.Property<string>("IdentificadorPublico")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("identificador_publico");
+
                     b.Property<int>("PerfilDestino")
                         .HasColumnType("integer")
                         .HasColumnName("perfil_destino");
@@ -316,11 +336,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(30)")
                         .HasColumnName("telefone");
 
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("token");
+                    b.Property<string>("CodigoConviteHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("codigo_convite_hash");
 
                     b.Property<DateTime?>("UltimaTentativaEnvioEmailEmUtc")
                         .HasColumnType("timestamp with time zone")
@@ -344,7 +363,7 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                     b.HasIndex("Email");
 
-                    b.HasIndex("Token")
+                    b.HasIndex("IdentificadorPublico")
                         .IsUnique();
 
                     b.HasIndex("Ativo", "ExpiraEmUtc");
@@ -527,10 +546,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("categoria_competicao_id");
 
-                    b.Property<Guid?>("CriadoPorUsuarioId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("criado_por_usuario_id");
-
                     b.Property<Guid>("CompeticaoId")
                         .HasColumnType("uuid")
                         .HasColumnName("competicao_id");
@@ -668,6 +683,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("categoria_competicao_id");
 
+                    b.Property<Guid?>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_atualizacao");
@@ -716,6 +735,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasDefaultValue(1)
                         .HasColumnName("status");
 
+                    b.Property<int>("StatusAprovacao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(3)
+                        .HasColumnName("status_aprovacao");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoriaCompeticaoId");
@@ -727,6 +752,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasIndex("DuplaBId");
 
                     b.HasIndex("DuplaVencedoraId");
+
+                    b.HasIndex("StatusAprovacao");
 
                     b.HasIndex("CategoriaCompeticaoId", "DataPartida");
 
@@ -740,6 +767,125 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                             t.HasCheckConstraint("ck_partidas_vencedora_valida", "\"dupla_vencedora_id\" IS NULL OR \"dupla_vencedora_id\" = \"dupla_a_id\" OR \"dupla_vencedora_id\" = \"dupla_b_id\"");
                         });
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.PartidaAprovacao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AtletaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atleta_id");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<DateTime?>("DataResposta")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_resposta");
+
+                    b.Property<DateTime>("DataSolicitacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_solicitacao");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("observacao");
+
+                    b.Property<Guid>("PartidaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("partida_id");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtletaId");
+
+                    b.HasIndex("PartidaId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("PartidaId", "AtletaId")
+                        .IsUnique();
+
+                    b.ToTable("partidas_aprovacoes", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.PendenciaUsuario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AtletaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atleta_id");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime?>("DataConclusao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_conclusao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("observacao");
+
+                    b.Property<Guid?>("PartidaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("partida_id");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("tipo");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtletaId");
+
+                    b.HasIndex("PartidaId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("UsuarioId", "Status");
+
+                    b.ToTable("pendencias_usuarios", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", b =>
@@ -842,6 +988,15 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<DateTime?>("CodigoRedefinicaoSenhaExpiraEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("codigo_redefinicao_senha_expira_em_utc");
+
+                    b.Property<DateTime?>("CodigoLoginExpiraEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("codigo_login_expira_em_utc");
+
+                    b.Property<string>("CodigoLoginHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("codigo_login_hash");
 
                     b.Property<string>("CodigoRedefinicaoSenhaHash")
                         .HasMaxLength(255)
@@ -1072,6 +1227,58 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Navigation("DuplaVencedora");
                 });
 
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.PartidaAprovacao", b =>
+                {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Atleta", "Atleta")
+                        .WithMany()
+                        .HasForeignKey("AtletaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Partida", "Partida")
+                        .WithMany("Aprovacoes")
+                        .HasForeignKey("PartidaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Atleta");
+
+                    b.Navigation("Partida");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.PendenciaUsuario", b =>
+                {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Atleta", "Atleta")
+                        .WithMany()
+                        .HasForeignKey("AtletaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Partida", "Partida")
+                        .WithMany("Pendencias")
+                        .HasForeignKey("PartidaId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Atleta");
+
+                    b.Navigation("Partida");
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", b =>
                 {
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "UsuarioCriador")
@@ -1136,6 +1343,13 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Local", b =>
                 {
                     b.Navigation("Competicoes");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Partida", b =>
+                {
+                    b.Navigation("Aprovacoes");
+
+                    b.Navigation("Pendencias");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.RegraCompeticao", b =>

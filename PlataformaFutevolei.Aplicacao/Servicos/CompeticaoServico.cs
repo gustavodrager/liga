@@ -4,6 +4,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -347,12 +348,15 @@ public class CompeticaoServico(
 
     private async Task<Guid?> ObterFormatoPadraoAsync(TipoCompeticao tipo, CancellationToken cancellationToken)
     {
+        await GarantirFormatosPadraoAsync(cancellationToken);
         var formatos = await formatoRepositorio.ListarAsync(cancellationToken);
 
         if (tipo == TipoCompeticao.Grupo)
         {
-            var formatoPontosCorridos = formatos
-                .FirstOrDefault(x => x.Ativo && x.TipoFormato == TipoFormatoCampeonato.PontosCorridos);
+            var formatoPontosCorridos = formatos.FirstOrDefault(x =>
+                x.Ativo &&
+                x.TipoFormato == TipoFormatoCampeonato.PontosCorridos &&
+                x.Nome == FormatosCampeonatoPadrao.NomePontosCorridos);
 
             if (formatoPontosCorridos is null)
             {
@@ -367,6 +371,7 @@ public class CompeticaoServico(
             var formatoChaveDuplaEliminacao = formatos.FirstOrDefault(x =>
                 x.Ativo &&
                 x.TipoFormato == TipoFormatoCampeonato.Chave &&
+                x.Nome == FormatosCampeonatoPadrao.NomeChave &&
                 x.QuantidadeDerrotasParaEliminacao == 2);
 
             if (formatoChaveDuplaEliminacao is null)
@@ -378,6 +383,43 @@ public class CompeticaoServico(
         }
 
         return null;
+    }
+
+    private async Task GarantirFormatosPadraoAsync(CancellationToken cancellationToken)
+    {
+        var adicionouFormato = false;
+
+        foreach (var definicao in FormatosCampeonatoPadrao.Lista)
+        {
+            var formatoExistente = await formatoRepositorio.ObterPorNomeAsync(definicao.Nome, cancellationToken);
+            if (formatoExistente is not null)
+            {
+                continue;
+            }
+
+            await formatoRepositorio.AdicionarAsync(new FormatoCampeonato
+            {
+                Nome = definicao.Nome,
+                Descricao = definicao.Descricao,
+                TipoFormato = definicao.TipoFormato,
+                Ativo = definicao.Ativo,
+                QuantidadeGrupos = definicao.QuantidadeGrupos,
+                ClassificadosPorGrupo = definicao.ClassificadosPorGrupo,
+                GeraMataMataAposGrupos = definicao.GeraMataMataAposGrupos,
+                TurnoEVolta = definicao.TurnoEVolta,
+                TipoChave = definicao.TipoChave,
+                QuantidadeDerrotasParaEliminacao = definicao.QuantidadeDerrotasParaEliminacao,
+                PermiteCabecaDeChave = definicao.PermiteCabecaDeChave,
+                DisputaTerceiroLugar = definicao.DisputaTerceiroLugar
+            }, cancellationToken);
+
+            adicionouFormato = true;
+        }
+
+        if (adicionouFormato)
+        {
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
     }
 
     private async Task<bool> FormatoEhChaveDuplaEliminacaoAsync(Guid? formatoCampeonatoId, CancellationToken cancellationToken)

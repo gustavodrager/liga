@@ -28,6 +28,28 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         return Ok(resposta);
     }
 
+    [HttpPost("login/codigo/solicitar")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(SolicitarCodigoLoginRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SolicitarCodigoLogin(
+        [FromBody] SolicitarCodigoLoginRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.SolicitarCodigoLoginAsync(dto, cancellationToken);
+        return Ok(resposta);
+    }
+
+    [HttpPost("login/codigo")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LoginComCodigo(
+        [FromBody] LoginCodigoRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.LoginComCodigoAsync(dto, cancellationToken);
+        return Ok(resposta);
+    }
+
     [HttpPost("esqueci-senha/solicitar")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(SolicitarRedefinicaoSenhaRespostaDto), StatusCodes.Status200OK)]

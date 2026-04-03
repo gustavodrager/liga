@@ -42,7 +42,7 @@ export function ProvedorAutenticacao({ children }) {
     setToken(resposta.token);
     setUsuario(resposta.usuario);
     definirTokenAutorizacao(resposta.token);
-    localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify(resposta));
+    localStorage.setItem(CHAVE_ARMAZENAMENTO, resposta.token);
   }, []);
 
   const sair = useCallback(() => {
@@ -54,54 +54,71 @@ export function ProvedorAutenticacao({ children }) {
 
   const atualizarUsuarioLocal = useCallback((proximoUsuario) => {
     setUsuario(proximoUsuario);
-    setToken((tokenAtual) => {
-      if (!tokenAtual) {
-        return tokenAtual;
-      }
-
-      localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify({
-        token: tokenAtual,
-        usuario: proximoUsuario
-      }));
-
-      return tokenAtual;
-    });
   }, []);
 
   useEffect(() => {
-    const conteudo = localStorage.getItem(CHAVE_ARMAZENAMENTO);
-    if (!conteudo) {
-      setCarregando(false);
-      return;
-    }
-
-    try {
-      const dados = JSON.parse(conteudo);
-
-      if (tokenExpirado(dados.token)) {
-        localStorage.removeItem(CHAVE_ARMAZENAMENTO);
+    async function carregarAutenticacaoPersistida() {
+      const conteudo = localStorage.getItem(CHAVE_ARMAZENAMENTO);
+      if (!conteudo) {
+        setCarregando(false);
         return;
       }
 
-      setToken(dados.token);
-      setUsuario(dados.usuario);
-      definirTokenAutorizacao(dados.token);
-    } catch {
-      localStorage.removeItem(CHAVE_ARMAZENAMENTO);
-    } finally {
-      setCarregando(false);
+      let tokenPersistido = conteudo;
+
+      try {
+        const dadosLegados = JSON.parse(conteudo);
+        if (typeof dadosLegados?.token === 'string') {
+          tokenPersistido = dadosLegados.token;
+        }
+      } catch {
+      }
+
+      if (tokenExpirado(tokenPersistido)) {
+        localStorage.removeItem(CHAVE_ARMAZENAMENTO);
+        setCarregando(false);
+        return;
+      }
+
+      try {
+        setToken(tokenPersistido);
+        definirTokenAutorizacao(tokenPersistido);
+        const usuarioAtual = await autenticacaoServico.me();
+        setUsuario(usuarioAtual);
+        localStorage.setItem(CHAVE_ARMAZENAMENTO, tokenPersistido);
+      } catch {
+        localStorage.removeItem(CHAVE_ARMAZENAMENTO);
+        definirTokenAutorizacao(null);
+        setToken(null);
+        setUsuario(null);
+      } finally {
+        setCarregando(false);
+      }
     }
+
+    carregarAutenticacaoPersistida();
   }, []);
 
-  const entrar = useCallback(async (email, senha) => {
-    const resposta = await autenticacaoServico.login({ email, senha });
+  const solicitarCodigoLogin = useCallback(async (email) => {
+    return autenticacaoServico.solicitarCodigoLogin({ email });
+  }, []);
+
+  const entrarComCodigo = useCallback(async (email, codigo) => {
+    const resposta = await autenticacaoServico.loginComCodigo({ email, codigo });
     salvarAutenticacao(resposta);
     return resposta;
   }, [salvarAutenticacao]);
 
-  const registrarPorConvite = useCallback(async (tokenConvite, nome, email, senha) => {
+  const registrarPorConvite = useCallback(async ({
+    conviteIdPublico,
+    codigoConvite,
+    nome,
+    email,
+    senha
+  }) => {
     const resposta = await autenticacaoServico.registrarPorConvite({
-      tokenConvite,
+      conviteIdPublico,
+      codigoConvite,
       nome,
       email,
       senha
@@ -128,13 +145,14 @@ export function ProvedorAutenticacao({ children }) {
       token,
       usuario,
       carregando,
-      entrar,
+      solicitarCodigoLogin,
+      entrarComCodigo,
       registrarPorConvite,
       sair,
       recarregarUsuario,
       atualizarUsuarioLocal
     }),
-    [token, usuario, carregando, entrar, registrarPorConvite, sair, recarregarUsuario, atualizarUsuarioLocal]
+    [token, usuario, carregando, solicitarCodigoLogin, entrarComCodigo, registrarPorConvite, sair, recarregarUsuario, atualizarUsuarioLocal]
   );
 
   return <AutenticacaoContexto.Provider value={valor}>{children}</AutenticacaoContexto.Provider>;

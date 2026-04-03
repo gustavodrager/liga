@@ -11,8 +11,13 @@ export const convitesCadastroServico = {
     return resposta.data;
   },
 
-  async obterPublicoPorToken(token) {
-    const resposta = await http.get(`/convites-cadastro/publico/${encodeURIComponent(token)}`);
+  async obterLinkAceite(id) {
+    const resposta = await http.get(`/convites-cadastro/${id}/link-aceite`);
+    return resposta.data;
+  },
+
+  async obterPublico(identificadorOuToken) {
+    const resposta = await http.get(`/convites-cadastro/publico/${encodeURIComponent(identificadorOuToken)}`);
     return resposta.data;
   },
 

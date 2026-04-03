@@ -14,7 +14,6 @@ public record ConviteCadastroDto(
     Guid Id,
     string Email,
     string? Telefone,
-    string Token,
     PerfilUsuario PerfilDestino,
     DateTime ExpiraEmUtc,
     DateTime? UsadoEmUtc,
@@ -36,9 +35,15 @@ public record ConviteCadastroDto(
     DateTime DataAtualizacao
 );
 
+public record ConviteCadastroLinkAceiteDto(
+    string LinkAceite,
+    string CodigoConvite
+);
+
 public record ConviteCadastroPublicoDto(
     Guid Id,
-    string Email,
+    string IdentificadorPublico,
+    string EmailMascarado,
     PerfilUsuario PerfilDestino,
     DateTime ExpiraEmUtc,
     string Situacao,

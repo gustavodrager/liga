@@ -42,7 +42,6 @@ internal static class MapeadorEntidades
             conviteCadastro.Id,
             conviteCadastro.Email,
             conviteCadastro.Telefone,
-            conviteCadastro.Token,
             conviteCadastro.PerfilDestino,
             conviteCadastro.ExpiraEmUtc,
             conviteCadastro.UsadoEmUtc,
@@ -71,7 +70,8 @@ internal static class MapeadorEntidades
 
         return new ConviteCadastroPublicoDto(
             conviteCadastro.Id,
-            conviteCadastro.Email,
+            conviteCadastro.IdentificadorPublico,
+            MascararEmail(conviteCadastro.Email),
             conviteCadastro.PerfilDestino,
             conviteCadastro.ExpiraEmUtc,
             conviteCadastro.ObterSituacao(agoraUtc),
@@ -84,10 +84,6 @@ internal static class MapeadorEntidades
             atleta.Id,
             atleta.Nome,
             atleta.Apelido,
-            atleta.Telefone,
-            atleta.Email,
-            atleta.Instagram,
-            atleta.Cpf,
             atleta.CadastroPendente,
             atleta.Lado
         );
@@ -102,6 +98,9 @@ internal static class MapeadorEntidades
             atleta.Instagram,
             atleta.Cpf,
             atleta.CadastroPendente,
+            atleta.Cidade,
+            atleta.Estado,
+            atleta.Nivel,
             atleta.Lado,
             atleta.DataNascimento,
             atleta.DataCriacao,
@@ -156,6 +155,7 @@ internal static class MapeadorEntidades
             formato.QuantidadeDerrotasParaEliminacao,
             formato.PermiteCabecaDeChave,
             formato.DisputaTerceiroLugar,
+            FormatosCampeonatoPadrao.EhPadrao(formato.Nome),
             formato.DataCriacao,
             formato.DataAtualizacao
         );
@@ -218,6 +218,7 @@ internal static class MapeadorEntidades
             regra.PontosPrimeiroLugar,
             regra.PontosSegundoLugar,
             regra.PontosTerceiroLugar,
+            RegrasCompeticaoPadrao.EhPadrao(regra.Nome),
             regra.UsuarioCriadorId,
             regra.UsuarioCriador?.Nome,
             regra.DataCriacao,
@@ -267,6 +268,8 @@ internal static class MapeadorEntidades
             partida.Id,
             partida.CategoriaCompeticaoId,
             partida.CategoriaCompeticao?.Nome ?? string.Empty,
+            partida.CriadoPorUsuarioId,
+            partida.CriadoPorUsuario?.Nome,
             partida.DuplaAId,
             partida.DuplaA?.Nome ?? string.Empty,
             duplaAAtleta1Id,
@@ -285,6 +288,7 @@ internal static class MapeadorEntidades
             partida.PlacarDuplaB,
             partida.DuplaVencedoraId,
             partida.DuplaVencedora?.Nome,
+            partida.StatusAprovacao,
             partida.CategoriaCompeticao?.PesoRanking ?? 1m,
             partida.CalcularPontosRankingVitoria(),
             partida.DataPartida,
@@ -296,6 +300,35 @@ internal static class MapeadorEntidades
             atletasPendentes
         );
     }
+
+    public static PendenciaUsuarioDto ParaDto(this PendenciaUsuario pendencia)
+        => new(
+            pendencia.Id,
+            pendencia.Tipo,
+            pendencia.Status,
+            pendencia.DataCriacao,
+            pendencia.DataConclusao,
+            pendencia.Observacao,
+            pendencia.UsuarioId,
+            pendencia.AtletaId,
+            pendencia.Atleta?.Nome,
+            pendencia.Atleta?.Email,
+            pendencia.Atleta is null ? null : StatusCadastroAtletaUtil.PossuiUsuarioVinculado(pendencia.Atleta),
+            pendencia.PartidaId,
+            pendencia.Partida?.DataPartida,
+            pendencia.Partida?.Status,
+            pendencia.Partida?.StatusAprovacao,
+            pendencia.Partida?.DuplaA?.Nome,
+            pendencia.Partida?.DuplaA?.Atleta1?.Nome,
+            pendencia.Partida?.DuplaA?.Atleta2?.Nome,
+            pendencia.Partida?.DuplaB?.Nome,
+            pendencia.Partida?.DuplaB?.Atleta1?.Nome,
+            pendencia.Partida?.DuplaB?.Atleta2?.Nome,
+            pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? pendencia.Partida.PlacarDuplaA : null,
+            pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? pendencia.Partida.PlacarDuplaB : null,
+            pendencia.Partida?.CriadoPorUsuarioId,
+            pendencia.Partida?.CriadoPorUsuario?.Nome
+        );
 
     public static InscricaoCampeonatoDto ParaDto(this InscricaoCampeonato inscricao)
         => new(
@@ -375,6 +408,29 @@ internal static class MapeadorEntidades
         }
 
         return string.Empty;
+    }
+
+    private static string MascararEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return string.Empty;
+        }
+
+        var partes = email.Split('@', 2, StringSplitOptions.TrimEntries);
+        if (partes.Length != 2 || string.IsNullOrWhiteSpace(partes[0]))
+        {
+            return email;
+        }
+
+        var usuario = partes[0];
+        var dominio = partes[1];
+        if (usuario.Length <= 2)
+        {
+            return $"{usuario[0]}***@{dominio}";
+        }
+
+        return $"{usuario[0]}***{usuario[^1]}@{dominio}";
     }
 
     private static MetadadosLados? ExtrairMetadadosLados(string? observacoes)

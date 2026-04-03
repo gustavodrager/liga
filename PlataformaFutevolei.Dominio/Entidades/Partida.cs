@@ -10,6 +10,7 @@ public class Partida : EntidadeBase
     public Guid DuplaBId { get; set; }
     public string? FaseCampeonato { get; set; }
     public StatusPartida Status { get; set; } = StatusPartida.Agendada;
+    public StatusAprovacaoPartida StatusAprovacao { get; set; } = StatusAprovacaoPartida.Aprovada;
     public int PlacarDuplaA { get; set; }
     public int PlacarDuplaB { get; set; }
     public Guid? DuplaVencedoraId { get; set; }
@@ -21,6 +22,8 @@ public class Partida : EntidadeBase
     public Dupla DuplaA { get; set; } = default!;
     public Dupla DuplaB { get; set; } = default!;
     public Dupla? DuplaVencedora { get; set; }
+    public ICollection<PartidaAprovacao> Aprovacoes { get; set; } = new List<PartidaAprovacao>();
+    public ICollection<PendenciaUsuario> Pendencias { get; set; } = new List<PendenciaUsuario>();
 
     public int ObterMaiorPlacar() => Math.Max(PlacarDuplaA, PlacarDuplaB);
 

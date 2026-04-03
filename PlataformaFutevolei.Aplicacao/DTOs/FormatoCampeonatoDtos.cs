@@ -46,6 +46,7 @@ public record FormatoCampeonatoDto(
     int? QuantidadeDerrotasParaEliminacao,
     bool PermiteCabecaDeChave,
     bool DisputaTerceiroLugar,
+    bool EhPadrao,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

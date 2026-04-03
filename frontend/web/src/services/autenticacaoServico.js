@@ -6,6 +6,16 @@ export const autenticacaoServico = {
     return resposta.data;
   },
 
+  async solicitarCodigoLogin(dados) {
+    const resposta = await http.post('/autenticacao/login/codigo/solicitar', dados);
+    return resposta.data;
+  },
+
+  async loginComCodigo(dados) {
+    const resposta = await http.post('/autenticacao/login/codigo', dados);
+    return resposta.data;
+  },
+
   async login(dados) {
     const resposta = await http.post('/autenticacao/login', dados);
     return resposta.data;

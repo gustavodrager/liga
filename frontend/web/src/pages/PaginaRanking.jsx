@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { competicoesServico } from '../services/competicoesServico';
@@ -50,6 +50,18 @@ function classeStatusPendencia(item) {
   }
 
   return item.temEmail ? 'tag-status-alerta' : 'tag-status-erro';
+}
+
+function formatarPontuacao(valor) {
+  const numero = Number(valor || 0);
+  if (Number.isInteger(numero)) {
+    return String(numero);
+  }
+
+  return numero.toLocaleString('pt-BR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
 }
 
 export function PaginaRanking() {
@@ -219,13 +231,6 @@ export function PaginaRanking() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Ranking</h2>
-        <p>
-          {usuarioAtleta
-            ? 'Consulte o ranking dos grupos em que seu atleta participa.'
-            : 'Consulte o ranking consolidado da liga ou o ranking da competição.'}
-        </p>
-        {!usuarioAtleta && <p>No ranking da liga, os pontos somam todas as competições vinculadas à liga.</p>}
-        <p>O ranking continua contando todos os pontos; o que muda é o estado do atleta no app.</p>
       </div>
 
       <div className="formulario-grid">
@@ -289,7 +294,7 @@ export function PaginaRanking() {
             <article key={grupo.categoriaId} className="cartao-lista">
               <div>
                 <h3>{grupo.nomeCategoria}</h3>
-                <p>{tipoConsulta === 'liga' ? `Liga: ${grupo.nomeCompeticao}` : `Gênero: ${generos[grupo.genero] || '-'}`}</p>
+                <p>{tipoConsulta === 'liga' ? grupo.nomeCompeticao : `Gênero: ${generos[grupo.genero] || '-'}`}</p>
                 {tipoConsulta !== 'liga' && <p>Competição: {grupo.nomeCompeticao}</p>}
               </div>
 
@@ -312,42 +317,54 @@ export function PaginaRanking() {
                       const aberto = detalheAberto === chaveDetalhe;
 
                       return (
-                        <tr key={item.atletaId}>
-                          <td>{item.posicao}º</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="botao-link"
-                              onClick={() => alternarDetalhe(grupo.chave, item.atletaId)}
-                            >
-                              {item.nomeAtleta}
-                            </button>
-                            {aberto && (
-                              <div className="ranking-detalhes">
-                                <strong>Partidas do ranking</strong>
-                                {item.partidas.map((partida) => (
-                                  <p key={partida.partidaId}>
-                                    {formatarDataHora(partida.dataPartida)}
-                                    {' • '}{partida.nomeCompeticao}
-                                    {' • '}{partida.nomeCategoria}
-                                    {' • '}{partida.confronto}
-                                    {' • '}{partida.resultado}
-                                    {' • '}Pontos {partida.pontos}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <span className={`tag-status ${classeStatusPendencia(item)}`}>
-                              {item.statusPendencia}
-                            </span>
-                          </td>
-                          <td>{item.pontos}</td>
-                          <td>{item.jogos}</td>
-                          <td>{item.vitorias}</td>
-                          <td>{item.derrotas}</td>
-                        </tr>
+                        <Fragment key={item.atletaId}>
+                          <tr>
+                            <td>{item.posicao}º</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="botao-link"
+                                onClick={() => alternarDetalhe(grupo.chave, item.atletaId)}
+                              >
+                                {item.nomeAtleta}
+                              </button>
+                            </td>
+                            <td>
+                              <span className={`tag-status ${classeStatusPendencia(item)}`}>
+                                {item.statusPendencia}
+                              </span>
+                            </td>
+                            <td>{formatarPontuacao(item.pontos)}</td>
+                            <td>{item.jogos}</td>
+                            <td>{item.vitorias}</td>
+                            <td>{item.derrotas}</td>
+                          </tr>
+                          {aberto && (
+                            <tr className="ranking-linha-detalhe">
+                              <td colSpan={7}>
+                                <div className="ranking-detalhes">
+                                  <strong>Partidas do ranking</strong>
+                                  {item.partidas.length === 0 ? (
+                                    <p>Nenhuma partida detalhada.</p>
+                                  ) : (
+                                    <div className="ranking-detalhe-lista">
+                                      {item.partidas.map((partida) => (
+                                        <div key={partida.partidaId} className="ranking-detalhe-item">
+                                          <strong>{partida.confronto}</strong>
+                                          <span>{formatarDataHora(partida.dataPartida)}</span>
+                                          <span>{partida.nomeCompeticao}</span>
+                                          <span>{partida.nomeCategoria}</span>
+                                          <span>{partida.resultado}</span>
+                                          <span>Pontos {formatarPontuacao(partida.pontos)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </tbody>

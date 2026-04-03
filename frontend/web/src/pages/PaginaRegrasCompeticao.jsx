@@ -66,6 +66,11 @@ export function PaginaRegrasCompeticao() {
   }
 
   function iniciarEdicao(regra) {
+    if (regra.ehPadrao) {
+      setErro('Regras padrão não podem ser alteradas.');
+      return;
+    }
+
     if (!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id) {
       setErro('Você só pode editar regras criadas pelo próprio usuário.');
       return;
@@ -134,6 +139,11 @@ export function PaginaRegrasCompeticao() {
 
   async function removerRegra(id) {
     const regra = regras.find((item) => item.id === id);
+    if (regra?.ehPadrao) {
+      setErro('Regras padrão não podem ser excluídas.');
+      return;
+    }
+
     if (regra && !usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id) {
       setErro('Você só pode excluir regras criadas pelo próprio usuário.');
       return;
@@ -333,7 +343,7 @@ export function PaginaRegrasCompeticao() {
           {regras.map((regra) => (
             <article key={regra.id} className="cartao-lista">
               <div>
-                <h3>{regra.nome}</h3>
+                <h3>{regra.nome}{regra.ehPadrao ? ' (Padrão)' : ''}</h3>
                 <p>Descrição: {regra.descricao || '-'}</p>
                 <p>
                   Partida: mínimo {regra.pontosMinimosPartida} pontos, diferença mínima {regra.diferencaMinimaPartida}{' '}
@@ -356,7 +366,7 @@ export function PaginaRegrasCompeticao() {
                   type="button"
                   className="botao-secundario"
                   onClick={() => iniciarEdicao(regra)}
-                  disabled={!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id}
+                  disabled={regra.ehPadrao || (!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id)}
                 >
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
@@ -364,7 +374,7 @@ export function PaginaRegrasCompeticao() {
                   type="button"
                   className="botao-perigo"
                   onClick={() => removerRegra(regra.id)}
-                  disabled={!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id}
+                  disabled={regra.ehPadrao || (!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id)}
                 >
                   <ConteudoBotao icone="excluir" texto="Excluir" />
                 </button>

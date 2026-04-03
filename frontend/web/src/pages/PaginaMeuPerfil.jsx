@@ -11,7 +11,8 @@ import {
   paraInputData,
   validarCpf
 } from '../utils/formatacao';
-import { nomePerfil, PERFIS_USUARIO } from '../utils/perfis';
+import { opcoesNivelAtleta } from '../utils/niveisAtleta';
+import { PERFIS_USUARIO } from '../utils/perfis';
 
 const estadoInicialAtleta = {
   nome: '',
@@ -20,7 +21,10 @@ const estadoInicialAtleta = {
   email: '',
   instagram: '',
   cpf: '',
+  cidade: '',
+  estado: '',
   cadastroPendente: false,
+  nivel: '',
   lado: '3',
   dataNascimento: ''
 };
@@ -58,7 +62,10 @@ function criarResumoAtleta(atleta) {
     email: atleta.email,
     instagram: atleta.instagram,
     cpf: formatarCpfParaInput(atleta.cpf),
-    cadastroPendente: Boolean(atleta.cadastroPendente)
+    cadastroPendente: Boolean(atleta.cadastroPendente),
+    cidade: atleta.cidade,
+    estado: atleta.estado,
+    nivel: atleta.nivel
   };
 }
 
@@ -132,7 +139,10 @@ export function PaginaMeuPerfil() {
       email: atleta.email || usuario?.email || '',
       instagram: atleta.instagram || '',
       cpf: formatarCpfParaInput(atleta.cpf),
+      cidade: atleta.cidade || '',
+      estado: atleta.estado || '',
       cadastroPendente: Boolean(atleta.cadastroPendente),
+      nivel: atleta.nivel ? String(atleta.nivel) : '',
       lado: String(atleta.lado || 3),
       dataNascimento: paraInputData(atleta.dataNascimento)
     });
@@ -176,7 +186,10 @@ export function PaginaMeuPerfil() {
       email: formularioAtleta.email.trim() || null,
       instagram: formularioAtleta.instagram.trim() || null,
       cpf: cpfLimpo || null,
+      cidade: formularioAtleta.cidade.trim() || null,
+      estado: formularioAtleta.estado.trim() || null,
       cadastroPendente: Boolean(formularioAtleta.cadastroPendente),
+      nivel: formularioAtleta.nivel ? Number(formularioAtleta.nivel) : null,
       lado: Number(formularioAtleta.lado),
       dataNascimento: formularioAtleta.dataNascimento || null
     };
@@ -219,7 +232,10 @@ export function PaginaMeuPerfil() {
       email: formularioAtleta.email.trim() || null,
       instagram: formularioAtleta.instagram.trim() || null,
       cpf: cpfLimpo || null,
+      cidade: formularioAtleta.cidade.trim() || null,
+      estado: formularioAtleta.estado.trim() || null,
       cadastroPendente: Boolean(formularioAtleta.cadastroPendente),
+      nivel: formularioAtleta.nivel ? Number(formularioAtleta.nivel) : null,
       lado: Number(formularioAtleta.lado),
       dataNascimento: formularioAtleta.dataNascimento || null
     };
@@ -266,210 +282,39 @@ export function PaginaMeuPerfil() {
   }
 
   const usuarioEhAtleta = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.atleta;
+  const possuiAtleta = Boolean(usuarioDetalhe?.atletaId);
+  const nomeSomenteLeitura = usuarioEhAtleta;
+  const aoSubmeterFormulario = possuiAtleta ? salvarAtleta : criarAtletaNovo;
+  const textoBotao = possuiAtleta
+    ? 'Salvar atleta'
+    : usuarioEhAtleta
+      ? 'Criar meu atleta'
+      : 'Criar novo atleta';
 
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Meu Perfil</h2>
-        <p>Consulte seu usuário e atualize os dados do perfil. O e-mail do acesso fica bloqueado.</p>
-      </div>
-
-      <div className="cartao-lista">
-        <h3>{usuarioDetalhe?.nome || usuario?.nome}</h3>
-        <p>E-mail: {usuarioDetalhe?.email || usuario?.email}</p>
-        <p>Perfil: {nomePerfil(usuarioDetalhe?.perfil || usuario?.perfil)}</p>
-        <p>Atleta vinculado: {usuarioDetalhe?.atleta?.nome || 'Nenhum atleta vinculado'}</p>
       </div>
 
       {erro && <p className="texto-erro">{erro}</p>}
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
 
-      <div className="cartao-lista">
-        <h3>Informações do atleta</h3>
-        {!usuarioDetalhe?.atletaId && usuarioEhAtleta && (
-          <p>Preencha os dados abaixo para se tornar um atleta cadastrado.</p>
-        )}
-        {!usuarioDetalhe?.atletaId && !usuarioEhAtleta && (
-          <p>Se você já apareceu em partidas anteriores, o sistema tenta reaproveitar esse atleta ao concluir este cadastro.</p>
-        )}
-        {usuarioDetalhe?.atletaId && (
-          <p>Quando o usuário é vinculado a um atleta já existente, os pontos anteriores passam a aparecer como ativos no ranking automaticamente.</p>
-        )}
-      </div>
-
-      {usuarioDetalhe?.atletaId ? (
-        <form className="formulario-grid" onSubmit={salvarAtleta}>
-          <label>
-            Nome completo
-            <input
-              type="text"
-              value={formularioAtleta.nome}
-              onChange={(evento) => atualizarCampoAtleta('nome', evento.target.value)}
-              readOnly={usuarioEhAtleta}
-              disabled={usuarioEhAtleta}
-              required
-            />
-          </label>
-
-          <label>
-            Apelido
-            <input
-              type="text"
-              value={formularioAtleta.apelido}
-              onChange={(evento) => atualizarCampoAtleta('apelido', evento.target.value)}
-            />
-          </label>
-
-          <label>
-            Telefone
-            <input
-              type="text"
-              value={formularioAtleta.telefone}
-              onChange={(evento) => atualizarCampoAtleta('telefone', evento.target.value)}
-            />
-          </label>
-
-          <label>
-            E-mail
-            <input
-              type="email"
-              value={formularioAtleta.email}
-              readOnly
-              disabled
-            />
-          </label>
-
-          <label>
-            Instagram
-            <input
-              type="text"
-              value={formularioAtleta.instagram}
-              onChange={(evento) => atualizarCampoAtleta('instagram', evento.target.value)}
-            />
-          </label>
-
-          <label>
-            CPF
-            <input
-              type="text"
-              value={formularioAtleta.cpf}
-              onChange={(evento) => atualizarCampoAtleta('cpf', evento.target.value)}
-            />
-          </label>
-
-          <label>
-            Lado
-            <select
-              value={formularioAtleta.lado}
-              onChange={(evento) => atualizarCampoAtleta('lado', evento.target.value)}
-            >
-              <option value="1">Direito</option>
-              <option value="2">Esquerdo</option>
-              <option value="3">Ambos</option>
-            </select>
-          </label>
-
-          <label>
-            Data de nascimento
-            <input
-              type="date"
-              value={formularioAtleta.dataNascimento}
-              onChange={(evento) => atualizarCampoAtleta('dataNascimento', evento.target.value)}
-            />
-          </label>
-
-          <div className="acoes-formulario campo-largo">
-            <button type="submit" className="botao-primario" disabled={salvandoAtleta}>
-              {salvandoAtleta ? 'Salvando...' : 'Salvar atleta'}
-            </button>
+      <form className="formulario-secoes" onSubmit={aoSubmeterFormulario}>
+        <div className="secao-formulario">
+          <div className="secao-formulario-cabecalho">
+            <h3>Identificação</h3>
           </div>
-        </form>
-      ) : usuarioEhAtleta ? (
-        <>
-          <form className="formulario-grid" onSubmit={criarAtletaNovo}>
-            <label>
-              Nome completo
-              <input type="text" value={formularioAtleta.nome} readOnly disabled />
-            </label>
 
-            <label>
-              Apelido
-              <input
-                type="text"
-                value={formularioAtleta.apelido}
-                onChange={(evento) => atualizarCampoAtleta('apelido', evento.target.value)}
-              />
-            </label>
-
-            <label>
-              Telefone
-              <input
-                type="text"
-                value={formularioAtleta.telefone}
-                onChange={(evento) => atualizarCampoAtleta('telefone', evento.target.value)}
-              />
-            </label>
-
-            <label>
-              E-mail
-              <input type="email" value={formularioAtleta.email} readOnly disabled />
-            </label>
-
-            <label>
-              Instagram
-              <input
-                type="text"
-                value={formularioAtleta.instagram}
-                onChange={(evento) => atualizarCampoAtleta('instagram', evento.target.value)}
-              />
-            </label>
-
-            <label>
-              CPF
-              <input
-                type="text"
-                value={formularioAtleta.cpf}
-                onChange={(evento) => atualizarCampoAtleta('cpf', evento.target.value)}
-              />
-            </label>
-
-            <label>
-              Lado
-              <select
-                value={formularioAtleta.lado}
-                onChange={(evento) => atualizarCampoAtleta('lado', evento.target.value)}
-              >
-                <option value="1">Direito</option>
-                <option value="2">Esquerdo</option>
-                <option value="3">Ambos</option>
-              </select>
-            </label>
-
-            <label>
-              Data de nascimento
-              <input
-                type="date"
-                value={formularioAtleta.dataNascimento}
-                onChange={(evento) => atualizarCampoAtleta('dataNascimento', evento.target.value)}
-              />
-            </label>
-
-            <div className="acoes-formulario campo-largo">
-              <button type="submit" className="botao-primario" disabled={salvandoAtleta}>
-                {salvandoAtleta ? 'Salvando...' : 'Criar meu atleta'}
-              </button>
-            </div>
-          </form>
-        </>
-      ) : (
-        <>
-          <form className="formulario-grid" onSubmit={criarAtletaNovo}>
-            <label>
+          <div className="secao-formulario-conteudo">
+            <label className="campo-largo">
               Nome completo
               <input
                 type="text"
                 value={formularioAtleta.nome}
                 onChange={(evento) => atualizarCampoAtleta('nome', evento.target.value)}
+                readOnly={nomeSomenteLeitura}
+                disabled={nomeSomenteLeitura}
                 required
               />
             </label>
@@ -483,6 +328,33 @@ export function PaginaMeuPerfil() {
               />
             </label>
 
+            <label>
+              Data de nascimento
+              <input
+                type="date"
+                value={formularioAtleta.dataNascimento}
+                onChange={(evento) => atualizarCampoAtleta('dataNascimento', evento.target.value)}
+              />
+            </label>
+
+            <label>
+              CPF
+              <input
+                type="text"
+                value={formularioAtleta.cpf}
+                onChange={(evento) => atualizarCampoAtleta('cpf', evento.target.value)}
+              />
+            </label>
+
+          </div>
+        </div>
+
+        <div className="secao-formulario">
+          <div className="secao-formulario-cabecalho">
+            <h3>Contato</h3>
+          </div>
+
+          <div className="secao-formulario-conteudo">
             <label>
               Telefone
               <input
@@ -512,14 +384,31 @@ export function PaginaMeuPerfil() {
             </label>
 
             <label>
-              CPF
+              Cidade
               <input
                 type="text"
-                value={formularioAtleta.cpf}
-                onChange={(evento) => atualizarCampoAtleta('cpf', evento.target.value)}
+                value={formularioAtleta.cidade}
+                onChange={(evento) => atualizarCampoAtleta('cidade', evento.target.value)}
               />
             </label>
 
+            <label>
+              Estado
+              <input
+                type="text"
+                value={formularioAtleta.estado}
+                onChange={(evento) => atualizarCampoAtleta('estado', evento.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="secao-formulario">
+          <div className="secao-formulario-cabecalho">
+            <h3>Detalhes esportivos e cadastro</h3>
+          </div>
+
+          <div className="secao-formulario-conteudo">
             <label>
               Lado
               <select
@@ -533,22 +422,28 @@ export function PaginaMeuPerfil() {
             </label>
 
             <label>
-              Data de nascimento
-              <input
-                type="date"
-                value={formularioAtleta.dataNascimento}
-                onChange={(evento) => atualizarCampoAtleta('dataNascimento', evento.target.value)}
-              />
+              Nível
+              <select
+                value={formularioAtleta.nivel}
+                onChange={(evento) => atualizarCampoAtleta('nivel', evento.target.value)}
+              >
+                <option value="">Selecione</option>
+                {opcoesNivelAtleta.map((opcao) => (
+                  <option key={opcao.valor} value={opcao.valor}>
+                    {opcao.rotulo}
+                  </option>
+                ))}
+              </select>
             </label>
+          </div>
+        </div>
 
-            <div className="acoes-formulario campo-largo">
-              <button type="submit" className="botao-primario" disabled={salvandoAtleta}>
-                {salvandoAtleta ? 'Salvando...' : 'Criar novo atleta'}
-              </button>
-            </div>
-          </form>
-        </>
-      )}
+        <div className="acoes-formulario campo-largo">
+          <button type="submit" className="botao-primario" disabled={salvandoAtleta}>
+            {salvandoAtleta ? 'Salvando...' : textoBotao}
+          </button>
+        </div>
+      </form>
     </section>
   );
 }

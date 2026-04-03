@@ -519,6 +519,30 @@ code {
   background: #fff8e0;
 }
 
+.ranking-linha-detalhe td {
+  padding-top: 0;
+}
+
+.ranking-detalhe-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+}
+
+.ranking-detalhe-item {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #efe1ad;
+}
+
+.ranking-detalhe-item span {
+  font-size: 0.88rem;
+}
+
 .ranking-detalhes p {
   margin: 0.35rem 0 0;
 }
