@@ -124,13 +124,13 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddHttpClient<IEnvioEmailCodigoLoginServico, ResendEmailCodigoLoginServico>((serviceProvider, client) =>
         {
             var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailCodigoLogin>>().Value;
-            client.BaseAddress = new Uri($"{configuracaoEmail.ObterBaseUrl()}/");
+            client.BaseAddress = CriarUriBaseResendSegura(configuracaoEmail.ObterBaseUrl());
             client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddHttpClient<IEnvioEmailConviteCadastroServico, ResendEmailConviteCadastroServico>((serviceProvider, client) =>
         {
             var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailConviteCadastro>>().Value;
-            client.BaseAddress = new Uri($"{configuracaoEmail.ObterBaseUrl()}/");
+            client.BaseAddress = CriarUriBaseResendSegura(configuracaoEmail.ObterBaseUrl());
             client.Timeout = TimeSpan.FromSeconds(15);
         });
         services.AddScoped<IEnvioWhatsappConviteCadastroServico, TwilioWhatsappConviteCadastroServico>();
@@ -153,5 +153,16 @@ public static class InjecaoDependenciaInfraestrutura
         return string.IsNullOrWhiteSpace(valorFallback)
             ? null
             : valorFallback;
+    }
+
+    private static Uri CriarUriBaseResendSegura(string? baseUrlConfigurada)
+    {
+        var candidata = $"{(baseUrlConfigurada ?? string.Empty).Trim().TrimEnd('/')}/";
+        if (Uri.TryCreate(candidata, UriKind.Absolute, out var uri))
+        {
+            return uri;
+        }
+
+        return new Uri("https://api.resend.com/");
     }
 }
