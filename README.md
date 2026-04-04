@@ -109,6 +109,81 @@ cd frontend/web
 npm run build
 ```
 
+### Azure App Service + Key Vault
+
+Para o cenário atual de produção, considere:
+
+- Backend: Azure App Service
+- Banco: Azure Database for PostgreSQL Flexible Server
+- Segredos: Azure Key Vault
+- Frontend: Azure Static Web Apps ou App Service separado
+
+No App Service da API, mantenha em `Application settings` os valores não sensíveis:
+
+```bash
+ASPNETCORE_ENVIRONMENT=Production
+Jwt__Emissor=PlataformaFutevolei.Api
+Jwt__Audiencia=PlataformaFutevolei.Web
+Jwt__ExpiracaoMinutos=120
+Frontend__Url=https://app.seudominio.com
+EmailConvitesCadastro__UrlApp=https://app.seudominio.com
+WhatsappConvitesCadastro__UrlApp=https://app.seudominio.com
+EmailConvitesCadastro__RemetenteEmail=plataforma@seudominio.com
+EmailConvitesCadastro__RemetenteNome=Plataforma de Futevôlei
+EmailConvitesCadastro__ReplyTo=contato@seudominio.com
+Database__MigrateOnStartup=false
+Diagnostics__EnableSwagger=false
+Diagnostics__EnableDbTestEndpoint=false
+WhatsappConvitesCadastro__Enabled=false
+```
+
+Para segredos sensíveis, prefira Key Vault References no mesmo `Application settings`:
+
+```bash
+ConnectionStrings__DefaultConnection=@Microsoft.KeyVault(SecretUri=https://SEU-VAULT.vault.azure.net/secrets/prod-db-connection-string)
+Jwt__Chave=@Microsoft.KeyVault(SecretUri=https://SEU-VAULT.vault.azure.net/secrets/prod-jwt-chave)
+EmailConvitesCadastro__ApiKey=@Microsoft.KeyVault(SecretUri=https://SEU-VAULT.vault.azure.net/secrets/prod-resend-api-key)
+```
+
+Fluxo resumido:
+
+1. Criar os `Secrets` no Key Vault.
+2. Ativar `System assigned managed identity` no App Service da API.
+3. Dar a role `Key Vault Secrets User` para essa identidade no Key Vault.
+4. Configurar as `Application settings` no App Service usando valores normais e Key Vault References.
+5. Reiniciar o App Service após salvar as configurações.
+
+Observações importantes:
+
+- Não reutilize credenciais de desenvolvimento em produção; gere e rotacione chaves próprias de produção.
+- O login principal do frontend depende de envio de código por e-mail. Sem `EmailConvitesCadastro__ApiKey` e remetente válidos, o uso normal do app fica comprometido.
+- O fluxo de `esqueci minha senha` ainda depende de evolução adicional para envio efetivo do código por e-mail.
+
+### Domínio customizado
+
+Se o frontend for publicado em um subdomínio, o DNS precisa existir antes do app abrir publicamente. Para App Service, o caso comum de subdomínio é:
+
+- `CNAME` de `app` apontando para `<nome-do-app>.azurewebsites.net`
+- `TXT` de validação `asuid.app` com o valor informado na tela de `Custom domains`
+
+Depois de validar o domínio no Azure:
+
+1. associar o domínio customizado ao App Service
+2. emitir o certificado gerenciado
+3. forçar HTTPS
+
+Erro `DNS_PROBE_FINISHED_NXDOMAIN` indica ausência do registro DNS público, não falha da aplicação.
+
+### Bootstrap inicial
+
+O primeiro usuário `Administrador` precisa ser criado fora do fluxo normal da aplicação. Hoje:
+
+- convites de cadastro exigem autenticação de administrador
+- cadastro público está desativado
+- o fluxo atual de convite cria apenas usuário com perfil `Organizador`
+
+Planeje o bootstrap inicial do administrador diretamente no banco ou por processo operacional controlado antes do go-live.
+
 ## Autenticação
 
 Endpoints:

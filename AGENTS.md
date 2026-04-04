@@ -91,6 +91,16 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Não quebrar funcionalidades existentes
 - Priorizar simplicidade, clareza, consistência de domínio e manutenção
 
+## Operação em produção
+- Quando o trabalho envolver produção, assumir hospedagem em Azure App Service + PostgreSQL + Key Vault, salvo indicação explícita em contrário
+- Configuração de produção deve sair de variáveis de ambiente/App Service; não introduzir segredo novo em `appsettings` versionado
+- Segredos sensíveis de produção, como connection string com senha, `Jwt__Chave` e chaves de provedores externos, devem preferencialmente vir de Key Vault References
+- Configurações não sensíveis, como `Frontend__Url`, `Jwt__Emissor`, `Jwt__Audiencia`, flags de diagnóstico e URLs públicas do app, podem ficar direto no App Service
+- Não reutilizar credenciais de desenvolvimento em produção; se uma chave tiver sido exposta no repositório, tratar como comprometida e rotacionar
+- O fluxo operacional real em produção depende de provedor de e-mail configurado para login por código e convites; tratar ausência dessa configuração como bloqueador de uso normal do frontend
+- O primeiro usuário `Administrador` não nasce por cadastro público nem por convite; considerar bootstrap inicial controlado fora do fluxo normal da aplicação
+- Domínio customizado e HTTPS fazem parte da subida; se houver erro `NXDOMAIN`, tratar primeiro como problema de DNS público antes de investigar aplicação
+
 ## Forma de trabalho
 Antes de implementar:
 1. analisar o cenário atual

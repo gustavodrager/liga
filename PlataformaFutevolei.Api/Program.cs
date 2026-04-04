@@ -160,6 +160,12 @@ if (!habilitarDbTestEndpoint)
     app.Logger.LogInformation("Endpoint /db-test desabilitado por configuração.");
 }
 
+var habilitarHttpsRedirection = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
+if (!habilitarHttpsRedirection)
+{
+    app.Logger.LogInformation("Redirecionamento HTTPS desabilitado por configuração.");
+}
+
 var aplicarMigrations = builder.Configuration.GetValue("Database:MigrateOnStartup", true);
 if (aplicarMigrations)
 {
@@ -171,6 +177,7 @@ if (aplicarMigrations)
         app.Logger.LogInformation("Aplicando migrations pendentes...");
         dbContext.Database.Migrate();
         GarantirCompatibilidadeStatusAprovacaoPartidas(dbContext, app.Logger);
+        GarantirCompatibilidadeFluxoAprovacaoResultados(dbContext, app.Logger);
         app.Logger.LogInformation("Migrations aplicadas com sucesso.");
     }
     catch (Exception ex)
@@ -193,11 +200,26 @@ if (habilitarSwagger)
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (habilitarHttpsRedirection)
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", (IHostEnvironment environment) =>
+{
+    return Results.Ok(new
+    {
+        nome = "Plataforma Futevôlei API",
+        status = "ok",
+        ambiente = environment.EnvironmentName,
+        health = "/health",
+        utc = DateTime.UtcNow
+    });
+});
 
 app.MapGet("/health", (IHostEnvironment environment) =>
 {
@@ -276,4 +298,91 @@ static void GarantirCompatibilidadeStatusAprovacaoPartidas(
         """);
 
     logger.LogInformation("Compatibilidade de schema para partidas.status_aprovacao verificada.");
+}
+
+static void GarantirCompatibilidadeFluxoAprovacaoResultados(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger logger)
+{
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS partidas_aprovacoes
+        (
+            id uuid NOT NULL,
+            partida_id uuid NOT NULL,
+            atleta_id uuid NOT NULL,
+            usuario_id uuid NOT NULL,
+            status integer NOT NULL DEFAULT 1,
+            data_solicitacao timestamp with time zone NOT NULL,
+            data_resposta timestamp with time zone NULL,
+            observacao character varying(1000) NULL,
+            data_criacao timestamp with time zone NOT NULL,
+            data_atualizacao timestamp with time zone NOT NULL,
+            CONSTRAINT "PK_partidas_aprovacoes" PRIMARY KEY (id),
+            CONSTRAINT "FK_partidas_aprovacoes_atletas_atleta_id" FOREIGN KEY (atleta_id) REFERENCES atletas (id) ON DELETE RESTRICT,
+            CONSTRAINT "FK_partidas_aprovacoes_partidas_partida_id" FOREIGN KEY (partida_id) REFERENCES partidas (id) ON DELETE CASCADE,
+            CONSTRAINT "FK_partidas_aprovacoes_usuarios_usuario_id" FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE RESTRICT
+        );
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_partidas_aprovacoes_atleta_id"
+        ON partidas_aprovacoes (atleta_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_partidas_aprovacoes_partida_id"
+        ON partidas_aprovacoes (partida_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_partidas_aprovacoes_usuario_id"
+        ON partidas_aprovacoes (usuario_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_partidas_aprovacoes_partida_id_atleta_id"
+        ON partidas_aprovacoes (partida_id, atleta_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS pendencias_usuarios
+        (
+            id uuid NOT NULL,
+            tipo integer NOT NULL,
+            usuario_id uuid NOT NULL,
+            atleta_id uuid NULL,
+            partida_id uuid NULL,
+            status integer NOT NULL DEFAULT 1,
+            data_conclusao timestamp with time zone NULL,
+            observacao character varying(1000) NULL,
+            data_criacao timestamp with time zone NOT NULL,
+            data_atualizacao timestamp with time zone NOT NULL,
+            CONSTRAINT "PK_pendencias_usuarios" PRIMARY KEY (id),
+            CONSTRAINT "FK_pendencias_usuarios_atletas_atleta_id" FOREIGN KEY (atleta_id) REFERENCES atletas (id) ON DELETE SET NULL,
+            CONSTRAINT "FK_pendencias_usuarios_partidas_partida_id" FOREIGN KEY (partida_id) REFERENCES partidas (id) ON DELETE CASCADE,
+            CONSTRAINT "FK_pendencias_usuarios_usuarios_usuario_id" FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
+        );
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_pendencias_usuarios_atleta_id"
+        ON pendencias_usuarios (atleta_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_pendencias_usuarios_partida_id"
+        ON pendencias_usuarios (partida_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_pendencias_usuarios_usuario_id"
+        ON pendencias_usuarios (usuario_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_pendencias_usuarios_usuario_id_status"
+        ON pendencias_usuarios (usuario_id, status);
+        """);
+
+    logger.LogInformation("Compatibilidade de schema para fluxo de aprovação de partidas verificada.");
 }
