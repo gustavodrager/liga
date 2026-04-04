@@ -12,17 +12,14 @@ namespace PlataformaFutevolei.Infraestrutura.Servicos;
 
 public class ResendEmailCodigoLoginServico(
     HttpClient httpClient,
-    IOptions<ConfiguracaoEmailConviteCadastro> configuracaoAccessor,
+    IOptions<ConfiguracaoEmailCodigoLogin> configuracaoAccessor,
     IOptions<ConfiguracaoCodigoLoginDesenvolvimento> configuracaoCodigoLoginDesenvolvimentoAccessor,
-    IOptions<ConfiguracaoEmailCodigoLogin> configuracaoEmailCodigoLoginAccessor,
     ILogger<ResendEmailCodigoLoginServico> logger
 ) : IEnvioEmailCodigoLoginServico
 {
-    private readonly ConfiguracaoEmailConviteCadastro configuracao = configuracaoAccessor.Value;
+    private readonly ConfiguracaoEmailCodigoLogin configuracao = configuracaoAccessor.Value;
     private readonly ConfiguracaoCodigoLoginDesenvolvimento configuracaoCodigoLoginDesenvolvimento
         = configuracaoCodigoLoginDesenvolvimentoAccessor.Value;
-    private readonly ConfiguracaoEmailCodigoLogin configuracaoEmailCodigoLogin
-        = configuracaoEmailCodigoLoginAccessor.Value;
 
     public async Task<ResultadoEnvioEmailCodigoLoginDto> EnviarAsync(
         Usuario usuario,
@@ -48,8 +45,8 @@ public class ResendEmailCodigoLoginServico(
             return new ResultadoEnvioEmailCodigoLoginDto(false, false, mensagemConfiguracaoIncompleta, null);
         }
 
-        var emailDestino = configuracaoEmailCodigoLogin.ObterEmailDestino(usuario.Email);
-        if (configuracaoEmailCodigoLogin.DeveSobrescrever(usuario.Email))
+        var emailDestino = configuracao.ObterEmailDestino(usuario.Email);
+        if (configuracao.DeveSobrescrever(usuario.Email))
         {
             logger.LogInformation(
                 "Sobrescrita de destinatário aplicada no código de login do usuário {UsuarioId}. E-mail de login: {EmailLogin}. Destino efetivo: {EmailDestino}.",
