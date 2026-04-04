@@ -82,6 +82,8 @@ Frontend__Url=https://app.seudominio.com
 EmailConvitesCadastro__UrlApp=https://app.seudominio.com
 WhatsappConvitesCadastro__UrlApp=https://app.seudominio.com
 APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=...;IngestionEndpoint=https://...
+EmailCodigoLogin__EmailOrigemSobrescrito=admin@quebranunca.com.br
+EmailCodigoLogin__EmailDestinoSobrescrito=gustavodrager@gmail.com
 ```
 
 Observações:
@@ -89,6 +91,7 @@ Observações:
 - A API falha na inicialização em `Production` se `Jwt:Chave` estiver vazia ou usando o placeholder do repositório.
 - A API falha na inicialização em `Production` se `Frontend:Url` não estiver definida ou apontar para `localhost`.
 - `EmailConvitesCadastro__ApiKey` e os dados de WhatsApp continuam opcionais; sem provedor configurado, o convite segue válido e o envio fica pendente/manual.
+- `EmailCodigoLogin__EmailOrigemSobrescrito` e `EmailCodigoLogin__EmailDestinoSobrescrito` são opcionais e permitem redirecionar o código de login de um usuário específico para outro e-mail sem alterar o cadastro salvo no banco.
 - Application Insights é opcional; quando `ApplicationInsights:ConnectionString` ou `APPLICATIONINSIGHTS_CONNECTION_STRING` estiver configurada, a API envia requests, dependências, exceções e logs do `ILogger` para o recurso.
 
 Publicação sugerida do backend:
@@ -131,6 +134,8 @@ WhatsappConvitesCadastro__UrlApp=https://app.seudominio.com
 EmailConvitesCadastro__RemetenteEmail=plataforma@seudominio.com
 EmailConvitesCadastro__RemetenteNome=Plataforma de Futevôlei
 EmailConvitesCadastro__ReplyTo=contato@seudominio.com
+EmailCodigoLogin__EmailOrigemSobrescrito=admin@quebranunca.com.br
+EmailCodigoLogin__EmailDestinoSobrescrito=gustavodrager@gmail.com
 Database__MigrateOnStartup=false
 Diagnostics__EnableSwagger=false
 Diagnostics__EnableDbTestEndpoint=false
@@ -157,6 +162,7 @@ Observações importantes:
 
 - Não reutilize credenciais de desenvolvimento em produção; gere e rotacione chaves próprias de produção.
 - O login principal do frontend depende de envio de código por e-mail. Sem `EmailConvitesCadastro__ApiKey` e remetente válidos, o uso normal do app fica comprometido.
+- Quando `EmailCodigoLogin__EmailOrigemSobrescrito` e `EmailCodigoLogin__EmailDestinoSobrescrito` estiverem preenchidos, a API envia o código de login para o destino sobrescrito, mas continua validando e autenticando o usuário pelo e-mail cadastrado originalmente.
 - O fluxo de `esqueci minha senha` ainda depende de evolução adicional para envio efetivo do código por e-mail.
 
 ### Domínio customizado

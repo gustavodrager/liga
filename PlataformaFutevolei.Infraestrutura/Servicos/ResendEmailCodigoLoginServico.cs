@@ -14,12 +14,15 @@ public class ResendEmailCodigoLoginServico(
     HttpClient httpClient,
     IOptions<ConfiguracaoEmailConviteCadastro> configuracaoAccessor,
     IOptions<ConfiguracaoCodigoLoginDesenvolvimento> configuracaoCodigoLoginDesenvolvimentoAccessor,
+    IOptions<ConfiguracaoEmailCodigoLogin> configuracaoEmailCodigoLoginAccessor,
     ILogger<ResendEmailCodigoLoginServico> logger
 ) : IEnvioEmailCodigoLoginServico
 {
     private readonly ConfiguracaoEmailConviteCadastro configuracao = configuracaoAccessor.Value;
     private readonly ConfiguracaoCodigoLoginDesenvolvimento configuracaoCodigoLoginDesenvolvimento
         = configuracaoCodigoLoginDesenvolvimentoAccessor.Value;
+    private readonly ConfiguracaoEmailCodigoLogin configuracaoEmailCodigoLogin
+        = configuracaoEmailCodigoLoginAccessor.Value;
 
     public async Task<ResultadoEnvioEmailCodigoLoginDto> EnviarAsync(
         Usuario usuario,
@@ -45,10 +48,20 @@ public class ResendEmailCodigoLoginServico(
             return new ResultadoEnvioEmailCodigoLoginDto(false, false, mensagemConfiguracaoIncompleta, null);
         }
 
+        var emailDestino = configuracaoEmailCodigoLogin.ObterEmailDestino(usuario.Email);
+        if (configuracaoEmailCodigoLogin.DeveSobrescrever(usuario.Email))
+        {
+            logger.LogInformation(
+                "Sobrescrita de destinatário aplicada no código de login do usuário {UsuarioId}. E-mail de login: {EmailLogin}. Destino efetivo: {EmailDestino}.",
+                usuario.Id,
+                usuario.Email,
+                emailDestino);
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuracao.ApiKey.Trim());
         request.Headers.Add("Idempotency-Key", $"codigo-login-{usuario.Id:N}-{DateTime.UtcNow.Ticks}");
-        request.Content = JsonContent.Create(CriarPayload(usuario, codigo));
+        request.Content = JsonContent.Create(CriarPayload(usuario, codigo, emailDestino));
 
         try
         {
@@ -80,7 +93,7 @@ public class ResendEmailCodigoLoginServico(
         }
     }
 
-    private object CriarPayload(Usuario usuario, string codigo)
+    private object CriarPayload(Usuario usuario, string codigo, string emailDestino)
     {
         var assunto = ConteudoCodigoLoginEmail.MontarAssunto();
         var texto = ConteudoCodigoLoginEmail.MontarTexto(usuario, codigo);
@@ -91,7 +104,7 @@ public class ResendEmailCodigoLoginServico(
             return new
             {
                 from = configuracao.ObterRemetenteFormatado(),
-                to = new[] { usuario.Email },
+                to = new[] { emailDestino },
                 subject = assunto,
                 html,
                 text = texto
@@ -101,7 +114,7 @@ public class ResendEmailCodigoLoginServico(
         return new
         {
             from = configuracao.ObterRemetenteFormatado(),
-            to = new[] { usuario.Email },
+            to = new[] { emailDestino },
             subject = assunto,
             html,
             text = texto,

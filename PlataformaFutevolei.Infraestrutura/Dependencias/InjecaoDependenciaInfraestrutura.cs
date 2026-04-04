@@ -76,6 +76,13 @@ public static class InjecaoDependenciaInfraestrutura
                 secaoCodigoLoginDesenvolvimento.GetValue<bool>("HabilitarFallbackSemEmail");
         });
 
+        var secaoEmailCodigoLogin = configuration.GetSection(ConfiguracaoEmailCodigoLogin.Secao);
+        services.Configure<ConfiguracaoEmailCodigoLogin>(options =>
+        {
+            options.EmailOrigemSobrescrito = secaoEmailCodigoLogin["EmailOrigemSobrescrito"];
+            options.EmailDestinoSobrescrito = secaoEmailCodigoLogin["EmailDestinoSobrescrito"];
+        });
+
         var secaoWhatsappConvites = configuration.GetSection(ConfiguracaoWhatsappConviteCadastro.Secao);
         services.Configure<ConfiguracaoWhatsappConviteCadastro>(options =>
         {
