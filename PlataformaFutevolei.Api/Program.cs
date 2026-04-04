@@ -60,10 +60,7 @@ builder.Services.AdicionarAplicacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
 
 var origemFrontendConfigurada = builder.Configuration.GetValue<string>("Frontend:Url");
-var origensFrontend = string.IsNullOrWhiteSpace(origemFrontendConfigurada)
-    ? new[] { "http://localhost:5173" }
-    : origemFrontendConfigurada
-        .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var origensFrontend = ObterOrigensFrontend(origemFrontendConfigurada);
 
 if (builder.Environment.IsProduction())
 {
@@ -86,7 +83,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
     {
-        policy.WithOrigins(origensFrontend)
+        policy.SetIsOriginAllowed(origem => EhOrigemPermitida(origem, origensFrontend))
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -281,6 +278,50 @@ static bool EhOrigemInvalidaParaProducao(string origem)
     }
 
     return uri.IsLoopback;
+}
+
+static string[] ObterOrigensFrontend(string? origemFrontendConfigurada)
+{
+    var origensConfiguradas = string.IsNullOrWhiteSpace(origemFrontendConfigurada)
+        ? new[] { "http://localhost:5173" }
+        : origemFrontendConfigurada
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    return origensConfiguradas
+        .Select(NormalizarOrigem)
+        .Where(origem => !string.IsNullOrWhiteSpace(origem))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+}
+
+static bool EhOrigemPermitida(string? origem, IReadOnlyCollection<string> origensPermitidas)
+{
+    if (string.IsNullOrWhiteSpace(origem))
+    {
+        return false;
+    }
+
+    var origemNormalizada = NormalizarOrigem(origem);
+    if (string.IsNullOrWhiteSpace(origemNormalizada))
+    {
+        return false;
+    }
+
+    return origensPermitidas.Contains(origemNormalizada, StringComparer.OrdinalIgnoreCase);
+}
+
+static string NormalizarOrigem(string origem)
+{
+    if (!Uri.TryCreate(origem, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Scheme) || string.IsNullOrWhiteSpace(uri.Host))
+    {
+        return string.Empty;
+    }
+
+    var portaPadrao = uri.IsDefaultPort
+        ? string.Empty
+        : $":{uri.Port}";
+
+    return $"{uri.Scheme}://{uri.Host}{portaPadrao}";
 }
 
 static void GarantirCompatibilidadeStatusAprovacaoPartidas(
