@@ -79,11 +79,14 @@ public static class InjecaoDependenciaInfraestrutura
         var secaoEmailCodigoLogin = configuration.GetSection(ConfiguracaoEmailCodigoLogin.Secao);
         services.Configure<ConfiguracaoEmailCodigoLogin>(options =>
         {
-            options.BaseUrl = secaoEmailCodigoLogin["BaseUrl"] ?? secaoEmailConvites["BaseUrl"] ?? "https://api.resend.com";
-            options.ApiKey = secaoEmailCodigoLogin["ApiKey"] ?? secaoEmailConvites["ApiKey"] ?? string.Empty;
-            options.RemetenteEmail = secaoEmailCodigoLogin["RemetenteEmail"] ?? secaoEmailConvites["RemetenteEmail"] ?? string.Empty;
-            options.RemetenteNome = secaoEmailCodigoLogin["RemetenteNome"] ?? secaoEmailConvites["RemetenteNome"];
-            options.ReplyTo = secaoEmailCodigoLogin["ReplyTo"] ?? secaoEmailConvites["ReplyTo"];
+            options.BaseUrl = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "BaseUrl")
+                ?? "https://api.resend.com";
+            options.ApiKey = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "ApiKey")
+                ?? string.Empty;
+            options.RemetenteEmail = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "RemetenteEmail")
+                ?? string.Empty;
+            options.RemetenteNome = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "RemetenteNome");
+            options.ReplyTo = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "ReplyTo");
             options.EmailOrigemSobrescrito = secaoEmailCodigoLogin["EmailOrigemSobrescrito"];
             options.EmailDestinoSobrescrito = secaoEmailCodigoLogin["EmailDestinoSobrescrito"];
         });
@@ -133,5 +136,22 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<IEnvioWhatsappConviteCadastroServico, TwilioWhatsappConviteCadastroServico>();
 
         return services;
+    }
+
+    private static string? ObterValorComFallback(
+        IConfigurationSection secaoPreferencial,
+        IConfigurationSection secaoFallback,
+        string chave)
+    {
+        var valorPreferencial = secaoPreferencial[chave];
+        if (!string.IsNullOrWhiteSpace(valorPreferencial))
+        {
+            return valorPreferencial;
+        }
+
+        var valorFallback = secaoFallback[chave];
+        return string.IsNullOrWhiteSpace(valorFallback)
+            ? null
+            : valorFallback;
     }
 }
