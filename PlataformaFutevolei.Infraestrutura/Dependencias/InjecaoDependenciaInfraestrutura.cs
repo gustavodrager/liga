@@ -79,6 +79,11 @@ public static class InjecaoDependenciaInfraestrutura
         var secaoEmailCodigoLogin = configuration.GetSection(ConfiguracaoEmailCodigoLogin.Secao);
         services.Configure<ConfiguracaoEmailCodigoLogin>(options =>
         {
+            options.BaseUrl = secaoEmailCodigoLogin["BaseUrl"] ?? secaoEmailConvites["BaseUrl"] ?? "https://api.resend.com";
+            options.ApiKey = secaoEmailCodigoLogin["ApiKey"] ?? secaoEmailConvites["ApiKey"] ?? string.Empty;
+            options.RemetenteEmail = secaoEmailCodigoLogin["RemetenteEmail"] ?? secaoEmailConvites["RemetenteEmail"] ?? string.Empty;
+            options.RemetenteNome = secaoEmailCodigoLogin["RemetenteNome"] ?? secaoEmailConvites["RemetenteNome"];
+            options.ReplyTo = secaoEmailCodigoLogin["ReplyTo"] ?? secaoEmailConvites["ReplyTo"];
             options.EmailOrigemSobrescrito = secaoEmailCodigoLogin["EmailOrigemSobrescrito"];
             options.EmailDestinoSobrescrito = secaoEmailCodigoLogin["EmailDestinoSobrescrito"];
         });
@@ -115,7 +120,7 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<IGeracaoLinkConviteCadastroServico, GeracaoLinkConviteCadastroServico>();
         services.AddHttpClient<IEnvioEmailCodigoLoginServico, ResendEmailCodigoLoginServico>((serviceProvider, client) =>
         {
-            var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailConviteCadastro>>().Value;
+            var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailCodigoLogin>>().Value;
             client.BaseAddress = new Uri($"{configuracaoEmail.ObterBaseUrl()}/");
             client.Timeout = TimeSpan.FromSeconds(15);
         });
