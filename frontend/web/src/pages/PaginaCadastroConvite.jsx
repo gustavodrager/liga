@@ -65,7 +65,7 @@ export function PaginaCadastroConvite() {
       return;
     }
 
-    if (string.IsNullOrWhiteSpace(codigoConvite)) {
+    if (!codigoConvite.trim()) {
       setErro('Informe o código do convite.');
       return;
     }
