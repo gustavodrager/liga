@@ -8,6 +8,7 @@ import {
   formatarTelefoneParaInput,
   limparCpf,
   limparTelefone,
+  normalizarDataParaApi,
   paraInputData,
   validarCpf
 } from '../utils/formatacao';
@@ -191,7 +192,7 @@ export function PaginaMeuPerfil() {
       cadastroPendente: Boolean(formularioAtleta.cadastroPendente),
       nivel: formularioAtleta.nivel ? Number(formularioAtleta.nivel) : null,
       lado: Number(formularioAtleta.lado),
-      dataNascimento: formularioAtleta.dataNascimento || null
+      dataNascimento: normalizarDataParaApi(formularioAtleta.dataNascimento)
     };
 
     try {
@@ -237,7 +238,7 @@ export function PaginaMeuPerfil() {
       cadastroPendente: Boolean(formularioAtleta.cadastroPendente),
       nivel: formularioAtleta.nivel ? Number(formularioAtleta.nivel) : null,
       lado: Number(formularioAtleta.lado),
-      dataNascimento: formularioAtleta.dataNascimento || null
+      dataNascimento: normalizarDataParaApi(formularioAtleta.dataNascimento)
     };
 
     try {

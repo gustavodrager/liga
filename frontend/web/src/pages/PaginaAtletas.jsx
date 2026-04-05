@@ -4,7 +4,7 @@ import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { extrairMensagemErro } from '../utils/erros';
-import { formatarData, paraInputData } from '../utils/formatacao';
+import { formatarData, normalizarDataParaApi, paraInputData } from '../utils/formatacao';
 import { nomeNivelAtleta, opcoesNivelAtleta } from '../utils/niveisAtleta';
 import { rolarParaElemento } from '../utils/rolagem';
 import { ehOrganizador } from '../utils/perfis';
@@ -119,7 +119,7 @@ export function PaginaAtletas() {
       cadastroPendente: Boolean(formulario.cadastroPendente),
       nivel: formulario.nivel ? Number(formulario.nivel) : null,
       lado: Number(formulario.lado),
-      dataNascimento: formulario.dataNascimento || null
+      dataNascimento: normalizarDataParaApi(formulario.dataNascimento)
     };
 
     try {

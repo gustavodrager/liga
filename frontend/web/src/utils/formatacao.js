@@ -40,6 +40,19 @@ export function paraInputDataHora(data) {
   return `${ano}-${mes}-${dia}T${horas}:${minutos}`;
 }
 
+export function normalizarDataParaApi(data) {
+  if (!data) {
+    return null;
+  }
+
+  const dataNormalizada = data.trim();
+  if (!dataNormalizada) {
+    return null;
+  }
+
+  return `${dataNormalizada}T00:00:00`;
+}
+
 export function limparCpf(valor) {
   return (valor || '').replace(/\D/g, '').slice(0, 11);
 }

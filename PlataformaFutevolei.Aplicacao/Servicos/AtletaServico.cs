@@ -113,8 +113,8 @@ public class AtletaServico(
             : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
 
-        var criandoMeuProprioAtleta = !usuario.AtletaId.HasValue &&
-            usuario.Perfil is not PerfilUsuario.Administrador &&
+        var criandoMeuProprioAtleta = usuarioComum &&
+            !usuario.AtletaId.HasValue &&
             !string.IsNullOrWhiteSpace(dados.Email) &&
             string.Equals(dados.Email, usuario.Email, StringComparison.OrdinalIgnoreCase);
 
