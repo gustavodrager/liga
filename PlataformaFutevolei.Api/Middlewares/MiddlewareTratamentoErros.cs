@@ -21,16 +21,25 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
                 _ => (HttpStatusCode.InternalServerError, "Ocorreu um erro inesperado.")
             };
 
+            var traceId = context.TraceIdentifier;
+
             if (statusCode == HttpStatusCode.InternalServerError)
             {
-                logger.LogError(ex, "Erro não tratado na aplicação.");
+                logger.LogError(
+                    ex,
+                    "Erro não tratado na aplicação. Metodo: {Metodo}. Caminho: {Caminho}. TraceId: {TraceId}. Usuario: {Usuario}.",
+                    context.Request.Method,
+                    context.Request.Path,
+                    traceId,
+                    context.User?.Identity?.Name ?? "anonimo");
             }
 
             context.Response.StatusCode = (int)statusCode;
             context.Response.ContentType = "application/json";
             var resposta = JsonSerializer.Serialize(new
             {
-                erro = mensagem
+                erro = mensagem,
+                traceId
             });
 
             await context.Response.WriteAsync(resposta);
