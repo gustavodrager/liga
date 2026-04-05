@@ -35,7 +35,8 @@ public class ResendEmailCodigoLoginServico(
             return new ResultadoEnvioEmailCodigoLoginDto(true, true, null, null, codigo);
         }
 
-        var mensagemConfiguracaoIncompleta = configuracao.ObterMensagemConfiguracaoIncompleta();
+        var mensagemConfiguracaoIncompleta = configuracao.ObterMensagemConfiguracaoIncompleta(
+            "envio do código de acesso por e-mail");
         if (mensagemConfiguracaoIncompleta is not null)
         {
             logger.LogWarning(

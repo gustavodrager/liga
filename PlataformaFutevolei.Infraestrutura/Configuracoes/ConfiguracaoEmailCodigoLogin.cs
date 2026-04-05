@@ -13,7 +13,16 @@ public class ConfiguracaoEmailCodigoLogin
     public string? EmailOrigemSobrescrito { get; set; }
     public string? EmailDestinoSobrescrito { get; set; }
 
-    public string? ObterMensagemConfiguracaoIncompleta()
+    public string? ObterMensagemConfiguracaoIncompleta(string? contexto = null)
+    {
+        var camposAusentes = ObterCamposConfiguracaoAusentes();
+
+        return camposAusentes.Count == 0
+            ? null
+            : $"{ObterDescricaoContexto(contexto)} não está configurado. Preencha: {string.Join(", ", camposAusentes)}.";
+    }
+
+    public IReadOnlyList<string> ObterCamposConfiguracaoAusentes()
     {
         var camposAusentes = new List<string>();
 
@@ -27,9 +36,7 @@ public class ConfiguracaoEmailCodigoLogin
             camposAusentes.Add($"{Secao}:RemetenteEmail");
         }
 
-        return camposAusentes.Count == 0
-            ? null
-            : $"O envio automático de e-mail não está configurado. Preencha: {string.Join(", ", camposAusentes)}.";
+        return camposAusentes;
     }
 
     public string ObterBaseUrl()
@@ -82,5 +89,12 @@ public class ConfiguracaoEmailCodigoLogin
             emailUsuario.Trim(),
             EmailOrigemSobrescrito.Trim(),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ObterDescricaoContexto(string? contexto)
+    {
+        return string.IsNullOrWhiteSpace(contexto)
+            ? "O envio automático de e-mail"
+            : $"O {contexto.Trim()}";
     }
 }
