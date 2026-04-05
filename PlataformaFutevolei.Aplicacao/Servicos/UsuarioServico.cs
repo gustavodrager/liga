@@ -93,7 +93,7 @@ public class UsuarioServico(
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
-        await pendenciaServico.SincronizarAposVinculoAtletaAsync(atleta.Id, cancellationToken);
+        await SincronizarPendenciasAposVinculoAsync(atleta.Id, cancellationToken);
 
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
@@ -180,11 +180,41 @@ public class UsuarioServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         if (dto.AtletaId.HasValue)
         {
-            await pendenciaServico.SincronizarAposVinculoAtletaAsync(dto.AtletaId.Value, cancellationToken);
+            await SincronizarPendenciasAposVinculoAsync(dto.AtletaId.Value, cancellationToken);
         }
 
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         return atualizado.ParaAdminDto();
+    }
+
+    private async Task SincronizarPendenciasAposVinculoAsync(Guid atletaId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await pendenciaServico.SincronizarAposVinculoAtletaAsync(atletaId, cancellationToken);
+        }
+        catch (Exception ex) when (EhViolacaoUnicidade(ex))
+        {
+            return;
+        }
+    }
+
+    private static bool EhViolacaoUnicidade(Exception ex)
+    {
+        Exception? atual = ex;
+        while (atual is not null)
+        {
+            var tipo = atual.GetType();
+            var sqlState = tipo.GetProperty("SqlState")?.GetValue(atual)?.ToString();
+            if (string.Equals(sqlState, "23505", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            atual = atual.InnerException;
+        }
+
+        return false;
     }
 }
