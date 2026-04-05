@@ -85,14 +85,21 @@ public class UsuarioServico(
             throw new RegraNegocioException("Este atleta já está vinculado a outro usuário.");
         }
 
+        if (usuario.Atleta is not null && usuario.Atleta.Id != atleta.Id)
+        {
+            usuario.Atleta.Usuario = null;
+        }
+
         usuario.AtletaId = atleta.Id;
+        usuario.Atleta = atleta;
+        atleta.Usuario = usuario;
         atleta.Email = usuario.Email;
         atleta.CadastroPendente = false;
         atleta.AtualizarDataModificacao();
 
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await SalvarAlteracoesUsuarioAtletaAsync(cancellationToken);
         await SincronizarPendenciasAposVinculoAsync(atleta.Id, cancellationToken);
 
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
@@ -171,13 +178,25 @@ public class UsuarioServico(
         {
             var atleta = await atletaRepositorio.ObterPorIdAsync(dto.AtletaId.Value, cancellationToken)
                 ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+            if (usuario.Atleta is not null && usuario.Atleta.Id != atleta.Id)
+            {
+                usuario.Atleta.Usuario = null;
+            }
+
+            usuario.Atleta = atleta;
+            atleta.Usuario = usuario;
             atleta.Email = emailNormalizado;
             atleta.CadastroPendente = false;
             atleta.AtualizarDataModificacao();
         }
+        else if (usuario.Atleta is not null)
+        {
+            usuario.Atleta.Usuario = null;
+            usuario.Atleta = null;
+        }
 
         usuarioRepositorio.Atualizar(usuario);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await SalvarAlteracoesUsuarioAtletaAsync(cancellationToken);
         if (dto.AtletaId.HasValue)
         {
             await SincronizarPendenciasAposVinculoAsync(dto.AtletaId.Value, cancellationToken);
@@ -186,6 +205,18 @@ public class UsuarioServico(
         var atualizado = await usuarioRepositorio.ObterPorIdAsync(usuario.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         return atualizado.ParaAdminDto();
+    }
+
+    private async Task SalvarAlteracoesUsuarioAtletaAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (EhViolacaoUnicidade(ex))
+        {
+            throw new RegraNegocioException("Este atleta já está vinculado a outro usuário.");
+        }
     }
 
     private async Task SincronizarPendenciasAposVinculoAsync(Guid atletaId, CancellationToken cancellationToken)
