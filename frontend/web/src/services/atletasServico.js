@@ -27,8 +27,20 @@ export const atletasServico = {
     return resposta.data;
   },
 
+  async obterMeu() {
+    const resposta = await http.get('/atletas/me', {
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 204
+    });
+    return resposta.status === 204 ? null : resposta.data;
+  },
+
   async criar(dados) {
     const resposta = await http.post('/atletas', dados);
+    return resposta.data;
+  },
+
+  async salvarMeu(dados) {
+    const resposta = await http.put('/atletas/me', dados);
     return resposta.data;
   },
 

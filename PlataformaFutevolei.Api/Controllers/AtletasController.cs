@@ -46,12 +46,34 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
         return Ok(atleta);
     }
 
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(AtletaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ObterMeu(CancellationToken cancellationToken)
+    {
+        var atleta = await atletaServico.ObterMeuAsync(cancellationToken);
+        if (atleta is null)
+        {
+            return NoContent();
+        }
+
+        return Ok(atleta);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(AtletaDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarAtletaDto dto, CancellationToken cancellationToken)
     {
         var atleta = await atletaServico.CriarAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(ObterPorId), new { id = atleta.Id }, atleta);
+    }
+
+    [HttpPut("me")]
+    [ProducesResponseType(typeof(AtletaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SalvarMeu([FromBody] AtualizarAtletaDto dto, CancellationToken cancellationToken)
+    {
+        var atleta = await atletaServico.SalvarMeuAsync(dto, cancellationToken);
+        return Ok(atleta);
     }
 
     [HttpPut("{id:guid}")]

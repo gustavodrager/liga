@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
-import { usuariosServico } from '../services/usuariosServico';
 import { extrairMensagemErro } from '../utils/erros';
 import {
   formatarCpfParaInput,
@@ -136,28 +135,24 @@ export function PaginaMeuPerfil() {
       const dadosUsuario = await recarregarUsuario();
 
       if (dadosUsuario.atletaId) {
-        try {
-          const atleta = await atletasServico.obterPorId(dadosUsuario.atletaId);
+        const atleta = await atletasServico.obterMeu();
+        if (atleta) {
           preencherFormularioAtleta(atleta);
           setUsuarioDetalhe({
             ...dadosUsuario,
             atleta: criarResumoAtleta(atleta)
           });
-        } catch (error) {
-          if (error?.response?.status === 404) {
-            const usuarioSemAtleta = {
-              ...dadosUsuario,
-              atletaId: null,
-              atleta: null
-            };
+        } else {
+          const usuarioSemAtleta = {
+            ...dadosUsuario,
+            atletaId: null,
+            atleta: null
+          };
 
-            setUsuarioDetalhe(usuarioSemAtleta);
-            atualizarUsuarioLocal(usuarioSemAtleta);
-            setFormularioAtleta(criarEstadoInicialAtleta(dadosUsuario));
-            setErro('Atleta vinculado não encontrado. Você pode criar novamente seu atleta pelo perfil.');
-          } else {
-            throw error;
-          }
+          setUsuarioDetalhe(usuarioSemAtleta);
+          atualizarUsuarioLocal(usuarioSemAtleta);
+          setFormularioAtleta(criarEstadoInicialAtleta(dadosUsuario));
+          setErro('Atleta vinculado não encontrado. Você pode criar novamente seu atleta pelo perfil.');
         }
       } else {
         setUsuarioDetalhe(dadosUsuario);
@@ -203,10 +198,6 @@ export function PaginaMeuPerfil() {
 
   async function salvarAtleta(evento) {
     evento.preventDefault();
-    if (!usuarioDetalhe?.atletaId) {
-      return;
-    }
-
     const cpfLimpo = limparCpf(formularioAtleta.cpf);
     if (cpfLimpo && !validarCpf(cpfLimpo)) {
       setErro('CPF inválido.');
@@ -241,83 +232,20 @@ export function PaginaMeuPerfil() {
     };
 
     try {
-      const atleta = await atletasServico.atualizar(usuarioDetalhe.atletaId, dados);
-      preencherFormularioAtleta(atleta);
+      const atleta = await atletasServico.salvarMeu(dados);
+      const possuiAtletaAnterior = Boolean(usuarioDetalhe?.atletaId);
       const proximoUsuario = {
-        ...usuarioDetalhe,
+        ...(usuarioDetalhe || usuario),
+        atletaId: atleta.id,
         atleta: criarResumoAtleta(atleta)
       };
+
+      preencherFormularioAtleta(atleta);
       setUsuarioDetalhe(proximoUsuario);
       atualizarUsuarioLocal(proximoUsuario);
-      setMensagem('Dados do atleta atualizados com sucesso.');
+      setMensagem(possuiAtletaAnterior ? 'Dados do atleta atualizados com sucesso.' : 'Atleta criado com sucesso.');
     } catch (error) {
       setErro(obterMensagemErroPerfil(error));
-    } finally {
-      setSalvandoAtleta(false);
-    }
-  }
-
-  async function criarAtletaNovo(evento) {
-    evento.preventDefault();
-
-    const cpfLimpo = limparCpf(formularioAtleta.cpf);
-    if (cpfLimpo && !validarCpf(cpfLimpo)) {
-      setErro('CPF inválido.');
-      setMensagem('');
-      return;
-    }
-
-    const erroDataNascimento = validarDataNascimento(formularioAtleta.dataNascimento);
-    if (erroDataNascimento) {
-      setErro(erroDataNascimento);
-      setMensagem('');
-      return;
-    }
-
-    setSalvandoAtleta(true);
-    setErro('');
-    setMensagem('');
-
-    const dados = {
-      nome: formularioAtleta.nome,
-      apelido: formularioAtleta.apelido.trim() || null,
-      telefone: limparTelefone(formularioAtleta.telefone) || null,
-      email: emailUsuarioPerfil || null,
-      instagram: formularioAtleta.instagram.trim() || null,
-      cpf: cpfLimpo || null,
-      cidade: formularioAtleta.cidade.trim() || null,
-      estado: formularioAtleta.estado.trim() || null,
-      cadastroPendente: Boolean(formularioAtleta.cadastroPendente),
-      nivel: formularioAtleta.nivel ? Number(formularioAtleta.nivel) : null,
-      lado: Number(formularioAtleta.lado),
-      dataNascimento: normalizarDataParaApi(formularioAtleta.dataNascimento)
-    };
-
-    try {
-      const atleta = await atletasServico.criar(dados);
-      if (usuarioEhAtleta) {
-        const proximoUsuario = {
-          ...(usuarioDetalhe || usuario),
-          atletaId: atleta.id,
-          atleta: criarResumoAtleta(atleta)
-        };
-
-        preencherFormularioAtleta(atleta);
-        setUsuarioDetalhe(proximoUsuario);
-        atualizarUsuarioLocal(proximoUsuario);
-        setMensagem('Atleta criado com sucesso.');
-      } else {
-        const resposta = await usuariosServico.vincularMeuAtleta({ atletaId: atleta.id });
-        preencherFormularioAtleta(atleta);
-        setUsuarioDetalhe({
-          ...resposta,
-          atleta: criarResumoAtleta(atleta)
-        });
-        atualizarUsuarioLocal(resposta);
-        setMensagem('Atleta criado e vinculado com sucesso.');
-      }
-    } catch (error) {
-      setErro(extrairMensagemErro(error));
     } finally {
       setSalvandoAtleta(false);
     }
@@ -337,12 +265,7 @@ export function PaginaMeuPerfil() {
   const usuarioEhAtleta = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.atleta;
   const possuiAtleta = Boolean(usuarioDetalhe?.atletaId);
   const nomeSomenteLeitura = usuarioEhAtleta;
-  const aoSubmeterFormulario = possuiAtleta ? salvarAtleta : criarAtletaNovo;
-  const textoBotao = possuiAtleta
-    ? 'Salvar atleta'
-    : usuarioEhAtleta
-      ? 'Criar meu atleta'
-      : 'Criar novo atleta';
+  const textoBotao = possuiAtleta ? 'Salvar atleta' : 'Criar meu atleta';
 
   return (
     <section className="pagina">
@@ -353,7 +276,7 @@ export function PaginaMeuPerfil() {
       {erro && <p className="texto-erro">{erro}</p>}
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
 
-      <form className="formulario-secoes" onSubmit={aoSubmeterFormulario}>
+      <form className="formulario-secoes" onSubmit={salvarAtleta}>
         <div className="secao-formulario">
           <div className="secao-formulario-cabecalho">
             <h3>Identificação</h3>

@@ -11,7 +11,9 @@ public interface IAtletaServico
     Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default);
     Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<AtletaDto?> ObterMeuAsync(CancellationToken cancellationToken = default);
     Task<AtletaDto> CriarAsync(CriarAtletaDto dto, CancellationToken cancellationToken = default);
+    Task<AtletaDto> SalvarMeuAsync(AtualizarAtletaDto dto, CancellationToken cancellationToken = default);
     Task<AtletaDto> AtualizarAsync(Guid id, AtualizarAtletaDto dto, CancellationToken cancellationToken = default);
     Task<AtletaPendenciaDto> InformarEmailPendenteAsync(
         Guid atletaId,

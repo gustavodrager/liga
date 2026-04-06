@@ -93,6 +93,18 @@ public class AtletaServico(
         return atleta.ParaDto();
     }
 
+    public async Task<AtletaDto?> ObterMeuAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            return null;
+        }
+
+        var atleta = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken);
+        return atleta?.ParaDto();
+    }
+
     public async Task<AtletaDto> CriarAsync(CriarAtletaDto dto, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -158,6 +170,58 @@ public class AtletaServico(
         {
             await pendenciaServico.SincronizarAposVinculoAtletaAsync(atleta.Id, cancellationToken);
         }
+        return atleta.ParaDto();
+    }
+
+    public async Task<AtletaDto> SalvarMeuAsync(AtualizarAtletaDto dto, CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usandoNomeDoUsuario = usuario.Perfil == PerfilUsuario.Atleta;
+        var dados = usandoNomeDoUsuario
+            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
+            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
+        var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, false, dados.PossuiIdentificador);
+
+        Atleta atleta;
+        if (usuario.AtletaId.HasValue)
+        {
+            atleta = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken)
+                ?? new Atleta();
+            if (atleta.Id == Guid.Empty)
+            {
+                await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+            }
+        }
+        else
+        {
+            atleta = new Atleta();
+            await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+        }
+
+        atleta.Nome = dados.Nome;
+        atleta.Apelido = dados.Apelido;
+        atleta.Telefone = dados.Telefone;
+        atleta.Email = usuario.Email;
+        atleta.Instagram = dados.Instagram;
+        atleta.Cpf = dados.Cpf;
+        atleta.Cidade = dados.Cidade;
+        atleta.Estado = dados.Estado;
+        atleta.CadastroPendente = false;
+        atleta.Nivel = dto.Nivel;
+        atleta.Lado = dto.Lado;
+        atleta.DataNascimento = dataNascimento;
+        atleta.Usuario = usuario;
+        atleta.AtualizarDataModificacao();
+
+        usuario.AtletaId = atleta.Id;
+        usuario.Atleta = atleta;
+        usuario.AtualizarDataModificacao();
+
+        atletaRepositorio.Atualizar(atleta);
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await SincronizarPendenciasAposMeuPerfilAsync(atleta.Id, cancellationToken);
+
         return atleta.ParaDto();
     }
 
@@ -406,5 +470,17 @@ public class AtletaServico(
         }
 
         return emailNormalizado;
+    }
+
+    private async Task SincronizarPendenciasAposMeuPerfilAsync(Guid atletaId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await pendenciaServico.SincronizarAposVinculoAtletaAsync(atletaId, cancellationToken);
+        }
+        catch (Exception)
+        {
+            return;
+        }
     }
 }
