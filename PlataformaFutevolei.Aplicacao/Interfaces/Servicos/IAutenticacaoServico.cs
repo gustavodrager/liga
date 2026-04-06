@@ -10,6 +10,9 @@ public interface IAutenticacaoServico
         SolicitarCodigoLoginRequisicaoDto dto,
         CancellationToken cancellationToken = default);
     Task<RespostaAutenticacaoDto> LoginComCodigoAsync(LoginCodigoRequisicaoDto dto, CancellationToken cancellationToken = default);
+    Task<RespostaAutenticacaoDto> RenovarTokenAsync(
+        RenovarTokenRequisicaoDto dto,
+        CancellationToken cancellationToken = default);
     Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
         EsqueciSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default);

@@ -41,14 +41,18 @@ public static class InjecaoDependenciaInfraestrutura
         var secaoJwt = configuration.GetSection(ConfiguracaoJwt.Secao);
         var expiracaoMinutos = int.TryParse(secaoJwt["ExpiracaoMinutos"], out var valorExpiracao)
             ? valorExpiracao
-            : 120;
+            : 21600;
+        var expiracaoRefreshTokenDias = int.TryParse(secaoJwt["ExpiracaoRefreshTokenDias"], out var valorExpiracaoRefreshToken)
+            ? valorExpiracaoRefreshToken
+            : 90;
 
         var jwt = new ConfiguracaoJwt
         {
             Chave = secaoJwt["Chave"] ?? string.Empty,
             Emissor = secaoJwt["Emissor"] ?? "PlataformaFutevolei",
             Audiencia = secaoJwt["Audiencia"] ?? "PlataformaFutevolei.Web",
-            ExpiracaoMinutos = expiracaoMinutos
+            ExpiracaoMinutos = expiracaoMinutos,
+            ExpiracaoRefreshTokenDias = expiracaoRefreshTokenDias
         };
         services.Configure<ConfiguracaoJwt>(options =>
         {
@@ -56,6 +60,7 @@ public static class InjecaoDependenciaInfraestrutura
             options.Emissor = jwt.Emissor;
             options.Audiencia = jwt.Audiencia;
             options.ExpiracaoMinutos = jwt.ExpiracaoMinutos;
+            options.ExpiracaoRefreshTokenDias = jwt.ExpiracaoRefreshTokenDias;
         });
 
         var secaoEmailConvites = configuration.GetSection(ConfiguracaoEmailConviteCadastro.Secao);

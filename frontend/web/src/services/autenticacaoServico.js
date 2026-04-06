@@ -21,6 +21,11 @@ export const autenticacaoServico = {
     return resposta.data;
   },
 
+  async renovarToken(dados) {
+    const resposta = await http.post('/autenticacao/renovar-token', dados);
+    return resposta.data;
+  },
+
   async solicitarRedefinicaoSenha(dados) {
     const resposta = await http.post('/autenticacao/esqueci-senha/solicitar', dados);
     return resposta.data;

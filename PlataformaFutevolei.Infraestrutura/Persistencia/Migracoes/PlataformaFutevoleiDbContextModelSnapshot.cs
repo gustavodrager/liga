@@ -1003,6 +1003,15 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(255)")
                         .HasColumnName("codigo_redefinicao_senha_hash");
 
+                    b.Property<DateTime?>("RefreshTokenExpiraEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refresh_token_expira_em_utc");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("refresh_token_hash");
+
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_atualizacao");
