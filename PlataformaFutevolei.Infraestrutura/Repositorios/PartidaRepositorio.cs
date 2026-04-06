@@ -174,6 +174,14 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
 
     public async Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default)
     {
+        // A partida é persistida pelas FKs. Limpar as navegações evita que o EF tente
+        // anexar novamente grafos já materializados com instâncias duplicadas de Atleta.
+        partida.CategoriaCompeticao = null!;
+        partida.CriadoPorUsuario = null;
+        partida.DuplaA = null!;
+        partida.DuplaB = null!;
+        partida.DuplaVencedora = null;
+
         await dbContext.Partidas.AddAsync(partida, cancellationToken);
     }
 
