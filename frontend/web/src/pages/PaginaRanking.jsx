@@ -21,7 +21,7 @@ const generos = {
 };
 
 function normalizarRanking(lista, tipoConsulta) {
-  return (lista || [])
+  const grupos = (lista || [])
     .map((grupo) => ({
       ...grupo,
       chave: `${tipoConsulta}-${grupo.categoriaId}`,
@@ -29,19 +29,24 @@ function normalizarRanking(lista, tipoConsulta) {
         ...atleta,
         partidas: atleta.partidas || []
       }))
-    }))
-    .sort((a, b) => {
-      const ordemCompeticao = a.nomeCompeticao.localeCompare(b.nomeCompeticao, 'pt-BR');
-      if (ordemCompeticao !== 0) {
-        return ordemCompeticao;
-      }
+    }));
 
-      if ((a.genero ?? 0) !== (b.genero ?? 0)) {
-        return (a.genero ?? 0) - (b.genero ?? 0);
-      }
+  if (tipoConsulta === 'liga') {
+    return grupos;
+  }
 
-      return a.nomeCategoria.localeCompare(b.nomeCategoria, 'pt-BR');
-    });
+  return grupos.sort((a, b) => {
+    const ordemCompeticao = a.nomeCompeticao.localeCompare(b.nomeCompeticao, 'pt-BR');
+    if (ordemCompeticao !== 0) {
+      return ordemCompeticao;
+    }
+
+    if ((a.genero ?? 0) !== (b.genero ?? 0)) {
+      return (a.genero ?? 0) - (b.genero ?? 0);
+    }
+
+    return a.nomeCategoria.localeCompare(b.nomeCategoria, 'pt-BR');
+  });
 }
 
 function classeStatusPendencia(item) {
