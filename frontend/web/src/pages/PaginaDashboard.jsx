@@ -1,18 +1,37 @@
 import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import { ehAdministrador, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
+import { ehAdministrador, ehAtleta, ehGestorCompeticao, ehOrganizador } from '../utils/perfis';
 
 export function PaginaDashboard() {
   const { usuario } = useAutenticacao();
   const administrador = ehAdministrador(usuario);
   const gestorCompeticao = ehGestorCompeticao(usuario);
-  const atleta = Number(usuario?.perfil) === PERFIS_USUARIO.atleta;
+  const atleta = ehAtleta(usuario);
+  const organizador = ehOrganizador(usuario);
+  const dashboardRestrito = organizador || atleta;
   const atalhos = [
     {
       titulo: 'Meu Perfil',
       descricao: 'Atualize os dados do atleta vinculados ao seu acesso.',
       rota: '/meu-perfil'
     },
+    ...(dashboardRestrito ? [
+      {
+        titulo: 'Pendências',
+        descricao: 'Consulte vínculos e contatos pendentes para manter o fluxo das partidas regularizado.',
+        rota: '/pendencias'
+      },
+      {
+        titulo: 'Partidas',
+        descricao: 'Acompanhe e registre partidas disponíveis para o seu perfil.',
+        rota: '/partidas'
+      },
+      {
+        titulo: 'Ranking',
+        descricao: 'Consulte os pontos por liga e competição.',
+        rota: '/ranking'
+      }
+    ] : []),
     ...(administrador ? [
       {
         titulo: 'Perfil Usuário',
@@ -20,19 +39,7 @@ export function PaginaDashboard() {
         rota: '/perfil-usuario'
       }
     ] : []),
-    ...(atleta ? [
-      {
-        titulo: 'Competições',
-        descricao: 'Veja os campeonatos com inscrições abertas para participar.',
-        rota: '/competicoes'
-      },
-      {
-        titulo: 'Inscrições',
-        descricao: 'Selecione campeonato e categoria para se inscrever com sua dupla ou parceiro pendente.',
-        rota: '/inscricoes'
-      }
-    ] : []),
-    ...(gestorCompeticao ? [
+    ...(gestorCompeticao && !dashboardRestrito ? [
       {
         titulo: 'Atletas',
         descricao: 'Cadastre e organize os atletas do seu circuito.',
