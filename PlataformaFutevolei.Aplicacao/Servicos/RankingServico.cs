@@ -62,7 +62,10 @@ public class RankingServico(
         }
 
         var partidas = await partidaRepositorio.ListarParaRankingPorLigaAsync(ligaId, cancellationToken);
-        return MontarRankingLiga(ligaId, liga.Nome, partidas);
+        var partidasSemCompeticaoOuCategoria = await partidaRepositorio.ListarParaRankingSemCompeticaoOuCategoriaAsync(
+            usuario.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
+            cancellationToken);
+        return MontarRankingLiga(ligaId, liga.Nome, partidas, partidasSemCompeticaoOuCategoria);
     }
 
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(
@@ -106,11 +109,45 @@ public class RankingServico(
     private static IReadOnlyList<RankingCategoriaDto> MontarRankingLiga(
         Guid ligaId,
         string nomeLiga,
+        IReadOnlyList<Partida> partidasLiga,
+        IReadOnlyList<Partida> partidasSemCompeticaoOuCategoria)
+    {
+        var categorias = new List<RankingCategoriaDto>();
+        var rankingLiga = MontarRankingConsolidado(
+            ligaId,
+            ligaId,
+            nomeLiga,
+            "Ranking geral da liga",
+            partidasLiga);
+        if (rankingLiga is not null)
+        {
+            categorias.Add(rankingLiga);
+        }
+
+        var rankingSemCompeticaoOuCategoria = MontarRankingConsolidado(
+            Guid.Empty,
+            Guid.Empty,
+            "Jogos sem liga",
+            "Partidas sem competição/categoria",
+            partidasSemCompeticaoOuCategoria);
+        if (rankingSemCompeticaoOuCategoria is not null)
+        {
+            categorias.Add(rankingSemCompeticaoOuCategoria);
+        }
+
+        return categorias;
+    }
+
+    private static RankingCategoriaDto? MontarRankingConsolidado(
+        Guid categoriaId,
+        Guid competicaoId,
+        string nomeCompeticao,
+        string nomeCategoria,
         IReadOnlyList<Partida> partidas)
     {
         if (partidas.Count == 0)
         {
-            return [];
+            return null;
         }
 
         var atletas = new Dictionary<Guid, RankingAtletaAcumulado>();
@@ -193,19 +230,16 @@ public class RankingServico(
 
         foreach (var partidasCategoria in partidas.GroupBy(x => x.CategoriaCompeticaoId))
         {
-            AplicarPontuacaoColocacao(partidasCategoria.ToList(), atletas);
+                AplicarPontuacaoColocacao(partidasCategoria.ToList(), atletas);
         }
 
-        return
-        [
-            new RankingCategoriaDto(
-                ligaId,
-                ligaId,
-                nomeLiga,
-                "Ranking geral da liga",
-                null,
-                OrdenarAtletas(atletas))
-        ];
+        return new RankingCategoriaDto(
+            categoriaId,
+            competicaoId,
+            nomeCompeticao,
+            nomeCategoria,
+            null,
+            OrdenarAtletas(atletas));
     }
 
     private static IReadOnlyList<RankingCategoriaDto> MontarRankingPorCategoria(IReadOnlyList<Partida> partidas)
