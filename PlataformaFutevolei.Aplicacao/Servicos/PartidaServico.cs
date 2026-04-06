@@ -307,9 +307,13 @@ public class PartidaServico(
         var partida = new Partida
         {
             CategoriaCompeticaoId = categoria.Id,
+            CategoriaCompeticao = categoria,
             CriadoPorUsuarioId = usuarioAtual.Id,
+            CriadoPorUsuario = usuarioAtual,
             DuplaAId = duplaA.Id,
+            DuplaA = duplaA,
             DuplaBId = duplaB.Id,
+            DuplaB = duplaB,
             FaseCampeonato = NormalizarFaseCampeonato(dto.FaseCampeonato),
             Status = dto.Status,
             DataPartida = dto.DataPartida.HasValue ? NormalizarParaUtc(dto.DataPartida.Value) : DateTime.UtcNow,
@@ -318,6 +322,7 @@ public class PartidaServico(
 
         ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
         AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dataAtualPadraoUtc: DateTime.UtcNow);
+        AtualizarNavegacoesPartida(partida, categoria, duplaA, duplaB, usuarioAtual);
         ValidarPartida(partida, categoria.Competicao);
 
         await partidaRepositorio.AdicionarAsync(partida, cancellationToken);
@@ -397,12 +402,9 @@ public class PartidaServico(
         partida.Status = dto.Status;
         partida.DataPartida = dto.DataPartida.HasValue ? NormalizarParaUtc(dto.DataPartida.Value) : DateTime.UtcNow;
         partida.Observacoes = dto.Observacoes?.Trim();
-        partida.CategoriaCompeticao = categoria;
-        partida.DuplaA = duplaA;
-        partida.DuplaB = duplaB;
-
         ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
         AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, partida.DataPartida ?? DateTime.UtcNow);
+        AtualizarNavegacoesPartida(partida, categoria, duplaA, duplaB);
         ValidarPartida(partida, categoria.Competicao);
         partida.AtualizarDataModificacao();
         partida.Observacoes = MontarObservacoesPartida(dto.Observacoes?.Trim(), metadadosChave, metadadosRodada, metadadosLadosAtualizados);
@@ -784,6 +786,30 @@ public class PartidaServico(
         partida.PlacarDuplaB = placarDuplaB.Value;
         partida.DuplaVencedoraId = partida.ObterDuplaVencedoraPorPlacar();
         partida.DataPartida ??= dataAtualPadraoUtc;
+    }
+
+    private static void AtualizarNavegacoesPartida(
+        Partida partida,
+        CategoriaCompeticao categoria,
+        Dupla duplaA,
+        Dupla duplaB,
+        Usuario? usuarioCriador = null)
+    {
+        partida.CategoriaCompeticao = categoria;
+        partida.DuplaA = duplaA;
+        partida.DuplaB = duplaB;
+
+        if (usuarioCriador is not null)
+        {
+            partida.CriadoPorUsuario = usuarioCriador;
+        }
+
+        partida.DuplaVencedora = partida.DuplaVencedoraId switch
+        {
+            var id when id == duplaA.Id => duplaA,
+            var id when id == duplaB.Id => duplaB,
+            _ => null
+        };
     }
 
     private static void ValidarPartida(Partida partida, Competicao competicao)
