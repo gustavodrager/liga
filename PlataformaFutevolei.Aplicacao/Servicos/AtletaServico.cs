@@ -345,7 +345,7 @@ public class AtletaServico(
 
     private static (
         string Nome,
-        string Apelido,
+        string? Apelido,
         string? Telefone,
         string? Email,
         string? Instagram,
@@ -363,7 +363,8 @@ public class AtletaServico(
         string? cidade,
         string? estado)
     {
-        var (nomeNormalizado, apelidoNormalizado) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nome, apelido);
+        var nomeNormalizado = NormalizadorNomeAtleta.NormalizarTexto(nome);
+        var apelidoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(apelido);
         var telefoneNormalizado = NormalizadorNomeAtleta.NormalizarTexto(telefone);
         var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
         var instagramNormalizado = NormalizadorNomeAtleta.NormalizarTexto(instagram);
@@ -373,7 +374,7 @@ public class AtletaServico(
 
         return (
             nomeNormalizado,
-            apelidoNormalizado,
+            string.IsNullOrWhiteSpace(apelidoNormalizado) ? null : apelidoNormalizado,
             string.IsNullOrWhiteSpace(telefoneNormalizado) ? null : telefoneNormalizado,
             string.IsNullOrWhiteSpace(emailNormalizado) ? null : emailNormalizado,
             string.IsNullOrWhiteSpace(instagramNormalizado) ? null : instagramNormalizado,
