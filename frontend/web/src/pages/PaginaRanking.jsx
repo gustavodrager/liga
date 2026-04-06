@@ -157,8 +157,13 @@ export function PaginaRanking() {
         : !haFiltroUrl && competicaoHistoricoValida
           ? competicaoHistoricoValida
           : competicoesDisponiveis[0]?.id || '';
+      const deveUsarCompeticaoPorAusenciaDeLiga = !usuarioAtleta &&
+        listaLigas.length === 0 &&
+        competicoesDisponiveis.length > 0;
       const tipoConsultaInicial = usuarioAtleta
         ? 'competicao'
+        : deveUsarCompeticaoPorAusenciaDeLiga
+          ? 'competicao'
         : !haFiltroUrl && competicaoHistoricoValida && filtroInicial?.tipoConsulta === 'competicao'
           ? 'competicao'
           : tipoInicial;
@@ -283,7 +288,7 @@ export function PaginaRanking() {
 
       {carregandoBase ? (
         <p>Carregando ranking...</p>
-      ) : tipoConsulta === 'liga' && ligas.length === 0 ? (
+      ) : tipoConsulta === 'liga' && ligas.length === 0 && competicoes.length === 0 ? (
         <p>Nenhuma liga cadastrada.</p>
       ) : usuarioAtleta && competicoes.length === 0 ? (
         <p>Seu atleta ainda não participa de nenhum grupo com ranking disponível.</p>
