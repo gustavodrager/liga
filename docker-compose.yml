@@ -30,6 +30,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-plataforma_futevolei_dev};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Ssl Mode=Disable
+      Jwt__Chave: ${JWT_CHAVE:-chave-desenvolvimento-local-docker-quebranunca-2026}
       Frontend__Url: http://localhost:${FRONTEND_PORT:-5173};http://127.0.0.1:${FRONTEND_PORT:-5173}
       EmailConvitesCadastro__UrlApp: http://localhost:${FRONTEND_PORT:-5173}
       WhatsappConvitesCadastro__UrlApp: http://localhost:${FRONTEND_PORT:-5173}

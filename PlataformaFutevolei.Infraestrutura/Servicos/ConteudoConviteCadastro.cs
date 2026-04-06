@@ -12,7 +12,7 @@ internal static class ConteudoConviteCadastro
 
     public static string MontarAssuntoEmail()
     {
-        return "Seu convite para acessar a Plataforma de Futevôlei";
+        return "Seu convite para acessar a Plataforma QuebraNunca Futevôlei";
     }
 
     public static string MontarTextoEmail(ConviteCadastro conviteCadastro, string linkConvite, string codigoConvite)
@@ -22,7 +22,7 @@ internal static class ConteudoConviteCadastro
             [
                 "Olá!",
                 string.Empty,
-                "Você foi convidado(a) para usar a Plataforma de Futevôlei como organizador(a).",
+                "Você foi convidado(a) para usar a Plataforma QuebraNunca Futevôlei como organizador(a).",
                 "Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.",
                 string.Empty,
                 $"E-mail liberado para o convite: {conviteCadastro.Email}",
@@ -44,7 +44,7 @@ internal static class ConteudoConviteCadastro
         return $"""
             <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
               <p>Olá!</p>
-              <p>Você foi convidado(a) para usar a <strong>Plataforma de Futevôlei</strong> como organizador(a).</p>
+              <p>Você foi convidado(a) para usar a <strong>Plataforma QuebraNunca Futevôlei</strong> como organizador(a).</p>
               <p>Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.</p>
               <p><strong>E-mail liberado para o convite:</strong> {email}</p>
               <p><strong>Código do convite:</strong> {codigoConviteCodificado}</p>
@@ -67,7 +67,7 @@ internal static class ConteudoConviteCadastro
             [
                 "Olá!",
                 string.Empty,
-                "Você recebeu um convite para acessar a Plataforma de Futevôlei como organizador(a).",
+                "Você recebeu um convite para acessar a Plataforma QuebraNunca Futevôlei como organizador(a).",
                 "Use o link abaixo e o código do convite para criar sua senha e concluir seu primeiro acesso:",
                 linkConvite,
                 string.Empty,

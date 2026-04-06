@@ -46,7 +46,7 @@ export function LayoutPrincipal() {
           <img className="logo-interno" src={logoLiga} alt="Liga" />
           <div>
             <p className="marca-subtitulo">Plataforma</p>
-            <h1 className="marca-titulo">Registro de Futevôlei</h1>
+            <h1 className="marca-titulo">Plataforma QuebraNunca Futevôlei</h1>
           </div>
         </div>
 

@@ -111,7 +111,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Plataforma Futevôlei API",
+        Title = "Plataforma QuebraNunca Futevôlei API",
         Version = "v1"
     });
 
@@ -215,7 +215,7 @@ app.MapGet("/", (IHostEnvironment environment) =>
 {
     return Results.Ok(new
     {
-        nome = "Plataforma Futevôlei API",
+        nome = "Plataforma QuebraNunca Futevôlei API",
         status = "ok",
         ambiente = environment.EnvironmentName,
         health = "/health",

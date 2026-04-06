@@ -7,7 +7,7 @@ internal static class ConteudoCodigoLoginEmail
 {
     public static string MontarAssunto()
     {
-        return "Seu código para entrar na Plataforma de Futevôlei";
+        return "Seu código para entrar na Plataforma QuebraNunca Futevôlei";
     }
 
     public static string MontarTexto(Usuario usuario, string codigo)
@@ -17,7 +17,7 @@ internal static class ConteudoCodigoLoginEmail
             [
                 "Olá!",
                 string.Empty,
-                $"Recebemos uma solicitação para entrar na Plataforma de Futevôlei com o e-mail {usuario.Email}.",
+                $"Recebemos uma solicitação para entrar na Plataforma QuebraNunca Futevôlei com o e-mail {usuario.Email}.",
                 "Use o código abaixo para concluir o login:",
                 string.Empty,
                 codigo,
@@ -35,7 +35,7 @@ internal static class ConteudoCodigoLoginEmail
         return $"""
             <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
               <p>Olá!</p>
-              <p>Recebemos uma solicitação para entrar na <strong>Plataforma de Futevôlei</strong> com o e-mail <strong>{email}</strong>.</p>
+              <p>Recebemos uma solicitação para entrar na <strong>Plataforma QuebraNunca Futevôlei</strong> com o e-mail <strong>{email}</strong>.</p>
               <p>Use o código abaixo para concluir o login:</p>
               <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px;">{codigoCodificado}</p>
               <p>Este código expira em 15 minutos.</p>
