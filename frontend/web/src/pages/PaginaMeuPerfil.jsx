@@ -106,6 +106,14 @@ function criarResumoAtleta(atleta) {
   };
 }
 
+function obterNomeCompletoMeuPerfil(atleta, usuarioBase, perfilUsuario) {
+  if (Number(perfilUsuario) === PERFIS_USUARIO.atleta) {
+    return usuarioBase?.nome || atleta?.nome || '';
+  }
+
+  return atleta?.nome || '';
+}
+
 export function PaginaMeuPerfil() {
   const { usuario, atualizarUsuarioLocal, recarregarUsuario } = useAutenticacao();
   const [usuarioDetalhe, setUsuarioDetalhe] = useState(null);
@@ -166,8 +174,11 @@ export function PaginaMeuPerfil() {
   }
 
   function preencherFormularioAtleta(atleta) {
+    const perfilUsuario = usuarioDetalhe?.perfil || usuario?.perfil;
+    const usuarioBase = usuarioDetalhe || usuario;
+
     setFormularioAtleta({
-      nome: atleta.nome || '',
+      nome: obterNomeCompletoMeuPerfil(atleta, usuarioBase, perfilUsuario),
       apelido: atleta.apelido || '',
       telefone: formatarTelefoneParaInput(atleta.telefone),
       email: emailUsuarioPerfil,
