@@ -10,7 +10,10 @@ public interface ISenhaServico
 
 public interface ITokenJwtServico
 {
-    string GerarToken(Usuario usuario);
+    string GerarToken(Usuario usuario, DateTime expiraEmUtc);
+    Guid? ObterUsuarioIdTokenExpirado(string token);
+    DateTime ObterExpiracaoTokenAcessoUtc(DateTime? limiteMaximoUtc = null);
+    DateTime ObterExpiracaoRefreshTokenUtc();
 }
 
 public interface IUsuarioContexto

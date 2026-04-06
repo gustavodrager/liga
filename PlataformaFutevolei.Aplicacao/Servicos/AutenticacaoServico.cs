@@ -61,8 +61,7 @@ public class AutenticacaoServico(
             await pendenciaServico.SincronizarAposVinculoAtletaAsync(usuario.AtletaId.Value, cancellationToken);
         }
 
-        var token = tokenJwtServico.GerarToken(usuario);
-        return new RespostaAutenticacaoDto(token, usuario.ParaDto());
+        return await CriarRespostaAutenticacaoAsync(usuario, cancellationToken, reutilizarExpiracaoRefreshTokenAtual: false);
     }
 
     public async Task<RespostaAutenticacaoDto> LoginAsync(LoginRequisicaoDto dto, CancellationToken cancellationToken = default)
@@ -79,8 +78,7 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Credenciais inválidas.");
         }
 
-        var token = tokenJwtServico.GerarToken(usuario);
-        return new RespostaAutenticacaoDto(token, usuario.ParaDto());
+        return await CriarRespostaAutenticacaoAsync(usuario, cancellationToken, reutilizarExpiracaoRefreshTokenAtual: false);
     }
 
     public async Task<SolicitarCodigoLoginRespostaDto> SolicitarCodigoLoginAsync(
@@ -158,8 +156,42 @@ public class AutenticacaoServico(
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        var token = tokenJwtServico.GerarToken(usuario);
-        return new RespostaAutenticacaoDto(token, usuario.ParaDto());
+        return await CriarRespostaAutenticacaoAsync(usuario, cancellationToken, reutilizarExpiracaoRefreshTokenAtual: false);
+    }
+
+    public async Task<RespostaAutenticacaoDto> RenovarTokenAsync(
+        RenovarTokenRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Token) || string.IsNullOrWhiteSpace(dto.RefreshToken))
+        {
+            throw new RegraNegocioException("Token de renovação inválido.");
+        }
+
+        var usuarioId = tokenJwtServico.ObterUsuarioIdTokenExpirado(dto.Token.Trim());
+        if (!usuarioId.HasValue)
+        {
+            throw new RegraNegocioException("Token de renovação inválido.");
+        }
+
+        var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioId.Value, cancellationToken);
+        if (usuario is null || !usuario.Ativo)
+        {
+            throw new RegraNegocioException("Usuário não encontrado ou inativo.");
+        }
+
+        var agora = DateTime.UtcNow;
+        var refreshTokenValido = !string.IsNullOrWhiteSpace(usuario.RefreshTokenHash)
+            && usuario.RefreshTokenExpiraEmUtc.HasValue
+            && usuario.RefreshTokenExpiraEmUtc.Value >= agora
+            && senhaServico.Verificar(dto.RefreshToken.Trim(), usuario.RefreshTokenHash);
+
+        if (!refreshTokenValido)
+        {
+            throw new RegraNegocioException("Sessão expirada. Faça login novamente.");
+        }
+
+        return await CriarRespostaAutenticacaoAsync(usuario, cancellationToken, reutilizarExpiracaoRefreshTokenAtual: true);
     }
 
     public async Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
@@ -333,6 +365,43 @@ public class AutenticacaoServico(
         usuario.AtletaId = atleta.Id;
         usuario.Atleta = atleta;
     }
+
+    private async Task<RespostaAutenticacaoDto> CriarRespostaAutenticacaoAsync(
+        Usuario usuario,
+        CancellationToken cancellationToken,
+        bool reutilizarExpiracaoRefreshTokenAtual)
+    {
+        var agora = DateTime.UtcNow;
+        var expiracaoRefreshToken = reutilizarExpiracaoRefreshTokenAtual
+            && usuario.RefreshTokenExpiraEmUtc is { } expiracaoAtual
+            && expiracaoAtual > agora
+            ? expiracaoAtual
+            : tokenJwtServico.ObterExpiracaoRefreshTokenUtc();
+        var expiracaoToken = tokenJwtServico.ObterExpiracaoTokenAcessoUtc(expiracaoRefreshToken);
+        var refreshToken = GerarRefreshToken();
+
+        usuario.RefreshTokenHash = senhaServico.GerarHash(refreshToken);
+        usuario.RefreshTokenExpiraEmUtc = expiracaoRefreshToken;
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
+        return new RespostaAutenticacaoDto(
+            token,
+            refreshToken,
+            expiracaoToken,
+            expiracaoRefreshToken,
+            usuario.ParaDto());
+    }
+
+    private static string GerarRefreshToken()
+    {
+        Span<byte> bytes = stackalloc byte[64];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToHexString(bytes);
+    }
+
     private static string GerarCodigoRedefinicao()
     {
         var numero = RandomNumberGenerator.GetInt32(100000, 1000000);

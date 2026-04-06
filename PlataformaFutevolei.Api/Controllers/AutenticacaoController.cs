@@ -50,6 +50,17 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         return Ok(resposta);
     }
 
+    [HttpPost("renovar-token")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RenovarToken(
+        [FromBody] RenovarTokenRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.RenovarTokenAsync(dto, cancellationToken);
+        return Ok(resposta);
+    }
+
     [HttpPost("esqueci-senha/solicitar")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(SolicitarRedefinicaoSenhaRespostaDto), StatusCodes.Status200OK)]
