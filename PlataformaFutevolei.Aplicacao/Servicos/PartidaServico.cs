@@ -322,7 +322,9 @@ public class PartidaServico(
 
         await partidaRepositorio.AdicionarAsync(partida, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
-        await pendenciaServico.InicializarFluxoPartidaAsync(partida, usuarioAtual.Id, cancellationToken);
+        var partidaPersistida = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Partida não encontrada após o cadastro.");
+        await pendenciaServico.InicializarFluxoPartidaAsync(partidaPersistida, usuarioAtual.Id, cancellationToken);
         await ProcessarAvancoChaveAsync(categoria, cancellationToken);
         await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
         var partidaCriada = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken);
