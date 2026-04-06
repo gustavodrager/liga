@@ -108,6 +108,13 @@ Antes de implementar:
 3. explicar brevemente a abordagem
 4. só então editar
 
+## Operação local e Docker
+- Antes de subir backend/frontend localmente, sempre verificar se o Docker já está rodando com os contêineres do projeto
+- Se os contêineres do projeto já estiverem ativos e saudáveis, validar neles e não subir backend/frontend localmente
+- Se existirem processos locais do backend/frontend em paralelo com Docker para as mesmas portas, encerrar os processos locais antes de validar
+- Se os contêineres do projeto estiverem rodando há muito tempo, reiniciá-los antes da validação para reduzir risco de estado velho
+- Ao iniciar uma validação, checar primeiro o estado atual de contêineres e portas antes de executar `dotnet run` ou `npm run dev`
+
 Ao mexer em entidades ou relacionamentos, revisar também DTOs, serviços, mapeamentos, migrações e telas afetadas.
 
 Ao mexer em fluxo de campeonato, revisar em conjunto:

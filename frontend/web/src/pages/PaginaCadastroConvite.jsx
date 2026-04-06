@@ -93,7 +93,7 @@ export function PaginaCadastroConvite() {
       <div className="painel-login">
         <img className="logo-login" src={logoLiga} alt="Logo Liga" />
         <h1>Seu primeiro acesso</h1>
-        <p>Use este convite para criar sua senha e entrar pela primeira vez na Plataforma de Futevôlei.</p>
+        <p>Use este convite para criar sua senha e entrar pela primeira vez na Plataforma QuebraNunca Futevôlei.</p>
 
         {carregandoConvite ? (
           <p>Validando convite...</p>
