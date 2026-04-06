@@ -173,6 +173,7 @@ if (aplicarMigrations)
     {
         app.Logger.LogInformation("Aplicando migrations pendentes...");
         dbContext.Database.Migrate();
+        GarantirCompatibilidadeCriadoPorUsuarioPartidas(dbContext, app.Logger);
         GarantirCompatibilidadeStatusAprovacaoPartidas(dbContext, app.Logger);
         GarantirCompatibilidadeFluxoAprovacaoResultados(dbContext, app.Logger);
         app.Logger.LogInformation("Migrations aplicadas com sucesso.");
@@ -339,6 +340,39 @@ static void GarantirCompatibilidadeStatusAprovacaoPartidas(
         """);
 
     logger.LogInformation("Compatibilidade de schema para partidas.status_aprovacao verificada.");
+}
+
+static void GarantirCompatibilidadeCriadoPorUsuarioPartidas(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger logger)
+{
+    dbContext.Database.ExecuteSqlRaw("""
+        ALTER TABLE partidas
+        ADD COLUMN IF NOT EXISTS criado_por_usuario_id uuid NULL;
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_partidas_criado_por_usuario_id"
+        ON partidas (criado_por_usuario_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'FK_partidas_usuarios_criado_por_usuario_id'
+            ) THEN
+                ALTER TABLE partidas
+                ADD CONSTRAINT "FK_partidas_usuarios_criado_por_usuario_id"
+                FOREIGN KEY (criado_por_usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL;
+            END IF;
+        END
+        $$;
+        """);
+
+    logger.LogInformation("Compatibilidade de schema para partidas.criado_por_usuario_id verificada.");
 }
 
 static void GarantirCompatibilidadeFluxoAprovacaoResultados(
