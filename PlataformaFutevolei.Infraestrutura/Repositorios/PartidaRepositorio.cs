@@ -89,6 +89,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     public async Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default)
     {
         return await CriarConsultaRanking()
+            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
             .Where(x => x.CategoriaCompeticao.Competicao.LigaId == ligaId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -100,7 +101,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         var consulta = CriarConsultaRanking()
             .Where(x => !x.CategoriaCompeticao.Competicao.LigaId.HasValue)
-            .Where(x => x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria);
+            .Where(x => x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria)
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada);
 
         if (usuarioOrganizadorId.HasValue)
         {
@@ -115,6 +117,11 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     public async Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
         return await CriarConsultaRanking()
+            .Where(x =>
+                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
+                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
+                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
+                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada))
             .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -128,7 +135,11 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         var consulta = dbContext.Partidas
             .AsNoTracking()
             .Where(x => x.Status == StatusPartida.Encerrada)
-            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada);
+            .Where(x =>
+                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
+                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
+                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
+                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada));
 
         if (atletaId.HasValue)
         {
@@ -235,7 +246,6 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Include(x => x.DuplaB)
                 .ThenInclude(x => x.Atleta2)
                     .ThenInclude(x => x.Usuario)
-            .Where(x => x.Status == StatusPartida.Encerrada)
-            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada);
+            .Where(x => x.Status == StatusPartida.Encerrada);
     }
 }
