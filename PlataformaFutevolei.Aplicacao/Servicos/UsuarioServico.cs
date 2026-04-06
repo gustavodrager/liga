@@ -225,7 +225,7 @@ public class UsuarioServico(
         {
             await pendenciaServico.SincronizarAposVinculoAtletaAsync(atletaId, cancellationToken);
         }
-        catch (Exception ex) when (EhViolacaoUnicidade(ex))
+        catch (Exception)
         {
             return;
         }

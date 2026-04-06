@@ -32,6 +32,43 @@ const estadoInicialAtleta = {
 
 const mensagemErroAcessoOrganizador =
   'O organizador só pode alterar atletas inscritos em competições vinculadas ao próprio usuário.';
+const dataMinimaNascimento = '1900-01-01';
+
+function obterDataMaximaNascimento() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function validarDataNascimento(dataNascimento) {
+  if (!dataNascimento) {
+    return null;
+  }
+
+  const dataNormalizada = dataNascimento.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataNormalizada)) {
+    return 'Informe uma data de nascimento válida.';
+  }
+
+  const [ano, mes, dia] = dataNormalizada.split('-').map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  const dataValida =
+    data.getUTCFullYear() === ano &&
+    data.getUTCMonth() === mes - 1 &&
+    data.getUTCDate() === dia;
+
+  if (!dataValida) {
+    return 'Informe uma data de nascimento válida.';
+  }
+
+  if (dataNormalizada < dataMinimaNascimento) {
+    return 'Data de nascimento inválida.';
+  }
+
+  if (dataNormalizada > obterDataMaximaNascimento()) {
+    return 'Data de nascimento não pode ser futura.';
+  }
+
+  return null;
+}
 
 function criarEstadoInicialAtleta(usuario) {
   return {
@@ -78,6 +115,7 @@ export function PaginaMeuPerfil() {
   const [salvandoAtleta, setSalvandoAtleta] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
+  const emailUsuarioPerfil = usuarioDetalhe?.email || usuario?.email || '';
 
   useEffect(() => {
     carregarPerfil();
@@ -137,7 +175,7 @@ export function PaginaMeuPerfil() {
       nome: atleta.nome || '',
       apelido: atleta.apelido || '',
       telefone: formatarTelefoneParaInput(atleta.telefone),
-      email: atleta.email || usuario?.email || '',
+      email: emailUsuarioPerfil,
       instagram: atleta.instagram || '',
       cpf: formatarCpfParaInput(atleta.cpf),
       cidade: atleta.cidade || '',
@@ -176,6 +214,13 @@ export function PaginaMeuPerfil() {
       return;
     }
 
+    const erroDataNascimento = validarDataNascimento(formularioAtleta.dataNascimento);
+    if (erroDataNascimento) {
+      setErro(erroDataNascimento);
+      setMensagem('');
+      return;
+    }
+
     setSalvandoAtleta(true);
     setErro('');
     setMensagem('');
@@ -184,7 +229,7 @@ export function PaginaMeuPerfil() {
       nome: formularioAtleta.nome,
       apelido: formularioAtleta.apelido.trim() || null,
       telefone: limparTelefone(formularioAtleta.telefone) || null,
-      email: formularioAtleta.email.trim() || null,
+      email: emailUsuarioPerfil || null,
       instagram: formularioAtleta.instagram.trim() || null,
       cpf: cpfLimpo || null,
       cidade: formularioAtleta.cidade.trim() || null,
@@ -222,6 +267,13 @@ export function PaginaMeuPerfil() {
       return;
     }
 
+    const erroDataNascimento = validarDataNascimento(formularioAtleta.dataNascimento);
+    if (erroDataNascimento) {
+      setErro(erroDataNascimento);
+      setMensagem('');
+      return;
+    }
+
     setSalvandoAtleta(true);
     setErro('');
     setMensagem('');
@@ -230,7 +282,7 @@ export function PaginaMeuPerfil() {
       nome: formularioAtleta.nome,
       apelido: formularioAtleta.apelido.trim() || null,
       telefone: limparTelefone(formularioAtleta.telefone) || null,
-      email: formularioAtleta.email.trim() || null,
+      email: emailUsuarioPerfil || null,
       instagram: formularioAtleta.instagram.trim() || null,
       cpf: cpfLimpo || null,
       cidade: formularioAtleta.cidade.trim() || null,
@@ -335,6 +387,8 @@ export function PaginaMeuPerfil() {
                 type="date"
                 value={formularioAtleta.dataNascimento}
                 onChange={(evento) => atualizarCampoAtleta('dataNascimento', evento.target.value)}
+                min={dataMinimaNascimento}
+                max={obterDataMaximaNascimento()}
               />
             </label>
 
@@ -369,7 +423,7 @@ export function PaginaMeuPerfil() {
               E-mail
               <input
                 type="email"
-                value={formularioAtleta.email}
+                value={emailUsuarioPerfil}
                 readOnly
                 disabled
               />
