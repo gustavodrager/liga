@@ -42,14 +42,17 @@ export function LayoutPrincipal() {
       <header className="topo-app">
         <div className="marca-topo">
           <img className="logo-interno" src={logoLiga} alt="Liga" />
-          <div>
+          <div className="marca-texto">
             <p className="marca-subtitulo">Plataforma</p>
             <h1 className="marca-titulo">Plataforma QuebraNunca Futevôlei</h1>
           </div>
         </div>
 
         <div className="usuario-topo">
-          <span>{usuario?.nome} · {nomePerfil(usuario?.perfil)}</span>
+          <span className="usuario-identidade">
+            <span className="usuario-nome">{usuario?.nome}</span>
+            <span className="usuario-perfil">{nomePerfil(usuario?.perfil)}</span>
+          </span>
           <button
             type="button"
             className="botao-terciario botao-menu-mobile"
@@ -72,8 +75,9 @@ export function LayoutPrincipal() {
                 />
               )}
             </svg>
+            <span className="rotulo-menu-mobile">{menuAberto ? 'Fechar' : 'Menu'}</span>
           </button>
-          <button type="button" className="botao-secundario" onClick={sair}>
+          <button type="button" className="botao-secundario botao-sair-topo" onClick={sair}>
             <ConteudoBotao icone="sair" texto="Sair" />
           </button>
         </div>
