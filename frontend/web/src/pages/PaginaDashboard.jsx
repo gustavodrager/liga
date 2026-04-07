@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import { ehAdministrador, ehAtleta, ehGestorCompeticao, ehOrganizador } from '../utils/perfis';
+import { ehAdministrador, ehGestorCompeticao, nomePerfil, PERFIS_USUARIO } from '../utils/perfis';
 
 export function PaginaDashboard() {
   const { usuario } = useAutenticacao();
@@ -104,6 +104,14 @@ export function PaginaDashboard() {
       }
     ] : [])
   ];
+  const rotaAtalhoPrincipal = atleta
+    ? '/competicoes'
+    : administrador
+      ? '/convites-cadastro'
+      : gestorCompeticao
+        ? '/partidas'
+        : '/meu-perfil';
+  const atalhoPrincipal = atalhos.find((atalho) => atalho.rota === rotaAtalhoPrincipal) || atalhos[0];
 
   return (
     <section className="pagina">
@@ -112,15 +120,42 @@ export function PaginaDashboard() {
         <p>Use os atalhos disponíveis para o seu perfil.</p>
       </div>
 
-      <div className="grade-cartoes">
+      <article className="cartao dashboard-hero">
+        <div className="dashboard-hero-conteudo">
+          <span className="dashboard-perfil">Perfil {nomePerfil(usuario?.perfil)}</span>
+          <h3>{usuario?.nome ? `Olá, ${usuario.nome}` : 'Bem-vindo'}</h3>
+          <p>
+            {atalhoPrincipal
+              ? `Comece por ${atalhoPrincipal.titulo} ou escolha outro atalho abaixo.`
+              : 'Escolha uma área para continuar o fluxo operacional da plataforma.'}
+          </p>
+        </div>
+        <div className="dashboard-hero-acoes">
+          <strong>{atalhos.length} atalho(s)</strong>
+          {atalhoPrincipal && (
+            <Link to={atalhoPrincipal.rota} className="botao-primario dashboard-acao-principal">
+              {atalhoPrincipal.titulo}
+            </Link>
+          )}
+        </div>
+      </article>
+
+      <div className="grade-cartoes grade-atalhos">
         {atalhos.map((atalho) => (
-          <article key={atalho.rota} className="cartao">
+          <Link
+            key={atalho.rota}
+            to={atalho.rota}
+            className={`cartao cartao-atalho ${atalho.rota === atalhoPrincipal?.rota ? 'cartao-atalho-destaque' : ''}`}
+          >
+            <div className="cartao-atalho-cabecalho">
+              <span className="cartao-atalho-meta">
+                {atalho.rota === atalhoPrincipal?.rota ? 'Comece aqui' : 'Atalho'}
+              </span>
+            </div>
             <h3>{atalho.titulo}</h3>
             <p>{atalho.descricao}</p>
-            <Link to={atalho.rota} className="link-acao">
-              Acessar
-            </Link>
-          </article>
+            <span className="link-acao">Acessar</span>
+          </Link>
         ))}
       </div>
     </section>
