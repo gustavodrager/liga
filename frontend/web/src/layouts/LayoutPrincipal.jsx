@@ -3,8 +3,9 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
-import { ehAdministrador, ehAtleta, ehGestorCompeticao, ehOrganizador, nomePerfil } from '../utils/perfis';
 
+import { ehAdministrador, ehAtleta, ehGestorCompeticao, nomePerfil } from '../utils/perfis';
+ 
 export function LayoutPrincipal() {
   const { usuario, sair } = useAutenticacao();
   const location = useLocation();

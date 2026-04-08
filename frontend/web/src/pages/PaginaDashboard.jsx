@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import { ehAdministrador, ehGestorCompeticao, nomePerfil, PERFIS_USUARIO } from '../utils/perfis';
+
+import { ehAdministrador, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
 
 export function PaginaDashboard() {
   const { usuario } = useAutenticacao();
