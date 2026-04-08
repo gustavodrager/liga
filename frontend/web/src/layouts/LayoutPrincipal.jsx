@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
+
 import { ehAdministrador, ehAtleta, ehGestorCompeticao, nomePerfil } from '../utils/perfis';
  
 export function LayoutPrincipal() {
@@ -12,22 +13,24 @@ export function LayoutPrincipal() {
   const administrador = ehAdministrador(usuario);
   const gestorCompeticao = ehGestorCompeticao(usuario);
   const atleta = ehAtleta(usuario);
+  const organizador = ehOrganizador(usuario);
+  const menuRestrito = organizador || atleta;
   const itensMenu = [
-    { caminho: '/dashboard', nome: 'Dashboard', visivel: true },
+    { caminho: '/dashboard', nome: 'Dashboard', visivel: !menuRestrito },
     { caminho: '/meu-perfil', nome: 'Meu Perfil', visivel: true },
     { caminho: '/perfil-usuario', nome: 'Perfil Usuário', visivel: administrador },
     { caminho: '/pendencias', nome: 'Pendências', visivel: true },
-    { caminho: '/atletas', nome: 'Atletas', visivel: gestorCompeticao },
-    { caminho: '/duplas', nome: 'Duplas', visivel: gestorCompeticao },
+    { caminho: '/atletas', nome: 'Atletas', visivel: gestorCompeticao && !menuRestrito },
+    { caminho: '/duplas', nome: 'Duplas', visivel: gestorCompeticao && !menuRestrito },
     { caminho: '/ligas', nome: 'Ligas', visivel: administrador },
-    { caminho: '/locais', nome: 'Locais', visivel: gestorCompeticao },
+    { caminho: '/locais', nome: 'Locais', visivel: gestorCompeticao && !menuRestrito },
     { caminho: '/formatos-campeonato', nome: 'Formatos', visivel: administrador },
-    { caminho: '/regras', nome: 'Regras', visivel: gestorCompeticao },
+    { caminho: '/regras', nome: 'Regras', visivel: gestorCompeticao && !menuRestrito },
     { caminho: '/modelos-importacao', nome: 'Modelos', visivel: administrador },
-    { caminho: '/competicoes', nome: 'Competições', visivel: true },
+    { caminho: '/competicoes', nome: 'Competições', visivel: !menuRestrito },
     { caminho: '/ranking', nome: 'Ranking', visivel: gestorCompeticao || atleta },
-    { caminho: '/categorias', nome: 'Categorias', visivel: gestorCompeticao },
-    { caminho: '/inscricoes', nome: 'Inscrições', visivel: true },
+    { caminho: '/categorias', nome: 'Categorias', visivel: gestorCompeticao && !menuRestrito },
+    { caminho: '/inscricoes', nome: 'Inscrições', visivel: !menuRestrito },
     { caminho: '/partidas', nome: 'Partidas', visivel: gestorCompeticao || atleta },
     { caminho: '/usuarios', nome: 'Usuários', visivel: administrador },
     { caminho: '/convites-cadastro', nome: 'Convites', visivel: administrador }
@@ -42,14 +45,17 @@ export function LayoutPrincipal() {
       <header className="topo-app">
         <div className="marca-topo">
           <img className="logo-interno" src={logoLiga} alt="Liga" />
-          <div>
+          <div className="marca-texto">
             <p className="marca-subtitulo">Plataforma</p>
-            <h1 className="marca-titulo">Registro de Futevôlei</h1>
+            <h1 className="marca-titulo">Plataforma QuebraNunca Futevôlei</h1>
           </div>
         </div>
 
         <div className="usuario-topo">
-          <span>{usuario?.nome} · {nomePerfil(usuario?.perfil)}</span>
+          <span className="usuario-identidade">
+            <span className="usuario-nome">{usuario?.nome}</span>
+            <span className="usuario-perfil">{nomePerfil(usuario?.perfil)}</span>
+          </span>
           <button
             type="button"
             className="botao-terciario botao-menu-mobile"
@@ -72,8 +78,9 @@ export function LayoutPrincipal() {
                 />
               )}
             </svg>
+            <span className="rotulo-menu-mobile">{menuAberto ? 'Fechar' : 'Menu'}</span>
           </button>
-          <button type="button" className="botao-secundario" onClick={sair}>
+          <button type="button" className="botao-secundario botao-sair-topo" onClick={sair}>
             <ConteudoBotao icone="sair" texto="Sair" />
           </button>
         </div>

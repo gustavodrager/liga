@@ -8,6 +8,8 @@ namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
 public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IPartidaRepositorio
 {
+    private const string NomeCategoriaSemCategoria = "Sem categoria";
+
     public async Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
         return await CriarConsultaDetalhadaPartidas()
@@ -86,51 +88,40 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
 
     public async Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default)
     {
-        return await dbContext.Partidas
-            .AsNoTracking()
-            .Include(x => x.CategoriaCompeticao)
-                .ThenInclude(x => x.Competicao)
-                    .ThenInclude(x => x.RegraCompeticao)
-            .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta1)
-                    .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta2)
-                    .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta1)
-                    .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta2)
-                    .ThenInclude(x => x.Usuario)
-            .Where(x => x.Status == StatusPartida.Encerrada)
+        return await CriarConsultaRanking()
             .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
             .Where(x => x.CategoriaCompeticao.Competicao.LigaId == ligaId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarParaRankingSemCompeticaoOuCategoriaAsync(
+        Guid? usuarioOrganizadorId,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = CriarConsultaRanking()
+            .Where(x => !x.CategoriaCompeticao.Competicao.LigaId.HasValue)
+            .Where(x => x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria)
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada);
+
+        if (usuarioOrganizadorId.HasValue)
+        {
+            consulta = consulta.Where(x => x.CategoriaCompeticao.Competicao.UsuarioOrganizadorId == usuarioOrganizadorId.Value);
+        }
+
+        return await consulta
+            .OrderByDescending(x => x.DataPartida)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
-        return await dbContext.Partidas
-            .AsNoTracking()
-            .Include(x => x.CategoriaCompeticao)
-                .ThenInclude(x => x.Competicao)
-                    .ThenInclude(x => x.RegraCompeticao)
-            .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta1)
-                    .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta2)
-                    .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta1)
-                    .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta2)
-                    .ThenInclude(x => x.Usuario)
-            .Where(x => x.Status == StatusPartida.Encerrada)
-            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+        return await CriarConsultaRanking()
+            .Where(x =>
+                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
+                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
+                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
+                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada))
             .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -144,7 +135,11 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         var consulta = dbContext.Partidas
             .AsNoTracking()
             .Where(x => x.Status == StatusPartida.Encerrada)
-            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada);
+            .Where(x =>
+                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
+                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
+                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
+                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada));
 
         if (atletaId.HasValue)
         {
@@ -174,6 +169,14 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
 
     public async Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default)
     {
+        // A partida é persistida pelas FKs. Limpar as navegações evita que o EF tente
+        // anexar novamente grafos já materializados com instâncias duplicadas de Atleta.
+        partida.CategoriaCompeticao = null!;
+        partida.CriadoPorUsuario = null;
+        partida.DuplaA = null!;
+        partida.DuplaB = null!;
+        partida.DuplaVencedora = null;
+
         await dbContext.Partidas.AddAsync(partida, cancellationToken);
     }
 
@@ -222,5 +225,27 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Include(x => x.DuplaVencedora);
 
         return usarNoTracking ? consulta.AsNoTracking() : consulta;
+    }
+
+    private IQueryable<Partida> CriarConsultaRanking()
+    {
+        return dbContext.Partidas
+            .AsNoTracking()
+            .Include(x => x.CategoriaCompeticao)
+                .ThenInclude(x => x.Competicao)
+                    .ThenInclude(x => x.RegraCompeticao)
+            .Include(x => x.DuplaA)
+                .ThenInclude(x => x.Atleta1)
+                    .ThenInclude(x => x.Usuario)
+            .Include(x => x.DuplaA)
+                .ThenInclude(x => x.Atleta2)
+                    .ThenInclude(x => x.Usuario)
+            .Include(x => x.DuplaB)
+                .ThenInclude(x => x.Atleta1)
+                    .ThenInclude(x => x.Usuario)
+            .Include(x => x.DuplaB)
+                .ThenInclude(x => x.Atleta2)
+                    .ThenInclude(x => x.Usuario)
+            .Where(x => x.Status == StatusPartida.Encerrada);
     }
 }

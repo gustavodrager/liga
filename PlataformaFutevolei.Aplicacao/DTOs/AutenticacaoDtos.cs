@@ -39,6 +39,11 @@ public record RedefinirSenhaRequisicaoDto(
     string NovaSenha
 );
 
+public record RenovarTokenRequisicaoDto(
+    string Token,
+    string RefreshToken
+);
+
 public record SolicitarRedefinicaoSenhaRespostaDto(
     string Mensagem
 );
@@ -91,5 +96,8 @@ public record AtualizarUsuarioDto(
 
 public record RespostaAutenticacaoDto(
     string Token,
+    string RefreshToken,
+    DateTime TokenExpiraEmUtc,
+    DateTime RefreshTokenExpiraEmUtc,
     UsuarioLogadoDto Usuario
 );

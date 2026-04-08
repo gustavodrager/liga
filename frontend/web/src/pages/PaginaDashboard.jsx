@@ -1,18 +1,38 @@
 import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+
 import { ehAdministrador, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
- 
+
 export function PaginaDashboard() {
   const { usuario } = useAutenticacao();
   const administrador = ehAdministrador(usuario);
   const gestorCompeticao = ehGestorCompeticao(usuario);
-  const atleta = Number(usuario?.perfil) === PERFIS_USUARIO.atleta;
+  const atleta = ehAtleta(usuario);
+  const organizador = ehOrganizador(usuario);
+  const dashboardRestrito = organizador || atleta;
   const atalhos = [
     {
       titulo: 'Meu Perfil',
       descricao: 'Atualize os dados do atleta vinculados ao seu acesso.',
       rota: '/meu-perfil'
     },
+    ...(dashboardRestrito ? [
+      {
+        titulo: 'Pendências',
+        descricao: 'Consulte vínculos e contatos pendentes para manter o fluxo das partidas regularizado.',
+        rota: '/pendencias'
+      },
+      {
+        titulo: 'Partidas',
+        descricao: 'Acompanhe e registre partidas disponíveis para o seu perfil.',
+        rota: '/partidas'
+      },
+      {
+        titulo: 'Ranking',
+        descricao: 'Consulte os pontos por liga e competição.',
+        rota: '/ranking'
+      }
+    ] : []),
     ...(administrador ? [
       {
         titulo: 'Perfil Usuário',
@@ -20,19 +40,7 @@ export function PaginaDashboard() {
         rota: '/perfil-usuario'
       }
     ] : []),
-    ...(atleta ? [
-      {
-        titulo: 'Competições',
-        descricao: 'Veja os campeonatos com inscrições abertas para participar.',
-        rota: '/competicoes'
-      },
-      {
-        titulo: 'Inscrições',
-        descricao: 'Selecione campeonato e categoria para se inscrever com sua dupla ou parceiro pendente.',
-        rota: '/inscricoes'
-      }
-    ] : []),
-    ...(gestorCompeticao ? [
+    ...(gestorCompeticao && !dashboardRestrito ? [
       {
         titulo: 'Atletas',
         descricao: 'Cadastre e organize os atletas do seu circuito.',
@@ -97,6 +105,14 @@ export function PaginaDashboard() {
       }
     ] : [])
   ];
+  const rotaAtalhoPrincipal = atleta
+    ? '/competicoes'
+    : administrador
+      ? '/convites-cadastro'
+      : gestorCompeticao
+        ? '/partidas'
+        : '/meu-perfil';
+  const atalhoPrincipal = atalhos.find((atalho) => atalho.rota === rotaAtalhoPrincipal) || atalhos[0];
 
   return (
     <section className="pagina">
@@ -105,15 +121,42 @@ export function PaginaDashboard() {
         <p>Use os atalhos disponíveis para o seu perfil.</p>
       </div>
 
-      <div className="grade-cartoes">
+      <article className="cartao dashboard-hero">
+        <div className="dashboard-hero-conteudo">
+          <span className="dashboard-perfil">Perfil {nomePerfil(usuario?.perfil)}</span>
+          <h3>{usuario?.nome ? `Olá, ${usuario.nome}` : 'Bem-vindo'}</h3>
+          <p>
+            {atalhoPrincipal
+              ? `Comece por ${atalhoPrincipal.titulo} ou escolha outro atalho abaixo.`
+              : 'Escolha uma área para continuar o fluxo operacional da plataforma.'}
+          </p>
+        </div>
+        <div className="dashboard-hero-acoes">
+          <strong>{atalhos.length} atalho(s)</strong>
+          {atalhoPrincipal && (
+            <Link to={atalhoPrincipal.rota} className="botao-primario dashboard-acao-principal">
+              {atalhoPrincipal.titulo}
+            </Link>
+          )}
+        </div>
+      </article>
+
+      <div className="grade-cartoes grade-atalhos">
         {atalhos.map((atalho) => (
-          <article key={atalho.rota} className="cartao">
+          <Link
+            key={atalho.rota}
+            to={atalho.rota}
+            className={`cartao cartao-atalho ${atalho.rota === atalhoPrincipal?.rota ? 'cartao-atalho-destaque' : ''}`}
+          >
+            <div className="cartao-atalho-cabecalho">
+              <span className="cartao-atalho-meta">
+                {atalho.rota === atalhoPrincipal?.rota ? 'Comece aqui' : 'Atalho'}
+              </span>
+            </div>
             <h3>{atalho.titulo}</h3>
             <p>{atalho.descricao}</p>
-            <Link to={atalho.rota} className="link-acao">
-              Acessar
-            </Link>
-          </article>
+            <span className="link-acao">Acessar</span>
+          </Link>
         ))}
       </div>
     </section>

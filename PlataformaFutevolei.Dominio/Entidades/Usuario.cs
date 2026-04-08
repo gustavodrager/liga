@@ -11,6 +11,8 @@ public class Usuario : EntidadeBase
     public DateTime? CodigoLoginExpiraEmUtc { get; set; }
     public string? CodigoRedefinicaoSenhaHash { get; set; }
     public DateTime? CodigoRedefinicaoSenhaExpiraEmUtc { get; set; }
+    public string? RefreshTokenHash { get; set; }
+    public DateTime? RefreshTokenExpiraEmUtc { get; set; }
     public PerfilUsuario Perfil { get; set; } = PerfilUsuario.Atleta;
     public Guid? AtletaId { get; set; }
     public bool Ativo { get; set; } = true;

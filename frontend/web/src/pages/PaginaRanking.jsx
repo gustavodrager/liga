@@ -21,7 +21,7 @@ const generos = {
 };
 
 function normalizarRanking(lista, tipoConsulta) {
-  return (lista || [])
+  const grupos = (lista || [])
     .map((grupo) => ({
       ...grupo,
       chave: `${tipoConsulta}-${grupo.categoriaId}`,
@@ -29,19 +29,24 @@ function normalizarRanking(lista, tipoConsulta) {
         ...atleta,
         partidas: atleta.partidas || []
       }))
-    }))
-    .sort((a, b) => {
-      const ordemCompeticao = a.nomeCompeticao.localeCompare(b.nomeCompeticao, 'pt-BR');
-      if (ordemCompeticao !== 0) {
-        return ordemCompeticao;
-      }
+    }));
 
-      if ((a.genero ?? 0) !== (b.genero ?? 0)) {
-        return (a.genero ?? 0) - (b.genero ?? 0);
-      }
+  if (tipoConsulta === 'liga') {
+    return grupos;
+  }
 
-      return a.nomeCategoria.localeCompare(b.nomeCategoria, 'pt-BR');
-    });
+  return grupos.sort((a, b) => {
+    const ordemCompeticao = a.nomeCompeticao.localeCompare(b.nomeCompeticao, 'pt-BR');
+    if (ordemCompeticao !== 0) {
+      return ordemCompeticao;
+    }
+
+    if ((a.genero ?? 0) !== (b.genero ?? 0)) {
+      return (a.genero ?? 0) - (b.genero ?? 0);
+    }
+
+    return a.nomeCategoria.localeCompare(b.nomeCategoria, 'pt-BR');
+  });
 }
 
 function classeStatusPendencia(item) {
@@ -152,8 +157,13 @@ export function PaginaRanking() {
         : !haFiltroUrl && competicaoHistoricoValida
           ? competicaoHistoricoValida
           : competicoesDisponiveis[0]?.id || '';
+      const deveUsarCompeticaoPorAusenciaDeLiga = !usuarioAtleta &&
+        listaLigas.length === 0 &&
+        competicoesDisponiveis.length > 0;
       const tipoConsultaInicial = usuarioAtleta
         ? 'competicao'
+        : deveUsarCompeticaoPorAusenciaDeLiga
+          ? 'competicao'
         : !haFiltroUrl && competicaoHistoricoValida && filtroInicial?.tipoConsulta === 'competicao'
           ? 'competicao'
           : tipoInicial;
@@ -227,6 +237,30 @@ export function PaginaRanking() {
     setDetalheAberto((anterior) => (anterior === chave ? null : chave));
   }
 
+  function renderizarDetalhesAtleta(item) {
+    return (
+      <div className="ranking-detalhes">
+        <strong>Partidas do ranking</strong>
+        {item.partidas.length === 0 ? (
+          <p>Nenhuma partida detalhada.</p>
+        ) : (
+          <div className="ranking-detalhe-lista">
+            {item.partidas.map((partida) => (
+              <div key={partida.partidaId} className="ranking-detalhe-item">
+                <strong>{partida.confronto}</strong>
+                <span>{formatarDataHora(partida.dataPartida)}</span>
+                <span>{partida.nomeCompeticao}</span>
+                <span>{partida.nomeCategoria}</span>
+                <span>{partida.resultado}</span>
+                <span>Pontos {formatarPontuacao(partida.pontos)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
@@ -278,7 +312,7 @@ export function PaginaRanking() {
 
       {carregandoBase ? (
         <p>Carregando ranking...</p>
-      ) : tipoConsulta === 'liga' && ligas.length === 0 ? (
+      ) : tipoConsulta === 'liga' && ligas.length === 0 && competicoes.length === 0 ? (
         <p>Nenhuma liga cadastrada.</p>
       ) : usuarioAtleta && competicoes.length === 0 ? (
         <p>Seu atleta ainda não participa de nenhum grupo com ranking disponível.</p>
@@ -325,6 +359,7 @@ export function PaginaRanking() {
                                 type="button"
                                 className="botao-link"
                                 onClick={() => alternarDetalhe(grupo.chave, item.atletaId)}
+                                aria-expanded={aberto}
                               >
                                 {item.nomeAtleta}
                               </button>
@@ -342,25 +377,7 @@ export function PaginaRanking() {
                           {aberto && (
                             <tr className="ranking-linha-detalhe">
                               <td colSpan={7}>
-                                <div className="ranking-detalhes">
-                                  <strong>Partidas do ranking</strong>
-                                  {item.partidas.length === 0 ? (
-                                    <p>Nenhuma partida detalhada.</p>
-                                  ) : (
-                                    <div className="ranking-detalhe-lista">
-                                      {item.partidas.map((partida) => (
-                                        <div key={partida.partidaId} className="ranking-detalhe-item">
-                                          <strong>{partida.confronto}</strong>
-                                          <span>{formatarDataHora(partida.dataPartida)}</span>
-                                          <span>{partida.nomeCompeticao}</span>
-                                          <span>{partida.nomeCategoria}</span>
-                                          <span>{partida.resultado}</span>
-                                          <span>Pontos {formatarPontuacao(partida.pontos)}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
+                                {renderizarDetalhesAtleta(item)}
                               </td>
                             </tr>
                           )}
@@ -369,6 +386,57 @@ export function PaginaRanking() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="ranking-mobile-cards">
+                {grupo.atletas.map((item) => {
+                  const chaveDetalhe = `${grupo.chave}-${item.atletaId}`;
+                  const aberto = detalheAberto === chaveDetalhe;
+
+                  return (
+                    <article key={item.atletaId} className="ranking-mobile-card">
+                      <div className="ranking-mobile-topo">
+                        <span className="ranking-mobile-posicao">{item.posicao}º</span>
+                        <div className="ranking-mobile-identidade">
+                          <strong className="ranking-mobile-nome">{item.nomeAtleta}</strong>
+                          <span className={`tag-status ${classeStatusPendencia(item)}`}>
+                            {item.statusPendencia}
+                          </span>
+                        </div>
+                        <div className="ranking-mobile-pontos">
+                          <span>Pontos</span>
+                          <strong>{formatarPontuacao(item.pontos)}</strong>
+                        </div>
+                      </div>
+
+                      <div className="ranking-mobile-metricas">
+                        <div className="ranking-mobile-metrica">
+                          <span>Jogos</span>
+                          <strong>{item.jogos}</strong>
+                        </div>
+                        <div className="ranking-mobile-metrica">
+                          <span>Vitórias</span>
+                          <strong>{item.vitorias}</strong>
+                        </div>
+                        <div className="ranking-mobile-metrica">
+                          <span>Derrotas</span>
+                          <strong>{item.derrotas}</strong>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="botao-secundario botao-compacto ranking-mobile-detalhe-botao"
+                        onClick={() => alternarDetalhe(grupo.chave, item.atletaId)}
+                        aria-expanded={aberto}
+                      >
+                        {aberto ? 'Ocultar partidas' : 'Ver partidas'}
+                      </button>
+
+                      {aberto && renderizarDetalhesAtleta(item)}
+                    </article>
+                  );
+                })}
               </div>
             </article>
           ))}

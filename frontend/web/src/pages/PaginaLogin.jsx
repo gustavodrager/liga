@@ -103,7 +103,7 @@ export function PaginaLogin() {
     <section className="pagina-login">
       <div className="painel-login">
         <img className="logo-login" src={logoLiga} alt="Logo Liga" />
-        <h1>Plataforma de Futevôlei</h1>
+        <h1>Plataforma QuebraNunca Futevôlei</h1>
         <p>Registre partidas, atletas e competições em um fluxo simples.</p>
 
         <p>O cadastro público foi desativado. Novas contas só podem ser criadas por convite. Para entrar, informe seu e-mail e receba um código de acesso.</p>

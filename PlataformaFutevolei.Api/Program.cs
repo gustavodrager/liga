@@ -111,7 +111,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Plataforma Futevôlei API",
+        Title = "Plataforma QuebraNunca Futevôlei API",
         Version = "v1"
     });
 
@@ -164,27 +164,32 @@ if (!habilitarHttpsRedirection)
 }
 
 var aplicarMigrations = builder.Configuration.GetValue("Database:MigrateOnStartup", true);
-if (aplicarMigrations)
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<PlataformaFutevoleiDbContext>();
 
     try
     {
-        app.Logger.LogInformation("Aplicando migrations pendentes...");
-        dbContext.Database.Migrate();
+        if (aplicarMigrations)
+        {
+            app.Logger.LogInformation("Aplicando migrations pendentes...");
+            dbContext.Database.Migrate();
+            app.Logger.LogInformation("Migrations aplicadas com sucesso.");
+        }
+        else
+        {
+            app.Logger.LogInformation("Execução de migrations na inicialização desabilitada por configuração.");
+        }
+
+        GarantirCompatibilidadeCriadoPorUsuarioPartidas(dbContext, app.Logger);
         GarantirCompatibilidadeStatusAprovacaoPartidas(dbContext, app.Logger);
         GarantirCompatibilidadeFluxoAprovacaoResultados(dbContext, app.Logger);
-        app.Logger.LogInformation("Migrations aplicadas com sucesso.");
+        app.Logger.LogInformation("Compatibilidades mínimas de schema verificadas com sucesso.");
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "Falha ao aplicar migrations na inicialização.");
+        app.Logger.LogError(ex, "Falha ao preparar schema na inicialização.");
     }
-}
-else
-{
-    app.Logger.LogInformation("Execução de migrations na inicialização desabilitada por configuração.");
 }
 
 app.UseForwardedHeaders();
@@ -210,7 +215,7 @@ app.MapGet("/", (IHostEnvironment environment) =>
 {
     return Results.Ok(new
     {
-        nome = "Plataforma Futevôlei API",
+        nome = "Plataforma QuebraNunca Futevôlei API",
         status = "ok",
         ambiente = environment.EnvironmentName,
         health = "/health",
@@ -339,6 +344,39 @@ static void GarantirCompatibilidadeStatusAprovacaoPartidas(
         """);
 
     logger.LogInformation("Compatibilidade de schema para partidas.status_aprovacao verificada.");
+}
+
+static void GarantirCompatibilidadeCriadoPorUsuarioPartidas(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger logger)
+{
+    dbContext.Database.ExecuteSqlRaw("""
+        ALTER TABLE partidas
+        ADD COLUMN IF NOT EXISTS criado_por_usuario_id uuid NULL;
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_partidas_criado_por_usuario_id"
+        ON partidas (criado_por_usuario_id);
+        """);
+
+    dbContext.Database.ExecuteSqlRaw("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'FK_partidas_usuarios_criado_por_usuario_id'
+            ) THEN
+                ALTER TABLE partidas
+                ADD CONSTRAINT "FK_partidas_usuarios_criado_por_usuario_id"
+                FOREIGN KEY (criado_por_usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL;
+            END IF;
+        END
+        $$;
+        """);
+
+    logger.LogInformation("Compatibilidade de schema para partidas.criado_por_usuario_id verificada.");
 }
 
 static void GarantirCompatibilidadeFluxoAprovacaoResultados(

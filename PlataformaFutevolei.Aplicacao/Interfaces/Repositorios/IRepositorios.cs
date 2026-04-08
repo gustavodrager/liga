@@ -132,6 +132,9 @@ public interface IPartidaRepositorio
         Guid atletaId,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarParaRankingSemCompeticaoOuCategoriaAsync(
+        Guid? usuarioOrganizadorId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<Guid?> ObterUltimaCompeticaoComPartidaEncerradaAsync(
         Guid? usuarioOrganizadorId,

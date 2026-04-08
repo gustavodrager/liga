@@ -97,6 +97,11 @@ export function PaginaCompeticoes() {
   const formularioCompeticaoRef = useRef(null);
   const navegar = useNavigate();
   const tipoGrupoSelecionado = usuarioAtleta || Number(formulario.tipo) === 3;
+  const totalCompeticoes = competicoes.length;
+  const totalComInscricoesAbertas = competicoes.filter((competicao) => (
+    competicao.tipo !== 3 && competicao.inscricoesAbertas
+  )).length;
+  const totalGrupos = competicoes.filter((competicao) => competicao.tipo === 3).length;
 
   useEffect(() => {
     carregarCompeticoes();
@@ -510,8 +515,36 @@ export function PaginaCompeticoes() {
         </p>
       </div>
 
+      <div className="competicoes-resumo" aria-label="Resumo das competições">
+        <div className="competicoes-resumo-item">
+          <span>Total</span>
+          <strong>{totalCompeticoes}</strong>
+        </div>
+        <div className="competicoes-resumo-item">
+          <span>Inscrições abertas</span>
+          <strong>{totalComInscricoesAbertas}</strong>
+        </div>
+        <div className="competicoes-resumo-item">
+          <span>Grupos</span>
+          <strong>{totalGrupos}</strong>
+        </div>
+      </div>
+
       {podeCriarCompeticao && (
-        <form ref={formularioCompeticaoRef} className="formulario-grid" onSubmit={aoSubmeter}>
+        <form ref={formularioCompeticaoRef} className="formulario-grid formulario-competicao" onSubmit={aoSubmeter}>
+          <div className="formulario-competicao-cabecalho campo-largo">
+            <h3>
+              {competicaoEdicaoId
+                ? usuarioAtleta ? 'Editar grupo' : 'Editar competição'
+                : usuarioAtleta ? 'Novo grupo' : 'Nova competição'}
+            </h3>
+            <p>
+              {usuarioAtleta
+                ? 'Crie um grupo simples para organizar e lançar jogos rapidamente.'
+                : 'Defina o básico agora e ajuste categorias, inscrições e jogos depois.'}
+            </p>
+          </div>
+
           <label>
             Nome
             <input
@@ -712,39 +745,58 @@ export function PaginaCompeticoes() {
               : [];
 
             return (
-              <article key={competicao.id} className="cartao-lista">
-                <div>
-                  <h3>{competicao.nome}</h3>
-                  <p>Tipo: {tiposCompeticao.find((tipo) => tipo.valor === competicao.tipo)?.rotulo || '-'}</p>
-                  <p>Liga: {competicao.nomeLiga || '-'}</p>
-                  <p>Local: {competicao.nomeLocal || '-'}</p>
-                  <p>Forma de competição: {competicao.nomeFormatoCampeonato || 'Padrão do tipo'}</p>
-                  {competicao.tipo !== 3 && (
-                    <p>Final reset: {competicao.possuiFinalReset ? 'Habilitada' : 'Desabilitada'}</p>
-                  )}
-                  <p>Regra: {competicao.nomeRegraCompeticao || 'Padrão'}</p>
-                  <p>Ranking da liga: {competicao.ligaId ? 'Conta automaticamente' : 'Sem liga vinculada'}</p>
-                  <p>Início: {formatarData(competicao.dataInicio)}</p>
-                  <p>Fim: {formatarData(competicao.dataFim)}</p>
-                  {competicao.descricao && <p>Descrição: {competicao.descricao}</p>}
-                  {competicao.tipo !== 3 && (
-                    <p>Inscrições: {competicao.inscricoesAbertas ? 'Abertas' : 'Fechadas'}</p>
-                  )}
-                  {competicao.tipo === 3 && (
-                    <p>Responsável: {competicao.nomeUsuarioOrganizador || 'Não informado'}</p>
-                  )}
-                  <p>
-                    Regra da partida: mínimo {competicao.pontosMinimosPartidaEfetivo} pontos, diferença mínima{' '}
-                    {competicao.diferencaMinimaPartidaEfetiva} e{' '}
-                    {competicao.permiteEmpateEfetivo ? 'empate permitido' : 'sem empate'}
-                  </p>
-                  <p>
-                    Pontuação: vitória {competicao.pontosVitoriaEfetivo} / derrota {competicao.pontosDerrotaEfetivo}
-                  </p>
-                  <p>Participação: {competicao.pontosParticipacaoEfetivo}</p>
+              <article
+                key={competicao.id}
+                className={`cartao-lista competicao-card ${competicao.tipo === 3 ? 'competicao-card-grupo' : ''}`}
+              >
+                <div className="competicao-card-conteudo">
+                  <div className="competicao-card-cabecalho">
+                    <div className="competicao-card-titulo">
+                      <span className="competicao-card-tipo">
+                        {tiposCompeticao.find((tipo) => tipo.valor === competicao.tipo)?.rotulo || '-'}
+                      </span>
+                      <h3>{competicao.nome}</h3>
+                    </div>
+
+                    {competicao.tipo === 3 ? (
+                      <span className="tag-status tag-status-alerta competicao-card-status">Grupo</span>
+                    ) : (
+                      <span
+                        className={`tag-status ${competicao.inscricoesAbertas ? 'tag-status-sucesso' : 'tag-status-alerta'} competicao-card-status`}
+                      >
+                        {competicao.inscricoesAbertas ? 'Inscrições abertas' : 'Inscrições fechadas'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="competicao-card-detalhes">
+                    <p>Liga: {competicao.nomeLiga || '-'}</p>
+                    <p>Local: {competicao.nomeLocal || '-'}</p>
+                    <p>Forma de competição: {competicao.nomeFormatoCampeonato || 'Padrão do tipo'}</p>
+                    {competicao.tipo !== 3 && (
+                      <p>Final reset: {competicao.possuiFinalReset ? 'Habilitada' : 'Desabilitada'}</p>
+                    )}
+                    <p>Regra: {competicao.nomeRegraCompeticao || 'Padrão'}</p>
+                    <p>Ranking da liga: {competicao.ligaId ? 'Conta automaticamente' : 'Sem liga vinculada'}</p>
+                    <p>Início: {formatarData(competicao.dataInicio)}</p>
+                    <p>Fim: {formatarData(competicao.dataFim)}</p>
+                    {competicao.descricao && <p>Descrição: {competicao.descricao}</p>}
+                    {competicao.tipo === 3 && (
+                      <p>Responsável: {competicao.nomeUsuarioOrganizador || 'Não informado'}</p>
+                    )}
+                    <p>
+                      Regra da partida: mínimo {competicao.pontosMinimosPartidaEfetivo} pontos, diferença mínima{' '}
+                      {competicao.diferencaMinimaPartidaEfetiva} e{' '}
+                      {competicao.permiteEmpateEfetivo ? 'empate permitido' : 'sem empate'}
+                    </p>
+                    <p>
+                      Pontuação: vitória {competicao.pontosVitoriaEfetivo} / derrota {competicao.pontosDerrotaEfetivo}
+                    </p>
+                    <p>Participação: {competicao.pontosParticipacaoEfetivo}</p>
+                  </div>
                 </div>
 
-                <div className="acoes-item">
+                <div className="acoes-item competicao-card-acoes">
                   <button
                     type="button"
                     className="botao-terciario"

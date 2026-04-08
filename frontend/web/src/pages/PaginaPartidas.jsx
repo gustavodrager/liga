@@ -2231,9 +2231,18 @@ export function PaginaPartidas() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Partidas</h2>
+        <p>Filtre a competição, registre jogos e acompanhe resultados sem alterar o fluxo atual.</p>
       </div>
 
-      <div className="formulario-grid">
+      <div className="formulario-grid filtro-partidas">
+        <div className="campo-largo partidas-filtro-cabecalho">
+          <div>
+            <strong>Contexto dos jogos</strong>
+            <p>Escolha competição e categoria antes de registrar ou consultar partidas.</p>
+          </div>
+          <span>{partidas.length} jogo(s)</span>
+        </div>
+
         <label>
           Competição opcional
           <select
@@ -2252,21 +2261,21 @@ export function PaginaPartidas() {
           </select>
         </label>
 
-          <label>
-            {grupoSelecionado || !competicaoId ? 'Categoria opcional' : 'Categoria'}
-            <select
-              value={formulario.categoriaCompeticaoId}
-              onChange={(evento) => atualizarCampo('categoriaCompeticaoId', evento.target.value)}
-              required={Boolean(competicaoId) && !grupoSelecionado}
+        <label>
+          {grupoSelecionado || !competicaoId ? 'Categoria opcional' : 'Categoria'}
+          <select
+            value={formulario.categoriaCompeticaoId}
+            onChange={(evento) => atualizarCampo('categoriaCompeticaoId', evento.target.value)}
+            required={Boolean(competicaoId) && !grupoSelecionado}
           >
             <option value="">{grupoSelecionado || !competicaoId ? 'Todas / sem categoria' : 'Selecione'}</option>
             {categorias.map((categoria) => (
               <option key={categoria.id} value={categoria.id}>
                 {categoria.nome}
               </option>
-              ))}
-            </select>
-          </label>
+            ))}
+          </select>
+        </label>
 
         {podeSortearPartidas && (
           <div className="acoes-item acoes-item-compactas">
@@ -2309,6 +2318,15 @@ export function PaginaPartidas() {
             )}
           </div>
         )}
+
+        {(competicaoSelecionada || categoriaSelecionada) && (
+          <div className="campo-largo partidas-contexto-resumo">
+            {competicaoSelecionada && <span>{competicaoSelecionada.nome}</span>}
+            {categoriaSelecionada && <span>{categoriaSelecionada.nome}</span>}
+            {grupoSelecionado && <span>Grupo</span>}
+            {competicaoComInscricoes && <span>Campeonato</span>}
+          </div>
+        )}
       </div>
 
       {(competicaoComInscricoes || grupoSelecionado || podeVisualizarGrupo) && partidas.length > 0 && (
@@ -2348,7 +2366,12 @@ export function PaginaPartidas() {
       )}
 
       {podeExibirFormulario && (
-        <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
+        <form ref={formularioRef} className="formulario-grid formulario-partida" onSubmit={aoSubmeter}>
+          <div className="campo-largo formulario-partida-cabecalho">
+            <h3>{partidaEdicaoId ? 'Editar partida' : 'Registrar partida'}</h3>
+            <p>Preencha os mesmos campos do fluxo atual; a origem dos dados e o envio continuam inalterados.</p>
+          </div>
+
           {!competicaoId && (
             <label className="campo-largo">
               Nome do grupo opcional
@@ -2384,7 +2407,7 @@ export function PaginaPartidas() {
             <>
               <section className="campo-largo secao-dupla-partida">
                 <div className="secao-dupla-partida-cabecalho">
-                  <strong>Dupla1</strong>
+                  <strong>Dupla 1</strong>
                 </div>
 
                 <div className="secao-dupla-partida-grid">
@@ -2436,7 +2459,7 @@ export function PaginaPartidas() {
 
               <section className="campo-largo secao-dupla-partida">
                 <div className="secao-dupla-partida-cabecalho">
-                  <strong>Dupla2</strong>
+                  <strong>Dupla 2</strong>
                 </div>
 
                 <div className="secao-dupla-partida-grid">
@@ -2484,12 +2507,12 @@ export function PaginaPartidas() {
             <>
               <section className="campo-largo secao-dupla-partida">
                 <div className="secao-dupla-partida-cabecalho">
-                  <strong>Dupla1</strong>
+                  <strong>Dupla 1</strong>
                 </div>
 
                 <div className="secao-dupla-partida-grid">
                   <label>
-                    Dupla1
+                    Dupla 1
                     <select
                       value={formulario.duplaAId}
                       onChange={(evento) => atualizarCampo('duplaAId', evento.target.value)}
@@ -2521,12 +2544,12 @@ export function PaginaPartidas() {
 
               <section className="campo-largo secao-dupla-partida">
                 <div className="secao-dupla-partida-cabecalho">
-                  <strong>Dupla2</strong>
+                  <strong>Dupla 2</strong>
                 </div>
 
                 <div className="secao-dupla-partida-grid">
                   <label>
-                    Dupla2
+                    Dupla 2
                     <select
                       value={formulario.duplaBId}
                       onChange={(evento) => atualizarCampo('duplaBId', evento.target.value)}
@@ -2702,34 +2725,43 @@ export function PaginaPartidas() {
       ) : exibirListaDetalhada ? (
         <div className="lista-cartoes">
           {partidas.map((partida) => (
-            <article key={partida.id} className="cartao-lista">
+            <article key={partida.id} className="cartao-lista partida-lista-card">
               <div>
-                <h3>
-                  {partida.status === 2
-                    ? `${partida.nomeDuplaA} ${partida.placarDuplaA} x ${partida.placarDuplaB} ${partida.nomeDuplaB}`
-                    : `${partida.nomeDuplaA} x ${partida.nomeDuplaB}`}
-                </h3>
-                <p>Categoria: {partida.nomeCategoria}</p>
-                <p>Dupla A · Direita: {partida.nomeDuplaAAtleta1}</p>
-                <p>Dupla A · Esquerda: {partida.nomeDuplaAAtleta2}</p>
-                <p>Dupla B · Direita: {partida.nomeDuplaBAtleta1}</p>
-                <p>Dupla B · Esquerda: {partida.nomeDuplaBAtleta2}</p>
-                <p>Status: {obterNomeStatus(partida.status)}</p>
-                <p>
-                  Validação:{' '}
-                  <span className={`tag-status ${obterClasseStatusAprovacao(partida.statusAprovacao)}`}>
-                    {obterNomeStatusAprovacao(partida.statusAprovacao)}
+                <div className="partida-lista-topo">
+                  <h3 className="partida-confronto">
+                    <span>{partida.nomeDuplaA}</span>
+                    <span className="partida-placar-valor">
+                      {partida.status === 2 ? `${partida.placarDuplaA} x ${partida.placarDuplaB}` : 'x'}
+                    </span>
+                    <span>{partida.nomeDuplaB}</span>
+                  </h3>
+                  <span className={`tag-status ${partida.status === 2 ? 'tag-status-sucesso' : 'tag-status-alerta'}`}>
+                    {obterNomeStatus(partida.status)}
                   </span>
-                </p>
-                <p>Registrada por: {partida.nomeCriadoPorUsuario || 'Não informado'}</p>
-                {partida.faseCampeonato && <p>Fase: {partida.faseCampeonato}</p>}
-                {partida.status === 2 ? (
-                  <p>Vencedora: {partida.nomeDuplaVencedora || 'Empate'}</p>
-                ) : (
-                  <p>Resultado: jogo ainda não encerrado</p>
-                )}
-                <p>Data: {partida.dataPartida ? formatarDataHora(partida.dataPartida) : 'A definir'}</p>
-                <p>Obs: {partida.observacoes || '-'}</p>
+                </div>
+
+                <div className="partida-lista-detalhes">
+                  <p>Categoria: {partida.nomeCategoria}</p>
+                  <p>Data: {partida.dataPartida ? formatarDataHora(partida.dataPartida) : 'A definir'}</p>
+                  <p>Dupla A · Direita: {partida.nomeDuplaAAtleta1}</p>
+                  <p>Dupla A · Esquerda: {partida.nomeDuplaAAtleta2}</p>
+                  <p>Dupla B · Direita: {partida.nomeDuplaBAtleta1}</p>
+                  <p>Dupla B · Esquerda: {partida.nomeDuplaBAtleta2}</p>
+                  <p className="partida-status-linha">
+                    Validação:
+                    <span className={`tag-status ${obterClasseStatusAprovacao(partida.statusAprovacao)}`}>
+                      {obterNomeStatusAprovacao(partida.statusAprovacao)}
+                    </span>
+                  </p>
+                  <p>Registrada por: {partida.nomeCriadoPorUsuario || 'Não informado'}</p>
+                  {partida.faseCampeonato && <p>Fase: {partida.faseCampeonato}</p>}
+                  {partida.status === 2 ? (
+                    <p>Vencedora: {partida.nomeDuplaVencedora || 'Empate'}</p>
+                  ) : (
+                    <p>Resultado: jogo ainda não encerrado</p>
+                  )}
+                  <p className="campo-largo">Obs: {partida.observacoes || '-'}</p>
+                </div>
               </div>
 
               {renderizarLancamentoResultado(partida, 'lista')}
