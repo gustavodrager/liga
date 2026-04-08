@@ -1,4 +1,4 @@
-import { ehAdministrador, ehAtleta, ehGestorCompeticao } from './perfis';
+import { ehAdministrador, ehAtleta, ehGestorCompeticao } from '../utils/perfis';
 
 const ITENS_NAVEGACAO = [
   {
