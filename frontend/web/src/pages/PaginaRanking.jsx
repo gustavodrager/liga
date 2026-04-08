@@ -11,7 +11,8 @@ import { ehAtleta } from '../utils/perfis';
 
 const tiposConsulta = [
   { valor: 'liga', rotulo: 'Ranking da liga' },
-  { valor: 'competicao', rotulo: 'Ranking da competição' }
+  { valor: 'competicao', rotulo: 'Ranking da competição' },
+  { valor: 'geral', rotulo: 'Ranking Geral' }
 ];
 
 const generos = {
