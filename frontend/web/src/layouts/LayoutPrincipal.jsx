@@ -3,38 +3,14 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
-
-import { ehAdministrador, ehAtleta, ehGestorCompeticao, nomePerfil } from '../utils/perfis';
+import { obterItensNavegacao } from '../pages/navagacao';
+import { nomePerfil } from '../utils/perfis';
  
 export function LayoutPrincipal() {
   const { usuario, sair } = useAutenticacao();
   const location = useLocation();
   const [menuAberto, setMenuAberto] = useState(false);
-  const administrador = ehAdministrador(usuario);
-  const gestorCompeticao = ehGestorCompeticao(usuario);
-  const atleta = ehAtleta(usuario);
-  const organizador = ehOrganizador(usuario);
-  const menuRestrito = organizador || atleta;
-  const itensMenu = [
-    { caminho: '/dashboard', nome: 'Dashboard', visivel: !menuRestrito },
-    { caminho: '/meu-perfil', nome: 'Meu Perfil', visivel: true },
-    { caminho: '/perfil-usuario', nome: 'Perfil Usuário', visivel: administrador },
-    { caminho: '/pendencias', nome: 'Pendências', visivel: true },
-    { caminho: '/atletas', nome: 'Atletas', visivel: gestorCompeticao && !menuRestrito },
-    { caminho: '/duplas', nome: 'Duplas', visivel: gestorCompeticao && !menuRestrito },
-    { caminho: '/ligas', nome: 'Ligas', visivel: administrador },
-    { caminho: '/locais', nome: 'Locais', visivel: gestorCompeticao && !menuRestrito },
-    { caminho: '/formatos-campeonato', nome: 'Formatos', visivel: administrador },
-    { caminho: '/regras', nome: 'Regras', visivel: gestorCompeticao && !menuRestrito },
-    { caminho: '/modelos-importacao', nome: 'Modelos', visivel: administrador },
-    { caminho: '/competicoes', nome: 'Competições', visivel: !menuRestrito },
-    { caminho: '/ranking', nome: 'Ranking', visivel: gestorCompeticao || atleta },
-    { caminho: '/categorias', nome: 'Categorias', visivel: gestorCompeticao && !menuRestrito },
-    { caminho: '/inscricoes', nome: 'Inscrições', visivel: !menuRestrito },
-    { caminho: '/partidas', nome: 'Partidas', visivel: gestorCompeticao || atleta },
-    { caminho: '/usuarios', nome: 'Usuários', visivel: administrador },
-    { caminho: '/convites-cadastro', nome: 'Convites', visivel: administrador }
-  ].filter((item) => item.visivel);
+  const itensMenu = obterItensNavegacao(usuario);
 
   useEffect(() => {
     setMenuAberto(false);
