@@ -16,6 +16,7 @@ import { PaginaCategorias } from './pages/PaginaCategorias';
 import { PaginaInscricoesCampeonato } from './pages/PaginaInscricoesCampeonato';
 import { PaginaRegistrarPartidas } from './pages/PaginaRegistrarPartidas';
 import { PaginaConsultaPartidas } from './pages/PaginaConsultaPartidas';
+import { PaginaPartidasCampeonato } from './pages/PaginaPartidasCampeonato';
 import { PaginaMeuPerfil } from './pages/PaginaMeuPerfil';
 import { PaginaPerfilUsuario } from './pages/PaginaPerfilUsuario';
 import { PaginaPendenciasAtletas } from './pages/PaginaPendenciasAtletas';
@@ -253,6 +254,17 @@ export default function App() {
               estadosPermitidos={[ESTADOS_ACESSO.ativo]}
             >
               <PaginaConsultaPartidas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/partidas/campeonato"
+          element={
+            <RotaProtegida
+              perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador, PERFIS_USUARIO.atleta]}
+              estadosPermitidos={[ESTADOS_ACESSO.ativo]}
+            >
+              <PaginaPartidasCampeonato />
             </RotaProtegida>
           }
         />

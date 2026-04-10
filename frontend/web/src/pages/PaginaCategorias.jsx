@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { BotaoVoltar } from '../components/BotaoVoltar';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
@@ -295,6 +296,9 @@ export function PaginaCategorias() {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
+        <div className="acoes-item">
+          <BotaoVoltar fallback="/competicoes" />
+        </div>
         <h2>Categorias</h2>
         <p>Cada categoria pertence a uma competição e define gênero e nível técnico.</p>
       </div>
@@ -479,7 +483,7 @@ export function PaginaCategorias() {
                     Inscrições
                   </button>
                 )}
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(categoria)}>
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(categoria)}>
                   Editar
                 </button>
                 {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (

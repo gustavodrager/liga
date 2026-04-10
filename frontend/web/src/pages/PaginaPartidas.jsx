@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { BotaoVoltar } from '../components/BotaoVoltar';
 import { ConteudoBotao, IconeAcao } from '../components/ConteudoBotao';
 import { atletasServico } from '../services/atletasServico';
 import { categoriasServico } from '../services/categoriasServico';
@@ -2218,7 +2219,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
           {partida && podeEditarPartidasNaPagina && (
             <div className="acoes-item acoes-item-compactas">
-              <button type="button" className="botao-secundario botao-compacto" onClick={() => iniciarEdicao(partida)}>
+              <button type="button" className="botao-secundario botao-editar botao-compacto" onClick={() => iniciarEdicao(partida)}>
                 <ConteudoBotao icone="editar" texto={tabelaJogosAprovada || grupoSelecionado ? 'Editar' : 'Ajustar'} />
               </button>
               {grupoSelecionado && (
@@ -2367,6 +2368,13 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
   return (
     <section className="pagina">
+      <div className="cabecalho-pagina">
+        <div className="acoes-item">
+          <BotaoVoltar fallback="/dashboard" />
+        </div>
+        <h2>{tituloPagina}</h2>
+        <p>{descricaoPagina}</p>
+      </div>
 
       {podeExibirFormulario && (
         <form ref={formularioRef} className="formulario-grid formulario-partida" onSubmit={aoSubmeter}>
@@ -2762,7 +2770,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
               {podeEditarPartidasNaPagina && (
                 <div className="acoes-item">
-                  <button type="button" className="botao-secundario botao-compacto" onClick={() => iniciarEdicao(partida)}>
+                  <button type="button" className="botao-secundario botao-editar botao-compacto" onClick={() => iniciarEdicao(partida)}>
                     <ConteudoBotao icone="editar" texto={tabelaJogosAprovada || grupoSelecionado ? 'Editar' : 'Ajustar'} />
                   </button>
                   {grupoSelecionado && (

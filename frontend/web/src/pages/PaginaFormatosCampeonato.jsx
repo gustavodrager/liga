@@ -447,7 +447,7 @@ export function PaginaFormatosCampeonato() {
               <div className="acoes-item">
                 <button
                   type="button"
-                  className="botao-secundario"
+                  className="botao-secundario botao-editar"
                   onClick={() => iniciarEdicao(formato)}
                   disabled={formato.ehPadrao}
                 >

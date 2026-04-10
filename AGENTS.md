@@ -84,6 +84,9 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - Em chave com dupla eliminação, toda dupla começa na chave vencedora
 - A primeira derrota move para a chave perdedora; a segunda derrota elimina definitivamente
 - Final reset é opcional por competição e só vale para chave com dupla eliminação
+- A geração do chaveamento de dupla eliminação deve criar a estrutura completa da categoria de uma vez: chave vencedora, chave perdedora, final e finalíssima pendente quando houver reset
+- Partidas futuras do chaveamento podem existir sem as duas duplas definidas; o preenchimento e a ativação das próximas partidas devem ficar centralizados no backend conforme vencedor e perdedor
+- O chaveamento de campeonato só pode ser gerado quando as inscrições da competição estiverem fechadas ou a categoria estiver explicitamente encerrada
 - A progressão entre chave vencedora, perdedora, final e reset deve ficar centralizada no backend
 - Exibição da tabela deve priorizar rodadas com identificação clara do tipo do jogo
 

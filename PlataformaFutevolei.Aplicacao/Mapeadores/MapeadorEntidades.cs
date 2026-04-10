@@ -258,10 +258,10 @@ internal static class MapeadorEntidades
     public static PartidaDto ParaDto(this Partida partida)
     {
         var metadadosLados = ExtrairMetadadosLados(partida.Observacoes);
-        var duplaAAtleta1Id = metadadosLados?.DuplaADireitaId ?? partida.DuplaA?.Atleta1Id ?? Guid.Empty;
-        var duplaAAtleta2Id = metadadosLados?.DuplaAEsquerdaId ?? partida.DuplaA?.Atleta2Id ?? Guid.Empty;
-        var duplaBAtleta1Id = metadadosLados?.DuplaBDireitaId ?? partida.DuplaB?.Atleta1Id ?? Guid.Empty;
-        var duplaBAtleta2Id = metadadosLados?.DuplaBEsquerdaId ?? partida.DuplaB?.Atleta2Id ?? Guid.Empty;
+        var duplaAAtleta1Id = metadadosLados?.DuplaADireitaId ?? partida.DuplaA?.Atleta1Id;
+        var duplaAAtleta2Id = metadadosLados?.DuplaAEsquerdaId ?? partida.DuplaA?.Atleta2Id;
+        var duplaBAtleta1Id = metadadosLados?.DuplaBDireitaId ?? partida.DuplaB?.Atleta1Id;
+        var duplaBAtleta2Id = metadadosLados?.DuplaBEsquerdaId ?? partida.DuplaB?.Atleta2Id;
         var atletasPendentes = ObterAtletasPendentesPartida(partida);
 
         return new PartidaDto(
@@ -271,18 +271,33 @@ internal static class MapeadorEntidades
             partida.CriadoPorUsuarioId,
             partida.CriadoPorUsuario?.Nome,
             partida.DuplaAId,
-            partida.DuplaA?.Nome ?? string.Empty,
+            partida.DuplaA?.Nome ?? "A definir",
             duplaAAtleta1Id,
             ObterNomeAtletaDupla(partida.DuplaA, duplaAAtleta1Id),
             duplaAAtleta2Id,
             ObterNomeAtletaDupla(partida.DuplaA, duplaAAtleta2Id),
             partida.DuplaBId,
-            partida.DuplaB?.Nome ?? string.Empty,
+            partida.DuplaB?.Nome ?? "A definir",
             duplaBAtleta1Id,
             ObterNomeAtletaDupla(partida.DuplaB, duplaBAtleta1Id),
             duplaBAtleta2Id,
             ObterNomeAtletaDupla(partida.DuplaB, duplaBAtleta2Id),
             partida.FaseCampeonato,
+            partida.LadoDaChave,
+            partida.Rodada,
+            partida.PosicaoNaChave,
+            partida.PartidaOrigemParticipanteAId,
+            partida.OrigemParticipanteATipo,
+            partida.PartidaOrigemParticipanteBId,
+            partida.OrigemParticipanteBTipo,
+            partida.ProximaPartidaVencedorId,
+            partida.ProximaPartidaPerdedorId,
+            partida.SlotDestinoVencedor,
+            partida.SlotDestinoPerdedor,
+            partida.Ativa,
+            partida.EhPreliminar,
+            partida.EhFinal,
+            partida.EhFinalissima,
             partida.Status,
             partida.PlacarDuplaA,
             partida.PlacarDuplaB,
@@ -408,6 +423,17 @@ internal static class MapeadorEntidades
         }
 
         return string.Empty;
+    }
+
+    private static string? ObterNomeAtletaDupla(Dupla? dupla, Guid? atletaId)
+    {
+        if (!atletaId.HasValue || atletaId.Value == Guid.Empty)
+        {
+            return null;
+        }
+
+        var nome = ObterNomeAtletaDupla(dupla, atletaId.Value);
+        return string.IsNullOrWhiteSpace(nome) ? null : nome;
     }
 
     private static string MascararEmail(string email)

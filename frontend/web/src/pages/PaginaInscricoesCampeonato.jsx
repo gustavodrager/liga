@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { BotaoVoltar } from '../components/BotaoVoltar';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { categoriasServico } from '../services/categoriasServico';
@@ -884,6 +885,9 @@ export function PaginaInscricoesCampeonato() {
     return (
       <section className="pagina">
         <div className="cabecalho-pagina">
+          <div className="acoes-item">
+            <BotaoVoltar fallback="/competicoes" />
+          </div>
           <h2>Inscrições</h2>
           <p>Carregando competições, categorias e duplas...</p>
         </div>
@@ -894,8 +898,11 @@ export function PaginaInscricoesCampeonato() {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
+        <div className="acoes-item">
+          <BotaoVoltar fallback="/competicoes" />
+        </div>
         <h2>Inscrições</h2>
-        
+        <p>Gerencie as inscrições por competição e categoria.</p>
       </div>
 
       <div className="formulario-grid">

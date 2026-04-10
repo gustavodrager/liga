@@ -205,7 +205,7 @@ export function PaginaDuplas() {
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(dupla)}>
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(dupla)}>
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerDupla(dupla.id)}>

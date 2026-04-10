@@ -364,7 +364,7 @@ export function PaginaRegrasCompeticao() {
               <div className="acoes-item">
                 <button
                   type="button"
-                  className="botao-secundario"
+                  className="botao-secundario botao-editar"
                   onClick={() => iniciarEdicao(regra)}
                   disabled={regra.ehPadrao || (!usuarioAdministrador && regra.usuarioCriadorId !== usuario?.id)}
                 >

@@ -35,6 +35,11 @@ export const categoriasServico = {
     return resposta.data;
   },
 
+  async obterChaveamento(id) {
+    const resposta = await http.get(`/categorias/${id}/chaveamento`);
+    return resposta.data;
+  },
+
   async listarSituacaoDuplas(id) {
     const resposta = await http.get(`/categorias/${id}/duplas/situacao`);
     return resposta.data;

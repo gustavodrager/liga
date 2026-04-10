@@ -436,6 +436,17 @@ button:disabled {
   border: 1px solid var(--cor-borda-forte);
 }
 
+.botao-editar {
+  color: #fff;
+  background: #111;
+  border: 1px solid #111;
+}
+
+.botao-editar:hover {
+  background: #000;
+  border-color: #000;
+}
+
 .botao-terciario {
   color: #fff;
   background: var(--cor-terciaria);

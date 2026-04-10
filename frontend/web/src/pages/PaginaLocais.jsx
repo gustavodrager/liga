@@ -198,7 +198,7 @@ export function PaginaLocais() {
               <div className="acoes-item">
                 <button
                   type="button"
-                  className="botao-secundario"
+                  className="botao-secundario botao-editar"
                   onClick={() => iniciarEdicao(local)}
                   disabled={!usuarioAdministrador && local.usuarioCriadorId !== usuario?.id}
                 >

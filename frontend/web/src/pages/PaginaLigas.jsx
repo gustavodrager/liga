@@ -151,7 +151,7 @@ export function PaginaLigas() {
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(liga)}>
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(liga)}>
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerLiga(liga.id)}>

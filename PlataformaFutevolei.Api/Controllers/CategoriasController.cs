@@ -68,6 +68,14 @@ public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, 
         return Ok(estrutura);
     }
 
+    [HttpGet("{id:guid}/chaveamento")]
+    [ProducesResponseType(typeof(ChaveamentoCategoriaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterChaveamento(Guid id, CancellationToken cancellationToken)
+    {
+        var chaveamento = await partidaServico.ObterChaveamentoPorCategoriaAsync(id, cancellationToken);
+        return Ok(chaveamento);
+    }
+
     [HttpGet("{id:guid}/duplas/situacao")]
     [ProducesResponseType(typeof(IReadOnlyList<SituacaoDuplaCompeticaoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarSituacaoDuplas(Guid id, CancellationToken cancellationToken)

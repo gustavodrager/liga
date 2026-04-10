@@ -323,7 +323,7 @@ export function PaginaAtletas() {
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(atleta)}>
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(atleta)}>
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerAtleta(atleta.id)}>
