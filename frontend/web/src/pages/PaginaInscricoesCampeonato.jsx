@@ -895,26 +895,7 @@ export function PaginaInscricoesCampeonato() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Inscrições</h2>
-        {atletaLogado ? (
-          <>
-            <p>Selecione a competição, escolha a categoria e faça sua inscrição informando o parceiro da dupla.</p>
-            <p>Se você ainda não tiver parceiro, pode se inscrever mesmo assim e completar a dupla depois.</p>
-          </>
-        ) : usuarioAutenticado ? (
-          <>
-            <p>Inscreva uma dupla já cadastrada em uma categoria da competição e acompanhe a lista em tempo real.</p>
-            <p>
-              {organizadorLogado
-                ? 'Para competições criadas por você, a tela só sugere duplas e atletas já inscritos nessa competição. Se precisar de novos nomes, informe manualmente os jogadores.'
-                : 'Se a dupla ainda não existir, informe os nomes completos dos jogadores que o sistema cria os cadastros necessários.'}
-            </p>
-          </>
-        ) : (
-          <>
-            <p>Consulte competições com inscrições abertas, categorias disponíveis e as duplas já inscritas.</p>
-            <p>Para realizar uma inscrição, entre com sua conta antes de continuar.</p>
-          </>
-        )}
+        
       </div>
 
       <div className="formulario-grid">
@@ -931,13 +912,12 @@ export function PaginaInscricoesCampeonato() {
         </label>
 
         <label>
-          Filtrar por categoria
+          Categoria
           <select
             value={categoriaFiltroId}
             onChange={(evento) => selecionarCategoriaFiltro(evento.target.value)}
             disabled={!campeonatoId}
-          >
-            <option value="">Todas</option>
+          >            
             {categorias.map((categoria) => (
               <option key={categoria.id} value={categoria.id}>
                 {categoria.nome}
@@ -976,10 +956,7 @@ export function PaginaInscricoesCampeonato() {
       )}
       {!usuarioAutenticado && campeonatoSelecionado && campeonatoSelecionado.inscricoesAbertas && categorias.length > 0 && (
         <p className="texto-aviso">Faça login para concluir sua inscrição nesta competição.</p>
-      )}
-      {campeonatoSelecionado && podeCriarInscricao && (
-        <p className="texto-sucesso">A competição está pronta para receber novas inscrições.</p>
-      )}
+      )}     
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
       {erro && <p className="texto-erro">{erro}</p>}
 
@@ -990,23 +967,7 @@ export function PaginaInscricoesCampeonato() {
               Você está editando sua inscrição em {inscricaoEmEdicao.nomeCategoria}. Informe o parceiro agora ou deixe em branco para manter a dupla pendente.
             </p>
           )}
-
-          <label>
-            Categoria
-            <select
-              value={formulario.categoriaId}
-              onChange={(evento) => atualizarCampo('categoriaId', evento.target.value)}
-              disabled={Boolean(inscricaoEmEdicao)}
-              required
-            >
-              <option value="">Selecione</option>
-              {categorias.map((categoria) => (
-                <option key={categoria.id} value={categoria.id}>
-                  {categoria.nome}
-                </option>
-              ))}
-            </select>
-          </label>
+        
 
           {atletaLogado ? (
             <>
@@ -1070,20 +1031,7 @@ export function PaginaInscricoesCampeonato() {
             </>
           ) : (
             <>
-          <label>
-            Dupla
-            <select
-              value={formulario.duplaId}
-              onChange={(evento) => atualizarCampo('duplaId', evento.target.value)}
-            >
-              <option value="">Vou informar os jogadores</option>
-              {duplas.map((dupla) => (
-                <option key={dupla.id} value={dupla.id}>
-                  {dupla.nome} ({dupla.nomeAtleta1} / {dupla.nomeAtleta2})
-                </option>
-              ))}
-            </select>
-          </label>
+        
 
           <label>
             Jogador 1
@@ -1199,15 +1147,6 @@ export function PaginaInscricoesCampeonato() {
             </>
           )}
 
-          <label className="campo-largo">
-            Observação
-            <textarea
-              rows={3}
-              value={formulario.observacao}
-              onChange={(evento) => atualizarCampo('observacao', evento.target.value)}
-            />
-          </label>
-
           <div className="acoes-formulario">
             <button type="submit" className="botao-primario" disabled={salvando}>
               {salvando ? 'Salvando...' : inscricaoEmEdicao ? 'Salvar alteração' : 'Salvar inscrição'}
@@ -1234,44 +1173,9 @@ export function PaginaInscricoesCampeonato() {
                 <p>Observação: {inscricao.observacao || '-'}</p>
               </div>
               {(atletaLogado || gestorCompeticao) && inscricao.status === 1 && (
-                <div className="acoes-formulario">
-                  <button
-                    type="button"
-                    className="botao-secundario"
-                    onClick={() => abrirEdicaoInscricao(inscricao)}
-                  >
-                    Editar inscrição
-                  </button>
+                <div className="acoes-formulario">                  
                   {gestorCompeticao && (
                     <>
-                      <button
-                        type="button"
-                        className="botao-secundario"
-                        onClick={() => navegar(`/duplas?duplaId=${inscricao.duplaId}`)}
-                      >
-                        Editar dupla
-                      </button>
-                      <button
-                        type="button"
-                        className="botao-secundario"
-                        onClick={() => navegar(`/atletas?atletaId=${inscricao.atleta1Id}`)}
-                      >
-                        Editar atleta 1
-                      </button>
-                      <button
-                        type="button"
-                        className="botao-secundario"
-                        onClick={() => navegar(`/atletas?atletaId=${inscricao.atleta2Id}`)}
-                      >
-                        Editar atleta 2
-                      </button>
-                      <button
-                        type="button"
-                        className="botao-perigo"
-                        onClick={() => removerDuplaInscrita(inscricao)}
-                      >
-                        Excluir dupla
-                      </button>
                       <button
                         type="button"
                         className="botao-perigo"

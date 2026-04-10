@@ -4,9 +4,14 @@ export function rolarParaElemento(elemento) {
   }
 
   window.requestAnimationFrame(() => {
-    elemento.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
+    const topoDestino = Math.max(
+      window.scrollY + elemento.getBoundingClientRect().top,
+      0
+    );
+
+    window.scrollTo({
+      top: topoDestino,
+      behavior: 'smooth'
     });
   });
 }
