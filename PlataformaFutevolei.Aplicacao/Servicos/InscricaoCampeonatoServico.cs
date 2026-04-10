@@ -25,7 +25,7 @@ public class InscricaoCampeonatoServico(
         Guid? categoriaId,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         await ObterCompeticaoComInscricaoValidaAsync(campeonatoId, cancellationToken);
 
         if (categoriaId.HasValue)
@@ -34,14 +34,14 @@ public class InscricaoCampeonatoServico(
         }
 
         var inscricoes = await inscricaoRepositorio.ListarPorCampeonatoAsync(campeonatoId, categoriaId, cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Atleta)
+        if (usuario?.Perfil == PerfilUsuario.Atleta)
         {
             var atletaId = ObterAtletaUsuarioIdObrigatorio(usuario);
             inscricoes = inscricoes
                 .Where(x => DuplaContemAtleta(x.Dupla, atletaId))
                 .ToList();
         }
-        else
+        else if (usuario is not null)
         {
             await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(campeonatoId, cancellationToken);
         }

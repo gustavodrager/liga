@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { competicoesServico } from '../services/competicoesServico';
@@ -10,8 +10,9 @@ import { formatarDataHora } from '../utils/formatacao';
 import { ehAtleta } from '../utils/perfis';
 
 const tiposConsulta = [
-  { valor: 'liga', rotulo: 'Ranking da liga' },
-  { valor: 'competicao', rotulo: 'Ranking da competição' }
+  { valor: 'competicao', rotulo: 'Competições' },
+  { valor: 'liga', rotulo: 'Liga' },
+  { valor: 'geral', rotulo: 'Geral' }
 ];
 
 const generos = {
@@ -31,7 +32,7 @@ function normalizarRanking(lista, tipoConsulta) {
       }))
     }));
 
-  if (tipoConsulta === 'liga') {
+  if (tipoConsulta !== 'competicao') {
     return grupos;
   }
 
@@ -69,12 +70,30 @@ function formatarPontuacao(valor) {
   });
 }
 
+function obterTiposConsultaDisponiveis(usuarioAtleta, ligas, competicoes) {
+  if (usuarioAtleta) {
+    return tiposConsulta;
+  }
+
+  const opcoes = [{ valor: 'geral', rotulo: 'Geral' }];
+
+  if ((competicoes || []).length > 0) {
+    opcoes.unshift(tiposConsulta.find((tipo) => tipo.valor === 'competicao'));
+  }
+
+  if ((ligas || []).length > 0) {
+    opcoes.splice(opcoes.length - 1, 0, tiposConsulta.find((tipo) => tipo.valor === 'liga'));
+  }
+
+  return opcoes;
+}
+
 export function PaginaRanking() {
   const { usuario } = useAutenticacao();
   const usuarioAtleta = ehAtleta(usuario);
   const [ligas, setLigas] = useState([]);
   const [competicoes, setCompeticoes] = useState([]);
-  const [tipoConsulta, setTipoConsulta] = useState(usuarioAtleta ? 'competicao' : 'liga');
+  const [tipoConsulta, setTipoConsulta] = useState(usuarioAtleta ? 'competicao' : 'geral');
   const [ligaId, setLigaId] = useState('');
   const [competicaoId, setCompeticaoId] = useState('');
   const [ranking, setRanking] = useState([]);
@@ -83,6 +102,14 @@ export function PaginaRanking() {
   const [carregandoRanking, setCarregandoRanking] = useState(false);
   const [erro, setErro] = useState('');
   const [params, setParams] = useSearchParams();
+  const opcoesTipoConsulta = useMemo(() => {
+    return obterTiposConsultaDisponiveis(usuarioAtleta, ligas, competicoes);
+  }, [usuarioAtleta, ligas, competicoes]);
+  const competicaoSelecionada = useMemo(
+    () => competicoes.find((competicao) => competicao.id === competicaoId) || null,
+    [competicaoId, competicoes]
+  );
+  const competicaoSelecionadaEhGrupo = Number(competicaoSelecionada?.tipo) === 3;
 
   useEffect(() => {
     carregarBase();
@@ -137,16 +164,23 @@ export function PaginaRanking() {
       setLigas(listaLigas);
       setCompeticoes(competicoesDisponiveis);
 
+      const tiposConsultaDisponiveis = obterTiposConsultaDisponiveis(
+        usuarioAtleta,
+        listaLigas,
+        competicoesDisponiveis
+      );
+
       const tipoUrl = params.get('tipo');
-      const tipoInicial = usuarioAtleta
-        ? 'competicao'
-        : tipoUrl === 'competicao' ? 'competicao' : 'liga';
       const ligaUrl = params.get('ligaId');
       const competicaoUrl = params.get('competicaoId');
       const haFiltroUrl = Boolean(tipoUrl || ligaUrl || competicaoUrl);
       const competicaoHistoricoValida = filtroInicial?.competicaoId &&
         competicoesDisponiveis.some((competicao) => competicao.id === filtroInicial.competicaoId)
         ? filtroInicial.competicaoId
+        : '';
+      const tipoUrlValido = tiposConsultaDisponiveis.some((tipo) => tipo.valor === tipoUrl) ? tipoUrl : '';
+      const tipoHistoricoValido = tiposConsultaDisponiveis.some((tipo) => tipo.valor === filtroInicial?.tipoConsulta)
+        ? filtroInicial?.tipoConsulta
         : '';
 
       const ligaInicial = ligaUrl && listaLigas.some((liga) => liga.id === ligaUrl)
@@ -157,16 +191,9 @@ export function PaginaRanking() {
         : !haFiltroUrl && competicaoHistoricoValida
           ? competicaoHistoricoValida
           : competicoesDisponiveis[0]?.id || '';
-      const deveUsarCompeticaoPorAusenciaDeLiga = !usuarioAtleta &&
-        listaLigas.length === 0 &&
-        competicoesDisponiveis.length > 0;
       const tipoConsultaInicial = usuarioAtleta
         ? 'competicao'
-        : deveUsarCompeticaoPorAusenciaDeLiga
-          ? 'competicao'
-        : !haFiltroUrl && competicaoHistoricoValida && filtroInicial?.tipoConsulta === 'competicao'
-          ? 'competicao'
-          : tipoInicial;
+        : tipoUrlValido || tipoHistoricoValido || 'geral';
 
       setTipoConsulta(tipoConsultaInicial);
       setLigaId(ligaInicial);
@@ -185,9 +212,14 @@ export function PaginaRanking() {
     setDetalheAberto(null);
 
     try {
-      const lista = tipoConsulta === 'liga'
-        ? await rankingServico.listarAtletasPorLiga(ligaId)
-        : await rankingServico.listarAtletasPorCompeticao(competicaoId);
+      let lista = [];
+      if (tipoConsulta === 'geral') {
+        lista = await rankingServico.listarAtletasGeral();
+      } else if (tipoConsulta === 'liga') {
+        lista = await rankingServico.listarAtletasPorLiga(ligaId);
+      } else {
+        lista = await rankingServico.listarAtletasPorCompeticao(competicaoId);
+      }
 
       setRanking(normalizarRanking(lista, tipoConsulta));
       atualizarParametros(tipoConsulta, ligaId, competicaoId);
@@ -272,7 +304,7 @@ export function PaginaRanking() {
           <label>
             Tipo
             <select value={tipoConsulta} onChange={(evento) => selecionarTipoConsulta(evento.target.value)}>
-              {tiposConsulta.map((tipo) => (
+              {opcoesTipoConsulta.map((tipo) => (
                 <option key={tipo.valor} value={tipo.valor}>
                   {tipo.rotulo}
                 </option>
@@ -293,7 +325,7 @@ export function PaginaRanking() {
               ))}
             </select>
           </label>
-        ) : (
+        ) : tipoConsulta === 'competicao' ? (
           <label>
             Competição
             <select value={competicaoId} onChange={(evento) => selecionarCompeticao(evento.target.value)}>
@@ -305,14 +337,14 @@ export function PaginaRanking() {
               ))}
             </select>
           </label>
-        )}
+        ) : null}
       </div>
 
       {erro && <p className="texto-erro">{erro}</p>}
 
       {carregandoBase ? (
         <p>Carregando ranking...</p>
-      ) : tipoConsulta === 'liga' && ligas.length === 0 && competicoes.length === 0 ? (
+      ) : tipoConsulta === 'liga' && ligas.length === 0 ? (
         <p>Nenhuma liga cadastrada.</p>
       ) : usuarioAtleta && competicoes.length === 0 ? (
         <p>Seu atleta ainda não participa de nenhum grupo com ranking disponível.</p>
@@ -327,9 +359,15 @@ export function PaginaRanking() {
           {ranking.map((grupo) => (
             <article key={grupo.categoriaId} className="cartao-lista">
               <div>
-                <h3>{grupo.nomeCategoria}</h3>
-                <p>{tipoConsulta === 'liga' ? grupo.nomeCompeticao : `Gênero: ${generos[grupo.genero] || '-'}`}</p>
-                {tipoConsulta !== 'liga' && <p>Competição: {grupo.nomeCompeticao}</p>}
+                {tipoConsulta === 'competicao' && !competicaoSelecionadaEhGrupo ? (
+                  <>
+                  <p>{grupo.nomeCompeticao}</p>
+                    <p>{`Gênero: ${generos[grupo.genero] || '-'}`}</p>
+                    <p>Competição: {grupo.nomeCompeticao}</p>
+                  </>
+                ) : tipoConsulta !== 'competicao' ? (
+                  <p>{grupo.nomeCompeticao}</p>
+                ) : null}
               </div>
 
               <div className="ranking-tabela-wrapper">

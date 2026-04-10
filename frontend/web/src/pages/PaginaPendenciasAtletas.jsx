@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { pendenciasServico } from '../services/pendenciasServico';
+import { ESTADOS_ACESSO } from '../utils/acesso';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
 
@@ -57,7 +60,36 @@ function obterClasseStatusAprovacao(status) {
   }
 }
 
+function criarPendenciasPerfil(estadoAcesso, usuario) {
+  const pendencias = [];
+
+  if (estadoAcesso === ESTADOS_ACESSO.primeiroAcesso) {
+    pendencias.push({
+      id: 'perfil-primeiro-acesso',
+      tipoLocal: 'perfil',
+      titulo: 'Concluir primeiro acesso',
+      descricao: 'Revise os dados do seu acesso e conclua o perfil antes de seguir com o restante do app.',
+      acaoTexto: 'Ir para Meu Perfil'
+    });
+  }
+
+  if (estadoAcesso === ESTADOS_ACESSO.cadastroIncompleto) {
+    pendencias.push({
+      id: 'perfil-cadastro-incompleto',
+      tipoLocal: 'perfil',
+      titulo: 'Completar cadastro do perfil',
+      descricao: Number(usuario?.perfil) === 3
+        ? 'Seu usuário ainda precisa concluir o vínculo com atleta no Meu Perfil.'
+        : 'Seu cadastro ainda precisa de revisão no Meu Perfil.',
+      acaoTexto: 'Completar perfil'
+    });
+  }
+
+  return pendencias;
+}
+
 export function PaginaPendenciasAtletas() {
+  const { usuario, estadoAcesso } = useAutenticacao();
   const [pendencias, setPendencias] = useState([]);
   const [emails, setEmails] = useState({});
   const [carregando, setCarregando] = useState(true);
@@ -72,6 +104,10 @@ export function PaginaPendenciasAtletas() {
   const totalSemContato = useMemo(
     () => pendencias.filter((item) => item.tipo === TIPOS_PENDENCIA.completarContato && !item.emailAtleta).length,
     [pendencias]
+  );
+  const pendenciasPerfil = useMemo(
+    () => criarPendenciasPerfil(estadoAcesso, usuario),
+    [estadoAcesso, usuario]
   );
 
   async function carregarPendencias() {
@@ -147,10 +183,28 @@ export function PaginaPendenciasAtletas() {
 
       {carregando ? (
         <p>Carregando pendências...</p>
-      ) : pendencias.length === 0 ? (
+      ) : pendencias.length === 0 && pendenciasPerfil.length === 0 ? (
         <p>Nenhuma pendência encontrada para o seu usuário.</p>
       ) : (
         <div className="lista-cartoes">
+          {pendenciasPerfil.map((item) => (
+            <article key={item.id} className="cartao-lista">
+              <div className="linha-entre">
+                <div>
+                  <h3>{item.titulo}</h3>
+                  <p>{item.descricao}</p>
+                </div>
+                <span className="tag-status tag-status-alerta">Perfil</span>
+              </div>
+
+              <div className="acoes-item">
+                <Link to="/app/perfil" className="botao-primario">
+                  {item.acaoTexto}
+                </Link>
+              </div>
+            </article>
+          ))}
+
           {pendencias.map((item) => (
             <article key={item.id} className="cartao-lista">
               <div className="linha-entre">
@@ -160,14 +214,11 @@ export function PaginaPendenciasAtletas() {
                   {item.partidaId && (
                     <>
                       <p>Partida: {item.nomeDuplaA} x {item.nomeDuplaB}</p>
-                      <p>Jogadores: {item.nomeDuplaAAtleta1}, {item.nomeDuplaAAtleta2}, {item.nomeDuplaBAtleta1}, {item.nomeDuplaBAtleta2}</p>
                       <p>Placar: {item.placarDuplaA ?? '-'} x {item.placarDuplaB ?? '-'}</p>
-                      <p>Registrada por: {item.nomeCriadoPorUsuario || 'Não informado'}</p>
                       <p>Data da partida: {formatarDataHora(item.dataPartida)}</p>
                     </>
                   )}
-                  <p>Criada em: {formatarDataHora(item.dataCriacao)}</p>
-                  {item.observacao && <p>Obs: {item.observacao}</p>}
+                
                 </div>
                 {item.statusAprovacaoPartida ? (
                   <span className={`tag-status ${obterClasseStatusAprovacao(item.statusAprovacaoPartida)}`}>

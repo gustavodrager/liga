@@ -23,6 +23,7 @@ public interface IUsuarioContexto
 
 public interface IAutorizacaoUsuarioServico
 {
+    Task<Usuario?> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default);
     Task<Usuario> ObterUsuarioAtualObrigatorioAsync(CancellationToken cancellationToken = default);
     Task GarantirAdministradorAsync(CancellationToken cancellationToken = default);
     Task GarantirAdminOuOrganizadorAsync(CancellationToken cancellationToken = default);

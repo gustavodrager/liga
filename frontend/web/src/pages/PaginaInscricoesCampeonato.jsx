@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { categoriasServico } from '../services/categoriasServico';
@@ -8,7 +8,7 @@ import { duplasServico } from '../services/duplasServico';
 import { inscricoesCampeonatoServico } from '../services/inscricoesCampeonatoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
-import { PERFIS_USUARIO } from '../utils/perfis';
+import { ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
 
 const estadoInicialFormulario = {
   categoriaId: '',
@@ -131,9 +131,10 @@ function montarOpcoesOrganizador(inscricoes) {
 
 export function PaginaInscricoesCampeonato() {
   const { usuario, recarregarUsuario } = useAutenticacao();
+  const usuarioAutenticado = Boolean(usuario?.id);
   const atletaLogado = Number(usuario?.perfil) === PERFIS_USUARIO.atleta;
   const organizadorLogado = Number(usuario?.perfil) === PERFIS_USUARIO.organizador;
-  const gestorCompeticao = !atletaLogado;
+  const gestorCompeticao = ehGestorCompeticao(usuario);
   const meuAtletaId = usuario?.atletaId || '';
   const meuAtletaNome = usuario?.atleta?.nome || '';
   const meuAtletaApelido = usuario?.atleta?.apelido || '';
@@ -157,6 +158,7 @@ export function PaginaInscricoesCampeonato() {
   const [mensagem, setMensagem] = useState('');
 
   const navegar = useNavigate();
+  const localizacao = useLocation();
   const [params, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -233,7 +235,9 @@ export function PaginaInscricoesCampeonato() {
     [campeonatos, campeonatoId]
   );
 
-  const podeCriarInscricao = Boolean(campeonatoSelecionado?.inscricoesAbertas) && categorias.length > 0;
+  const podeCriarInscricao = usuarioAutenticado
+    && Boolean(campeonatoSelecionado?.inscricoesAbertas)
+    && categorias.length > 0;
 
   const duplaSelecionada = useMemo(
     () => duplas.find((dupla) => dupla.id === formulario.duplaId) || null,
@@ -345,6 +349,25 @@ export function PaginaInscricoesCampeonato() {
           usuarioAtual = usuario;
         }
 
+        const listaCompeticoes = await competicoesServico.listar();
+        const listaCampeonatos = listaCompeticoes.filter((competicao) => competicao.tipo !== 3 && competicao.inscricoesAbertas);
+
+        setCampeonatos(listaCampeonatos);
+        setDuplas([]);
+        setAtletas([]);
+
+        const campeonatoUrl = params.get('campeonatoId');
+        const campeonatoPadrao = campeonatoUrl && listaCampeonatos.some((item) => item.id === campeonatoUrl)
+          ? campeonatoUrl
+          : listaCampeonatos[0]?.id || '';
+
+        setCampeonatoId(campeonatoPadrao);
+        setCategoriaFiltroId('');
+        atualizarParametros(campeonatoPadrao, params.get('categoriaId') || '');
+        return;
+      }
+
+      if (!usuarioAutenticado) {
         const listaCompeticoes = await competicoesServico.listar();
         const listaCampeonatos = listaCompeticoes.filter((competicao) => competicao.tipo !== 3 && competicao.inscricoesAbertas);
 
@@ -491,6 +514,19 @@ export function PaginaInscricoesCampeonato() {
 
   async function abrirFormulario() {
     setAbrindoFormulario(true);
+
+    if (!usuarioAutenticado) {
+      navegar('/login', {
+        state: {
+          origem: {
+            pathname: localizacao.pathname,
+            search: localizacao.search
+          }
+        }
+      });
+      setAbrindoFormulario(false);
+      return;
+    }
 
     let usuarioAtual = usuario;
     if (atletaLogado) {
@@ -646,7 +682,7 @@ export function PaginaInscricoesCampeonato() {
 
       if (organizadorLogado) {
         await carregarOpcoesOrganizador(campeonatoId);
-      } else if (!atletaLogado) {
+      } else if (usuarioAutenticado) {
         const [listaDuplas, listaAtletas] = await Promise.all([duplasServico.listar(), atletasServico.listar()]);
         setDuplas(listaDuplas);
         setAtletas(listaAtletas);
@@ -683,7 +719,7 @@ export function PaginaInscricoesCampeonato() {
 
       if (organizadorLogado) {
         await carregarOpcoesOrganizador(campeonatoId);
-      } else if (!atletaLogado) {
+      } else if (usuarioAutenticado) {
         const [listaDuplas, listaAtletas] = await Promise.all([duplasServico.listar(), atletasServico.listar()]);
         setDuplas(listaDuplas);
         setAtletas(listaAtletas);
@@ -864,7 +900,7 @@ export function PaginaInscricoesCampeonato() {
             <p>Selecione a competição, escolha a categoria e faça sua inscrição informando o parceiro da dupla.</p>
             <p>Se você ainda não tiver parceiro, pode se inscrever mesmo assim e completar a dupla depois.</p>
           </>
-        ) : (
+        ) : usuarioAutenticado ? (
           <>
             <p>Inscreva uma dupla já cadastrada em uma categoria da competição e acompanhe a lista em tempo real.</p>
             <p>
@@ -872,6 +908,11 @@ export function PaginaInscricoesCampeonato() {
                 ? 'Para competições criadas por você, a tela só sugere duplas e atletas já inscritos nessa competição. Se precisar de novos nomes, informe manualmente os jogadores.'
                 : 'Se a dupla ainda não existir, informe os nomes completos dos jogadores que o sistema cria os cadastros necessários.'}
             </p>
+          </>
+        ) : (
+          <>
+            <p>Consulte competições com inscrições abertas, categorias disponíveis e as duplas já inscritas.</p>
+            <p>Para realizar uma inscrição, entre com sua conta antes de continuar.</p>
           </>
         )}
       </div>
@@ -912,7 +953,13 @@ export function PaginaInscricoesCampeonato() {
             onClick={abrirFormulario}
             disabled={!campeonatoSelecionado || abrindoFormulario}
           >
-            {abrindoFormulario ? 'Abrindo...' : atletaLogado ? 'Quero me inscrever' : 'Nova inscrição'}
+            {abrindoFormulario
+              ? 'Abrindo...'
+              : !usuarioAutenticado
+                ? 'Entrar para me inscrever'
+                : atletaLogado
+                  ? 'Quero me inscrever'
+                  : 'Nova inscrição'}
           </button>
         </div>
       </div>
@@ -926,6 +973,9 @@ export function PaginaInscricoesCampeonato() {
       )}
       {campeonatoSelecionado && campeonatoSelecionado.inscricoesAbertas && categorias.length === 0 && (
         <p className="texto-aviso">Cadastre ao menos uma categoria na competição para liberar novas inscrições.</p>
+      )}
+      {!usuarioAutenticado && campeonatoSelecionado && campeonatoSelecionado.inscricoesAbertas && categorias.length > 0 && (
+        <p className="texto-aviso">Faça login para concluir sua inscrição nesta competição.</p>
       )}
       {campeonatoSelecionado && podeCriarInscricao && (
         <p className="texto-sucesso">A competição está pronta para receber novas inscrições.</p>

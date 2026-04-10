@@ -198,6 +198,9 @@ public interface IRankingServico
     Task<RankingFiltroInicialDto> ObterFiltroInicialAsync(
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasGeralAsync(
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
         CancellationToken cancellationToken = default);

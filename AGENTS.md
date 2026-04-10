@@ -54,6 +54,17 @@ Projeto já existente de plataforma web para registro de partidas de futevôlei.
 - O usuário que registra partida com atletas pendentes pode completar depois o e-mail desses atletas em uma área de pendências; isso não bloqueia o registro
 - Ao vincular usuário a atleta já existente, evitar duplicidade e ativar automaticamente os pontos já existentes no ranking
 
+## Acessos e navegação
+- O sistema possui quatro contextos principais de navegação: Visitante, Atleta, Organizador e Administrador
+- A autorização no frontend deve considerar perfil e também estado do usuário
+- Estados de acesso podem incluir: `ConvitePendente`, `PrimeiroAcesso`, `CadastroIncompleto` e `Ativo`
+- Visitante acessa apenas áreas públicas e fluxos por token, como login e aceite de convite
+- Atleta acompanha competições, jogos, inscrições, aprovações e completa o próprio cadastro
+- Organizador opera competições, categorias, participantes, convites e jogos, sem assumir permissões administrativas globais
+- Administrador mantém usuários, parametrizações e cadastros globais do sistema
+- Quando não houver estado explícito vindo da API, o frontend pode inferir o estado de acesso a partir da sessão, do perfil e do vínculo com atleta, sem alterar contratos existentes do backend
+- Em caso de `PrimeiroAcesso` ou `CadastroIncompleto`, priorizar redirecionamento para perfil/complementação antes de liberar áreas operacionais
+
 ## Regras configuráveis por competição
 - Não introduzir hardcode novo de regra fixa de jogo ou pontuação
 - Sempre usar a regra da competição quando ela existir

@@ -12,6 +12,17 @@ public class AutorizacaoUsuarioServico(
     IUsuarioContexto usuarioContexto
 ) : IAutorizacaoUsuarioServico
 {
+    public async Task<Usuario?> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default)
+    {
+        if (usuarioContexto.UsuarioId is null)
+        {
+            return null;
+        }
+
+        var usuario = await usuarioRepositorio.ObterPorIdAsync(usuarioContexto.UsuarioId.Value, cancellationToken);
+        return usuario is not null && usuario.Ativo ? usuario : null;
+    }
+
     public async Task<Usuario> ObterUsuarioAtualObrigatorioAsync(CancellationToken cancellationToken = default)
     {
         if (usuarioContexto.UsuarioId is null)
@@ -19,8 +30,8 @@ public class AutorizacaoUsuarioServico(
             throw new RegraNegocioException("Usuário não autenticado.");
         }
 
-        var usuario = await usuarioRepositorio.ObterPorIdAsync(usuarioContexto.UsuarioId.Value, cancellationToken);
-        if (usuario is null || !usuario.Ativo)
+        var usuario = await ObterUsuarioAtualAsync(cancellationToken);
+        if (usuario is null)
         {
             throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         }

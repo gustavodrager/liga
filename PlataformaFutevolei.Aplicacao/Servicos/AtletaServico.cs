@@ -175,7 +175,9 @@ public class AtletaServico(
 
     public async Task<AtletaDto> SalvarMeuAsync(AtualizarAtletaDto dto, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioAtual.Id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         var usandoNomeDoUsuario = usuario.Perfil == PerfilUsuario.Atleta;
         var dados = usandoNomeDoUsuario
             ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
@@ -183,18 +185,21 @@ public class AtletaServico(
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, false, dados.PossuiIdentificador);
 
         Atleta atleta;
+        var atletaExistente = true;
         if (usuario.AtletaId.HasValue)
         {
-            atleta = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken)
-                ?? new Atleta();
-            if (atleta.Id == Guid.Empty)
+            var atletaAtual = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken);
+            atleta = atletaAtual ?? new Atleta();
+            if (atletaAtual is null)
             {
+                atletaExistente = false;
                 await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
             }
         }
         else
         {
             atleta = new Atleta();
+            atletaExistente = false;
             await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
         }
 
@@ -210,12 +215,17 @@ public class AtletaServico(
         atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
-        atleta.Usuario = usuario;
         atleta.AtualizarDataModificacao();
+
+        if (!atletaExistente)
+        {
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
 
         usuario.AtletaId = atleta.Id;
         usuario.Atleta = atleta;
         usuario.AtualizarDataModificacao();
+        atleta.Usuario = usuario;
 
         atletaRepositorio.Atualizar(atleta);
         usuarioRepositorio.Atualizar(usuario);

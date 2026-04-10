@@ -3,14 +3,18 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
-import { obterItensNavegacao } from '../pages/navagacao';
+import { obterItensNavegacao, obterItensNavegacaoPublica } from '../pages/navagacao';
 import { nomePerfil } from '../utils/perfis';
+import { nomeEstadoAcesso } from '../utils/acesso';
  
 export function LayoutPrincipal() {
-  const { usuario, sair } = useAutenticacao();
+  const { token, usuario, estadoAcesso, sair } = useAutenticacao();
   const location = useLocation();
   const [menuAberto, setMenuAberto] = useState(false);
-  const itensMenu = obterItensNavegacao(usuario);
+  const autenticado = Boolean(token);
+  const itensMenu = autenticado
+    ? obterItensNavegacao(usuario, estadoAcesso)
+    : obterItensNavegacaoPublica();
 
   useEffect(() => {
     setMenuAberto(false);
@@ -29,8 +33,20 @@ export function LayoutPrincipal() {
 
         <div className="usuario-topo">
           <span className="usuario-identidade">
-            <span className="usuario-nome">{usuario?.nome}</span>
-            <span className="usuario-perfil">{nomePerfil(usuario?.perfil)}</span>
+            {autenticado ? (
+              <>
+                <span className="usuario-nome">{usuario?.nome}</span>
+                <span className="usuario-perfil">
+                  {nomePerfil(usuario?.perfil)}
+                  {estadoAcesso ? ` · ${nomeEstadoAcesso(estadoAcesso)}` : ''}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="usuario-nome">Acesso público</span>
+                <span className="usuario-perfil">Visitante</span>
+              </>
+            )}
           </span>
           <button
             type="button"
@@ -56,9 +72,15 @@ export function LayoutPrincipal() {
             </svg>
             <span className="rotulo-menu-mobile">{menuAberto ? 'Fechar' : 'Menu'}</span>
           </button>
-          <button type="button" className="botao-secundario botao-sair-topo" onClick={sair}>
-            <ConteudoBotao icone="sair" texto="Sair" />
-          </button>
+          {autenticado ? (
+            <button type="button" className="botao-secundario botao-sair-topo" onClick={sair}>
+              <ConteudoBotao icone="sair" texto="Sair" />
+            </button>
+          ) : (
+            <NavLink to="/login" className="botao-secundario botao-sair-topo">
+              Entrar
+            </NavLink>
+          )}
         </div>
       </header>
 

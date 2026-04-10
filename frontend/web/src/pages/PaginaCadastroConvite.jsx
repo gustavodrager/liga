@@ -17,15 +17,14 @@ export function PaginaCadastroConvite() {
   const [erro, setErro] = useState('');
   const [carregandoConvite, setCarregandoConvite] = useState(true);
   const [salvando, setSalvando] = useState(false);
-  const [destinoAposAutenticacao, setDestinoAposAutenticacao] = useState('/dashboard');
-  const { registrarPorConvite, token } = useAutenticacao();
+  const { registrarPorConvite, token, rotaInicial } = useAutenticacao();
   const navegar = useNavigate();
 
   useEffect(() => {
     if (token) {
-      navegar(destinoAposAutenticacao, { replace: true });
+      navegar(rotaInicial, { replace: true });
     }
-  }, [token, destinoAposAutenticacao, navegar]);
+  }, [token, rotaInicial, navegar]);
 
   useEffect(() => {
     async function carregarConvite() {
@@ -73,7 +72,6 @@ export function PaginaCadastroConvite() {
     setSalvando(true);
 
     try {
-      setDestinoAposAutenticacao('/meu-perfil');
       await registrarPorConvite({
         conviteIdPublico: identificadorPublico,
         codigoConvite,

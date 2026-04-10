@@ -11,6 +11,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class RankingController(IRankingServico rankingServico) : ControllerBase
 {
     [HttpGet("filtro-inicial")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(RankingFiltroInicialDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterFiltroInicial(CancellationToken cancellationToken)
     {
@@ -18,7 +19,17 @@ public class RankingController(IRankingServico rankingServico) : ControllerBase
         return Ok(filtro);
     }
 
+    [HttpGet("geral/atletas")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarAtletasGeral(CancellationToken cancellationToken)
+    {
+        var ranking = await rankingServico.ListarAtletasGeralAsync(cancellationToken);
+        return Ok(ranking);
+    }
+
     [HttpGet("ligas/{ligaId:guid}/atletas")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarAtletasPorLiga(Guid ligaId, CancellationToken cancellationToken)
     {
@@ -27,6 +38,7 @@ public class RankingController(IRankingServico rankingServico) : ControllerBase
     }
 
     [HttpGet("competicoes/{competicaoId:guid}/atletas")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarAtletasPorCompeticao(Guid competicaoId, CancellationToken cancellationToken)
     {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
+import { usuariosServico } from '../services/usuariosServico';
 import { extrairMensagemErro } from '../utils/erros';
 import {
   formatarCpfParaInput,
@@ -13,6 +14,7 @@ import {
 } from '../utils/formatacao';
 import { opcoesNivelAtleta } from '../utils/niveisAtleta';
 import { PERFIS_USUARIO } from '../utils/perfis';
+import { nomeEstadoAcesso } from '../utils/acesso';
 
 const estadoInicialAtleta = {
   nome: '',
@@ -115,10 +117,19 @@ function obterNomeCompletoMeuPerfil(atleta, usuarioBase, perfilUsuario) {
 }
 
 export function PaginaMeuPerfil() {
-  const { usuario, atualizarUsuarioLocal, recarregarUsuario } = useAutenticacao();
+  const {
+    usuario,
+    atualizarUsuarioLocal,
+    recarregarUsuario,
+    concluirPrimeiroAcesso,
+    primeiroAcessoPendente,
+    estadoAcesso
+  } = useAutenticacao();
   const [usuarioDetalhe, setUsuarioDetalhe] = useState(null);
+  const [formularioUsuario, setFormularioUsuario] = useState({ nome: '' });
   const [formularioAtleta, setFormularioAtleta] = useState(estadoInicialAtleta);
   const [carregando, setCarregando] = useState(true);
+  const [salvandoUsuario, setSalvandoUsuario] = useState(false);
   const [salvandoAtleta, setSalvandoAtleta] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
@@ -141,6 +152,7 @@ export function PaginaMeuPerfil() {
       }
 
       const dadosUsuario = await recarregarUsuario();
+      setFormularioUsuario({ nome: dadosUsuario.nome || '' });
 
       if (dadosUsuario.atletaId) {
         const atleta = await atletasServico.obterMeu();
@@ -207,6 +219,47 @@ export function PaginaMeuPerfil() {
     setFormularioAtleta((anterior) => ({ ...anterior, [campo]: valor }));
   }
 
+  async function salvarUsuario(evento) {
+    evento.preventDefault();
+
+    if (Number(usuarioDetalhe?.perfil || usuario?.perfil) !== PERFIS_USUARIO.administrador) {
+      return;
+    }
+
+    setSalvandoUsuario(true);
+    setErro('');
+    setMensagem('');
+
+    try {
+      const usuarioAtualizado = await usuariosServico.atualizarMeu({
+        nome: formularioUsuario.nome
+      });
+
+      setUsuarioDetalhe((anterior) => ({
+        ...(anterior || usuarioAtualizado),
+        ...usuarioAtualizado,
+        atleta: anterior?.atleta || usuarioAtualizado.atleta || null
+      }));
+      atualizarUsuarioLocal(usuarioAtualizado);
+
+      if (primeiroAcessoPendente) {
+        concluirPrimeiroAcesso();
+      }
+
+      setMensagem('Dados do acesso atualizados com sucesso.');
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setSalvandoUsuario(false);
+    }
+  }
+
+  function finalizarPrimeiroAcesso() {
+    concluirPrimeiroAcesso();
+    setMensagem('Primeiro acesso concluído com sucesso.');
+    setErro('');
+  }
+
   async function salvarAtleta(evento) {
     evento.preventDefault();
     const cpfLimpo = limparCpf(formularioAtleta.cpf);
@@ -254,6 +307,9 @@ export function PaginaMeuPerfil() {
       preencherFormularioAtleta(atleta);
       setUsuarioDetalhe(proximoUsuario);
       atualizarUsuarioLocal(proximoUsuario);
+      if (primeiroAcessoPendente) {
+        concluirPrimeiroAcesso();
+      }
       setMensagem(possuiAtletaAnterior ? 'Dados do atleta atualizados com sucesso.' : 'Atleta criado com sucesso.');
     } catch (error) {
       setErro(obterMensagemErroPerfil(error));
@@ -274,23 +330,73 @@ export function PaginaMeuPerfil() {
   }
 
   const usuarioEhAtleta = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.atleta;
+  const usuarioEhAdministrador = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.administrador;
   const possuiAtleta = Boolean(usuarioDetalhe?.atletaId);
   const nomeSomenteLeitura = usuarioEhAtleta;
-  const textoBotao = possuiAtleta ? 'Salvar atleta' : 'Criar meu atleta';
+  const textoBotao = possuiAtleta
+    ? 'Salvar atleta'
+    : (usuarioEhAtleta ? 'Criar meu atleta' : 'Criar e vincular atleta');
 
   return (
     <section className="pagina">
-      <div className="cabecalho-pagina">
-        <h2>Meu Perfil</h2>
-      </div>
-
       {erro && <p className="texto-erro">{erro}</p>}
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
+
+      {primeiroAcessoPendente && !usuarioEhAtleta && (
+        <article className="cartao">
+          <h3>Primeiro acesso</h3>
+          <p>Revise seus dados de acesso. O vínculo com atleta é opcional para este perfil.</p>
+          <div className="acoes-formulario">
+            <button type="button" className="botao-secundario" onClick={finalizarPrimeiroAcesso}>
+              Concluir primeiro acesso
+            </button>
+          </div>
+        </article>
+      )}
+
+      {usuarioEhAdministrador && (
+        <form className="formulario-secoes" onSubmit={salvarUsuario}>
+          <div className="secao-formulario">
+            <div className="secao-formulario-cabecalho">
+              <h3>Dados do acesso</h3>
+            </div>
+
+            <div className="secao-formulario-conteudo">
+              <label className="campo-largo">
+                Nome do usuário
+                <input
+                  type="text"
+                  value={formularioUsuario.nome}
+                  onChange={(evento) => setFormularioUsuario({ nome: evento.target.value })}
+                  required
+                />
+              </label>
+
+              <label className="campo-largo">
+                E-mail
+                <input
+                  type="email"
+                  value={emailUsuarioPerfil}
+                  readOnly
+                  disabled
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="acoes-formulario campo-largo">
+            <button type="submit" className="botao-primario" disabled={salvandoUsuario}>
+              {salvandoUsuario ? 'Salvando...' : 'Salvar acesso'}
+            </button>
+          </div>
+        </form>
+      )}
 
       <form className="formulario-secoes" onSubmit={salvarAtleta}>
         <div className="secao-formulario">
           <div className="secao-formulario-cabecalho">
             <h3>Identificação</h3>
+            {!usuarioEhAtleta && <p>Vínculo com atleta opcional para este perfil.</p>}
           </div>
 
           <div className="secao-formulario-conteudo">
