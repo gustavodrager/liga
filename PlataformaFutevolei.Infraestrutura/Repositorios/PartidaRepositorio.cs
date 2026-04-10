@@ -95,6 +95,27 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarParaRankingGeralAsync(
+        Guid? usuarioOrganizadorId,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = CriarConsultaRanking()
+            .Where(x =>
+                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
+                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
+                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
+                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada));
+
+        if (usuarioOrganizadorId.HasValue)
+        {
+            consulta = consulta.Where(x => x.CategoriaCompeticao.Competicao.UsuarioOrganizadorId == usuarioOrganizadorId.Value);
+        }
+
+        return await consulta
+            .OrderByDescending(x => x.DataPartida)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarParaRankingSemCompeticaoOuCategoriaAsync(
         Guid? usuarioOrganizadorId,
         CancellationToken cancellationToken = default)

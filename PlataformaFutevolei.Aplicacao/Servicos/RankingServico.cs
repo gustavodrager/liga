@@ -22,7 +22,17 @@ public class RankingServico(
     public async Task<RankingFiltroInicialDto> ObterFiltroInicialAsync(
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+
+        if (usuario is null)
+        {
+            return new RankingFiltroInicialDto("geral", null);
+        }
+
+        if (usuario.Perfil != PerfilUsuario.Atleta)
+        {
+            return new RankingFiltroInicialDto("geral", null);
+        }
 
         Guid? competicaoId = usuario.Perfil switch
         {
@@ -45,12 +55,35 @@ public class RankingServico(
             competicaoId);
     }
 
+    public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasGeralAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+        if (usuario?.Perfil == PerfilUsuario.Atleta)
+        {
+            throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
+        }
+
+        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(
+            usuario?.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
+            cancellationToken);
+
+        var rankingGeral = MontarRankingConsolidado(
+            Guid.Empty,
+            Guid.Empty,
+            "Todas as competições",
+            "Ranking geral",
+            partidas);
+
+        return rankingGeral is null ? [] : [rankingGeral];
+    }
+
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Atleta)
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+        if (usuario?.Perfil == PerfilUsuario.Atleta)
         {
             throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
         }
@@ -63,7 +96,7 @@ public class RankingServico(
 
         var partidas = await partidaRepositorio.ListarParaRankingPorLigaAsync(ligaId, cancellationToken);
         var partidasSemCompeticaoOuCategoria = await partidaRepositorio.ListarParaRankingSemCompeticaoOuCategoriaAsync(
-            usuario.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
+            usuario?.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
             cancellationToken);
         return MontarRankingLiga(ligaId, liga.Nome, partidas, partidasSemCompeticaoOuCategoria);
     }
@@ -72,14 +105,14 @@ public class RankingServico(
         Guid competicaoId,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
         if (competicao is null)
         {
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
         }
 
-        if (usuario.Perfil == PerfilUsuario.Atleta)
+        if (usuario?.Perfil == PerfilUsuario.Atleta)
         {
             if (competicao.Tipo != TipoCompeticao.Grupo)
             {

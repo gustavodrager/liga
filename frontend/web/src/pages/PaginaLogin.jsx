@@ -5,7 +5,14 @@ import { autenticacaoServico } from '../services/autenticacaoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import logoLiga from '../assets/logo-liga.svg';
 
-const EMAIL_LOGIN_DESENVOLVIMENTO = import.meta.env.DEV ? 'admin@teste.com' : '';
+const USUARIOS_TESTE_DESENVOLVIMENTO = import.meta.env.DEV
+  ? [
+      { email: 'admin@teste.com', nome: 'Administrador' },
+      { email: 'organizador@teste.com', nome: 'Organizador' },
+      { email: 'atleta@teste.com', nome: 'Atleta' }
+    ]
+  : [];
+const EMAIL_LOGIN_DESENVOLVIMENTO = USUARIOS_TESTE_DESENVOLVIMENTO[0]?.email || '';
 
 export function PaginaLogin() {
   const [modo, setModo] = useState('login');
@@ -19,21 +26,31 @@ export function PaginaLogin() {
   const [carregandoCodigo, setCarregandoCodigo] = useState(false);
   const [codigoLoginEnviado, setCodigoLoginEnviado] = useState(false);
 
-  const { solicitarCodigoLogin, entrarComCodigo, token } = useAutenticacao();
+  const { solicitarCodigoLogin, entrarComCodigo, token, rotaInicial } = useAutenticacao();
   const navegar = useNavigate();
   const localizacao = useLocation();
 
   useEffect(() => {
     if (token) {
-      navegar('/dashboard', { replace: true });
+      navegar(rotaInicial, { replace: true });
     }
-  }, [token, navegar]);
+  }, [token, rotaInicial, navegar]);
 
-  const origem = localizacao.state?.origem?.pathname || '/dashboard';
+  const origem = localizacao.state?.origem?.pathname || rotaInicial;
   const emModoRecuperacao = modo === 'recuperacao';
 
   function alterarModo(novoModo) {
     setModo(novoModo);
+    setErro('');
+    setMensagem('');
+    setCodigoLogin('');
+    setCodigoLoginEnviado(false);
+    setCodigoRedefinicao('');
+    setNovaSenha('');
+  }
+
+  function selecionarUsuarioTeste(emailTeste) {
+    setEmail(emailTeste);
     setErro('');
     setMensagem('');
     setCodigoLogin('');
@@ -107,6 +124,22 @@ export function PaginaLogin() {
         <p>Registre partidas, atletas e competições em um fluxo simples.</p>
 
         <p>O cadastro público foi desativado. Novas contas só podem ser criadas por convite. Para entrar, informe seu e-mail e receba um código de acesso.</p>
+
+        {USUARIOS_TESTE_DESENVOLVIMENTO.length > 0 && (
+          <div className="acoes-formulario">
+            {USUARIOS_TESTE_DESENVOLVIMENTO.map((usuarioTeste) => (
+              <button
+                key={usuarioTeste.email}
+                type="button"
+                className="botao-secundario"
+                onClick={() => selecionarUsuarioTeste(usuarioTeste.email)}
+                disabled={carregando || carregandoCodigo}
+              >
+                {usuarioTeste.nome}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={aoSubmeter} className="formulario-grid unico">
           <label>

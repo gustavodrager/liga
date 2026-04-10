@@ -424,7 +424,7 @@ export function PaginaCategorias() {
                 <button
                   type="button"
                   className="botao-terciario"
-                  onClick={() => navegar(`/partidas?categoriaId=${categoria.id}`)}
+                  onClick={() => navegar(`/partidas/registrar?categoriaId=${categoria.id}`)}
                 >
                   <ConteudoBotao icone="partidas" texto="Partidas" />
                 </button>

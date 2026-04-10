@@ -11,6 +11,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class InscricoesCampeonatoController(IInscricaoCampeonatoServico inscricaoServico) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<InscricaoCampeonatoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(Guid campeonatoId, [FromQuery] Guid? categoriaId, CancellationToken cancellationToken)
     {

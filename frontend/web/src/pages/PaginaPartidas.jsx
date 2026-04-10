@@ -68,6 +68,36 @@ const LADOS_ATLETA = {
   ambos: 3
 };
 
+const TIPOS_COMPETICAO = {
+  campeonato: 1,
+  evento: 2,
+  grupo: 3,
+  partidasAvulsas: 4
+};
+
+const NOME_COMPETICAO_PARTIDAS_AVULSAS = 'Partidas avulsas';
+
+function obterTipoCompeticao(competicao) {
+  return Number(competicao?.tipo || 0);
+}
+
+function ehCompeticaoPartidasAvulsas(competicao) {
+  const tipoCompeticao = obterTipoCompeticao(competicao);
+  const nomeCompeticao = (competicao?.nome || '').trim().toLowerCase();
+
+  return tipoCompeticao === TIPOS_COMPETICAO.partidasAvulsas
+    || (tipoCompeticao === TIPOS_COMPETICAO.grupo && nomeCompeticao === NOME_COMPETICAO_PARTIDAS_AVULSAS.toLowerCase());
+}
+
+function ehCompeticaoGrupo(competicao) {
+  return obterTipoCompeticao(competicao) === TIPOS_COMPETICAO.grupo && !ehCompeticaoPartidasAvulsas(competicao);
+}
+
+function ehCompeticaoComInscricoes(competicao) {
+  const tipoCompeticao = obterTipoCompeticao(competicao);
+  return tipoCompeticao === TIPOS_COMPETICAO.campeonato || tipoCompeticao === TIPOS_COMPETICAO.evento;
+}
+
 function paraIsoUtc(dataLocal) {
   if (!dataLocal) {
     return null;
@@ -430,7 +460,7 @@ function buscarSugestoesAtleta(atletas, termo, atletaSelecionadoId, idsBloqueado
     .slice(0, 6);
 }
 
-export function PaginaPartidas() {
+export function PaginaPartidas({ modo = 'consulta' }) {
   const { usuario } = useAutenticacao();
   const usuarioAtleta = ehAtleta(usuario);
   const atletaUsuarioId = usuario?.atletaId || '';
@@ -476,18 +506,37 @@ export function PaginaPartidas() {
   const modoVisualizacao = params.get('visualizacao') || '';
   const visualizacaoTabela = modoVisualizacao === 'tabela';
   const visualizacaoGrupo = modoVisualizacao === 'grupo';
+  const paginaRegistro = modo === 'registro';
+  const paginaConsulta = modo === 'consulta';
+  const permiteEdicaoNaPagina = !paginaConsulta;
+  const tituloPagina = paginaRegistro
+    ? 'Registrar Partidas'
+    : paginaConsulta
+      ? 'Consultar Partidas'
+      : 'Partidas';
+  const descricaoPagina = paginaRegistro
+    ? 'Filtre a competição, sorteie jogos e registre confrontos sem alterar o fluxo atual.'
+    : 'Filtre a competição e acompanhe tabela, grupos e resultados no mesmo fluxo já existente.';
+  const descricaoContexto = paginaRegistro
+    ? 'Escolha competição e categoria antes de registrar, ajustar ou aprovar partidas.'
+    : 'Escolha competição e categoria antes de consultar partidas e resultados.';
+  const buscaAtual = params.toString();
+  const linkPaginaRegistro = buscaAtual ? `/partidas/registrar?${buscaAtual}` : '/partidas/registrar';
+  const linkPaginaConsulta = buscaAtual ? `/partidas/consulta?${buscaAtual}` : '/partidas/consulta';
 
   function obterCamposIniciaisAtletaUsuarioPrimeiraDupla() {
     return obterCamposAtletaUsuarioPrimeiraDupla(atletaUsuarioId, atletaUsuarioNome, atletaUsuarioLado);
   }
 
   const competicoesDisponiveis = useMemo(() => {
+    const competicoesSemPartidasAvulsas = competicoes.filter((competicao) => !ehCompeticaoPartidasAvulsas(competicao));
+
     if (!usuarioAtleta) {
-      return competicoes;
+      return competicoesSemPartidasAvulsas;
     }
 
-    return competicoes.filter(
-      (competicao) => competicao.tipo === 3 && competicao.usuarioOrganizadorId === usuario?.id
+    return competicoesSemPartidasAvulsas.filter(
+      (competicao) => ehCompeticaoGrupo(competicao) && competicao.usuarioOrganizadorId === usuario?.id
     );
   }, [competicoes, usuarioAtleta, usuario?.id]);
 
@@ -497,12 +546,12 @@ export function PaginaPartidas() {
     () => new Map(partidas.map((partida) => [partida.id, partida])),
     [partidas]
   );
-  const grupoSelecionado = competicaoSelecionada?.tipo === 3;
-  const competicaoComInscricoes = Boolean(competicaoSelecionada && competicaoSelecionada.tipo !== 3);
+  const grupoSelecionado = ehCompeticaoGrupo(competicaoSelecionada);
+  const competicaoComInscricoes = ehCompeticaoComInscricoes(competicaoSelecionada);
   const bloquearCampoAtletaUsuarioGrupo = grupoSelecionado && usuarioAtleta && temAtletaUsuarioVinculado;
   const gerenciaGrupoSelecionado =
     usuarioAtleta &&
-    competicaoSelecionada?.tipo === 3 &&
+    ehCompeticaoGrupo(competicaoSelecionada) &&
     competicaoSelecionada?.usuarioOrganizadorId === usuario?.id;
   const administradorLogado = Number(usuario?.perfil) === PERFIS_USUARIO.administrador;
   const usuarioPodeGerenciarPagina = ehGestorCompeticao(usuario) || usuarioAtleta;
@@ -520,10 +569,15 @@ export function PaginaPartidas() {
   const podeAprovarSorteio = podeSortearPartidas && aguardandoAprovacaoSorteio;
   const usandoCadastroPorAtletas = !competicaoSelecionada || grupoSelecionado || modoCadastroPartida === 'atletas';
   const podeRegistrarManual = usuarioPodeGerenciarPagina;
-  const podeExibirFormulario = podeEditarPartidas && (podeRegistrarManual || Boolean(partidaEdicaoId));
+  const podeEditarPartidasNaPagina = permiteEdicaoNaPagina && podeEditarPartidas;
+  const podeSortearPartidasNaPagina = permiteEdicaoNaPagina && podeSortearPartidas;
+  const podeAprovarSorteioNaPagina = permiteEdicaoNaPagina && podeAprovarSorteio;
+  const podeExibirFormulario = permiteEdicaoNaPagina && podeEditarPartidas && (podeRegistrarManual || Boolean(partidaEdicaoId));
   const podeSalvarFormulario = !salvando && !(grupoSelecionado && atletaUsuarioSemVinculo);
   const podeLancarResultado = grupoSelecionado || !competicaoComInscricoes || tabelaJogosAprovada;
   const podeLancarResultadoDireto = competicaoComInscricoes && tabelaJogosAprovada && podeEditarPartidas;
+  const podeLancarResultadoDiretoNaPagina = permiteEdicaoNaPagina && podeLancarResultadoDireto;
+  const ocultarPartidasRegistradasNaPagina = paginaRegistro;
   const placaresFormularioPreenchidos = formulario.placarDuplaA !== '' && formulario.placarDuplaB !== '';
   const placaresFormularioParciais = (formulario.placarDuplaA !== '' || formulario.placarDuplaB !== '') && !placaresFormularioPreenchidos;
   const statusFormularioEfetivo = competicaoComInscricoes && !tabelaJogosAprovada
@@ -917,7 +971,7 @@ export function PaginaPartidas() {
   }, [competicaoId]);
 
   useEffect(() => {
-    if (!competicaoSelecionada || competicaoSelecionada.tipo !== 3) {
+    if (!ehCompeticaoGrupo(competicaoSelecionada)) {
       setGrupoAtletas([]);
       return;
     }
@@ -972,6 +1026,12 @@ export function PaginaPartidas() {
       return;
     }
 
+    if (ocultarPartidasRegistradasNaPagina) {
+      setPartidas([]);
+      setEstruturaRodadas([]);
+      return;
+    }
+
     if (formulario.categoriaCompeticaoId) {
       carregarPartidasPorCategoria(formulario.categoriaCompeticaoId);
       return;
@@ -984,7 +1044,7 @@ export function PaginaPartidas() {
 
     setPartidas([]);
     setEstruturaRodadas([]);
-  }, [competicaoSelecionada, formulario.categoriaCompeticaoId, grupoSelecionado]);
+  }, [competicaoSelecionada, formulario.categoriaCompeticaoId, grupoSelecionado, ocultarPartidasRegistradasNaPagina]);
 
   useEffect(() => {
     if ((visualizacaoTabela && exibirChaveVisual) || (visualizacaoGrupo && exibirVisaoGrupo)) {
@@ -1027,6 +1087,50 @@ export function PaginaPartidas() {
   const inscricoesCategoriaOrdenadas = useMemo(
     () => [...inscricoesCategoria].sort(compararInscricoesMaisRecentesPrimeiro),
     [inscricoesCategoria]
+  );
+  const exibirCampoCompeticao = competicoesDisponiveis.length > 0;
+  const exibirCampoCategoria = Boolean(competicaoId) && categorias.length > 0;
+  const exibirCampoNomeGrupo = !exibirCampoCompeticao || !competicaoId;
+  const camposContextoPartida = (
+    <>
+      {exibirCampoCompeticao && (
+        <label>
+          Competição
+          <select
+            value={competicaoId}
+            onChange={(evento) => {
+              setCompeticaoId(evento.target.value);
+              atualizarParametrosUrl(evento.target.value);
+            }}
+          >
+            <option value="">Selecione</option>
+            {competicoesDisponiveis.map((competicao) => (
+              <option key={competicao.id} value={competicao.id}>
+                {competicao.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {exibirCampoCategoria && (
+        <label>
+          Categoria
+          <select
+            value={formulario.categoriaCompeticaoId}
+            onChange={(evento) => atualizarCampo('categoriaCompeticaoId', evento.target.value)}
+            required={!grupoSelecionado}
+          >
+            <option value="">{grupoSelecionado ? 'Sem categoria' : 'Selecione'}</option>
+            {categorias.map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>
+                {categoria.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </>
   );
   const atletasBaseCadastroAssistido = useMemo(() => {
     if (grupoSelecionado) {
@@ -1310,6 +1414,18 @@ export function PaginaPartidas() {
 
       if (categoriaUrl) {
         const categoria = await categoriasServico.obterPorId(categoriaUrl);
+        const competicaoCategoria = listaCompeticoes.find((competicao) => competicao.id === categoria.competicaoId);
+
+        if (ehCompeticaoPartidasAvulsas(competicaoCategoria) || categoria.nomeCompeticao === NOME_COMPETICAO_PARTIDAS_AVULSAS) {
+          setCompeticaoId('');
+          setFormulario((anterior) => ({
+            ...anterior,
+            categoriaCompeticaoId: ''
+          }));
+          atualizarParametrosUrl('');
+          return;
+        }
+
         setCompeticaoId(categoria.competicaoId);
         setFormulario((anterior) => ({
           ...anterior,
@@ -1320,6 +1436,14 @@ export function PaginaPartidas() {
       }
 
       if (competicaoUrl) {
+        const competicaoSelecionadaUrl = listaCompeticoes.find((competicao) => competicao.id === competicaoUrl);
+
+        if (ehCompeticaoPartidasAvulsas(competicaoSelecionadaUrl)) {
+          setCompeticaoId('');
+          atualizarParametrosUrl('');
+          return;
+        }
+
         setCompeticaoId(competicaoUrl);
         atualizarParametrosUrl(competicaoUrl);
         return;
@@ -1338,7 +1462,7 @@ export function PaginaPartidas() {
     try {
       const lista = await categoriasServico.listarPorCompeticao(idCompeticao);
       setCategorias(lista);
-      const ehGrupo = competicoes.find((competicao) => competicao.id === idCompeticao)?.tipo === 3;
+      const ehGrupo = ehCompeticaoGrupo(competicoes.find((competicao) => competicao.id === idCompeticao));
 
       setFormulario((anterior) => {
         const categoriaValida = lista.some((categoria) => categoria.id === anterior.categoriaCompeticaoId);
@@ -1573,7 +1697,7 @@ export function PaginaPartidas() {
     setMensagem('');
     setFeedbackPendencias([]);
 
-    if (competicaoId && !grupoSelecionado && !formulario.categoriaCompeticaoId) {
+    if (competicaoSelecionada && !grupoSelecionado && !formulario.categoriaCompeticaoId) {
       setErro('Selecione a categoria antes de salvar a partida.');
       return;
     }
@@ -1632,13 +1756,24 @@ export function PaginaPartidas() {
 
       if (!competicaoId && partidaSalva?.categoriaCompeticaoId) {
         const categoriaSalva = await categoriasServico.obterPorId(partidaSalva.categoriaCompeticaoId);
-        setCompeticaoId(categoriaSalva.competicaoId);
-        setFormulario((anterior) => ({
-          ...anterior,
-          categoriaCompeticaoId: categoriaSalva.id
-        }));
-        await carregarCategorias(categoriaSalva.competicaoId);
-        await carregarPartidasPorCategoria(categoriaSalva.id);
+        const competicaoSalva = competicoes.find((competicao) => competicao.id === categoriaSalva.competicaoId);
+
+        if (
+          !ehCompeticaoPartidasAvulsas(competicaoSalva) &&
+          categoriaSalva.nomeCompeticao !== NOME_COMPETICAO_PARTIDAS_AVULSAS
+        ) {
+          setCompeticaoId(categoriaSalva.competicaoId);
+          setFormulario((anterior) => ({
+            ...anterior,
+            categoriaCompeticaoId: categoriaSalva.id
+          }));
+          await carregarCategorias(categoriaSalva.competicaoId);
+
+          if (!ocultarPartidasRegistradasNaPagina) {
+            await carregarPartidasPorCategoria(categoriaSalva.id);
+          }
+        }
+
         return;
       }
 
@@ -1648,7 +1783,10 @@ export function PaginaPartidas() {
       if (grupoSelecionado && competicaoSelecionada?.id) {
         await carregarGrupoAtletas(competicaoSelecionada.id);
       }
-      if (formulario.categoriaCompeticaoId) {
+      if (ocultarPartidasRegistradasNaPagina) {
+        setPartidas([]);
+        setEstruturaRodadas([]);
+      } else if (formulario.categoriaCompeticaoId) {
         await carregarPartidasPorCategoria(formulario.categoriaCompeticaoId);
       } else if (grupoSelecionado && competicaoSelecionada?.id) {
         await carregarPartidasPorCompeticao(competicaoSelecionada.id);
@@ -1861,7 +1999,7 @@ export function PaginaPartidas() {
   }
 
   function renderizarLancamentoResultado(partida, modo = 'lista') {
-    if (!podeLancarResultadoDireto) {
+    if (!podeLancarResultadoDiretoNaPagina) {
       return null;
     }
 
@@ -1882,7 +2020,7 @@ export function PaginaPartidas() {
               <IconeAcao nome="salvar" />
             </button>
 
-            {podeEditarPartidas && (
+            {podeEditarPartidasNaPagina && (
               <button
                 type="button"
                 className="botao-terciario botao-compacto botao-icone"
@@ -1973,7 +2111,7 @@ export function PaginaPartidas() {
             return (
               <article
                 key={partida.id}
-                className={`chave-jogo ${podeEditarPartidas ? 'interativo' : ''}`}
+                className={`chave-jogo ${podeEditarPartidasNaPagina ? 'interativo' : ''}`}
               >
                 <div className="chave-jogo-cabecalho">
                   <div className="chave-jogo-cabecalho-meta">
@@ -1986,7 +2124,7 @@ export function PaginaPartidas() {
                 </div>
 
                 <div className={`chave-jogo-linha ${duplaAVenceu ? 'vencedora' : ''}`}>
-                  {podeLancarResultadoDireto ? (
+                  {podeLancarResultadoDiretoNaPagina ? (
                     <input
                       type="number"
                       min={0}
@@ -2003,7 +2141,7 @@ export function PaginaPartidas() {
                 </div>
 
                 <div className={`chave-jogo-linha ${duplaBVenceu ? 'vencedora' : ''}`}>
-                  {podeLancarResultadoDireto ? (
+                  {podeLancarResultadoDiretoNaPagina ? (
                     <input
                       type="number"
                       min={0}
@@ -2021,9 +2159,9 @@ export function PaginaPartidas() {
 
                 {renderizarLancamentoResultado(partida, 'chave')}
 
-                {!(podeLancarResultadoDireto && podeEditarPartidas) && (
+                {!(podeLancarResultadoDiretoNaPagina && podeEditarPartidasNaPagina) && (
                   <div className="chave-jogo-rodape">
-                    {podeEditarPartidas && (
+                    {podeEditarPartidasNaPagina && (
                       <button
                         type="button"
                         className="botao-terciario botao-compacto botao-icone"
@@ -2078,7 +2216,7 @@ export function PaginaPartidas() {
 
           {partida && renderizarLancamentoResultado(partida, 'lista')}
 
-          {partida && podeEditarPartidas && (
+          {partida && podeEditarPartidasNaPagina && (
             <div className="acoes-item acoes-item-compactas">
               <button type="button" className="botao-secundario botao-compacto" onClick={() => iniciarEdicao(partida)}>
                 <ConteudoBotao icone="editar" texto={tabelaJogosAprovada || grupoSelecionado ? 'Editar' : 'Ajustar'} />
@@ -2229,152 +2367,19 @@ export function PaginaPartidas() {
 
   return (
     <section className="pagina">
-      <div className="cabecalho-pagina">
-        <h2>Partidas</h2>
-        <p>Filtre a competição, registre jogos e acompanhe resultados sem alterar o fluxo atual.</p>
-      </div>
-
-      <div className="formulario-grid filtro-partidas">
-        <div className="campo-largo partidas-filtro-cabecalho">
-          <div>
-            <strong>Contexto dos jogos</strong>
-            <p>Escolha competição e categoria antes de registrar ou consultar partidas.</p>
-          </div>
-          <span>{partidas.length} jogo(s)</span>
-        </div>
-
-        <label>
-          Competição opcional
-          <select
-            value={competicaoId}
-            onChange={(evento) => {
-              setCompeticaoId(evento.target.value);
-              atualizarParametrosUrl(evento.target.value);
-            }}
-          >
-            <option value="">Sem competição</option>
-            {competicoesDisponiveis.map((competicao) => (
-              <option key={competicao.id} value={competicao.id}>
-                {competicao.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          {grupoSelecionado || !competicaoId ? 'Categoria opcional' : 'Categoria'}
-          <select
-            value={formulario.categoriaCompeticaoId}
-            onChange={(evento) => atualizarCampo('categoriaCompeticaoId', evento.target.value)}
-            required={Boolean(competicaoId) && !grupoSelecionado}
-          >
-            <option value="">{grupoSelecionado || !competicaoId ? 'Todas / sem categoria' : 'Selecione'}</option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {podeSortearPartidas && (
-          <div className="acoes-item acoes-item-compactas">
-            <button
-              type="button"
-              className="botao-primario botao-compacto"
-              onClick={() => gerarTabela(partidas.length > 0)}
-              disabled={gerandoTabela || !categoriaSelecionada || duplasDisponiveis.length < 4}
-            >
-              <ConteudoBotao
-                icone="sortear"
-                texto={gerandoTabela
-                  ? 'Sorteando...'
-                  : partidas.length > 0
-                    ? 'Sortear de novo'
-                    : 'Sortear jogos'}
-              />
-            </button>
-
-            {partidas.length > 0 && (
-              <button
-                type="button"
-                className="botao-secundario botao-compacto"
-                onClick={aprovarSorteioCategoria}
-                disabled={!podeAprovarSorteio || aprovandoTabela}
-              >
-                <ConteudoBotao icone="aprovar" texto={aprovandoTabela ? 'Aprovando...' : 'Aprovar sorteio'} />
-              </button>
-            )}
-
-            {partidas.length > 0 && (
-              <button
-                type="button"
-                className="botao-perigo botao-compacto"
-                onClick={excluirTabelaCategoria}
-                disabled={removendoTabela}
-              >
-                <ConteudoBotao icone="excluir" texto={removendoTabela ? 'Excluindo...' : 'Excluir jogos'} />
-              </button>
-            )}
-          </div>
-        )}
-
-        {(competicaoSelecionada || categoriaSelecionada) && (
-          <div className="campo-largo partidas-contexto-resumo">
-            {competicaoSelecionada && <span>{competicaoSelecionada.nome}</span>}
-            {categoriaSelecionada && <span>{categoriaSelecionada.nome}</span>}
-            {grupoSelecionado && <span>Grupo</span>}
-            {competicaoComInscricoes && <span>Campeonato</span>}
-          </div>
-        )}
-      </div>
-
-      {(competicaoComInscricoes || grupoSelecionado || podeVisualizarGrupo) && partidas.length > 0 && (
-        <div className="cartao barra-visualizacao-partidas">
-          <div>
-            <strong>Modo de visualização</strong>
-          </div>
-
-          <div className="acoes-item acoes-item-compactas">
-            {exibirChaveVisual && (
-              <button
-                type="button"
-                className={`${visualizacaoTabela ? 'botao-primario' : 'botao-terciario'} botao-compacto`}
-                onClick={() => atualizarParametrosUrl(competicaoId, formulario.categoriaCompeticaoId, 'tabela')}
-              >
-                <ConteudoBotao icone="tabela" texto="Ver tabela" />
-              </button>
-            )}
-            {podeVisualizarGrupo && (
-              <button
-                type="button"
-                className={`${visualizacaoGrupo ? 'botao-primario' : 'botao-terciario'} botao-compacto`}
-                onClick={() => atualizarParametrosUrl(competicaoId, formulario.categoriaCompeticaoId, 'grupo')}
-              >
-                <ConteudoBotao icone="grupo" texto="Ver grupo" />
-              </button>
-            )}
-            <button
-              type="button"
-              className={`${!visualizacaoTabela && !visualizacaoGrupo ? 'botao-secundario' : 'botao-terciario'} botao-compacto`}
-              onClick={() => atualizarParametrosUrl(competicaoId, formulario.categoriaCompeticaoId, '')}
-            >
-              <ConteudoBotao icone="lista" texto="Ver lista" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {podeExibirFormulario && (
         <form ref={formularioRef} className="formulario-grid formulario-partida" onSubmit={aoSubmeter}>
           <div className="campo-largo formulario-partida-cabecalho">
             <h3>{partidaEdicaoId ? 'Editar partida' : 'Registrar partida'}</h3>
-            <p>Preencha os mesmos campos do fluxo atual; a origem dos dados e o envio continuam inalterados.</p>
+            <p></p>
           </div>
 
-          {!competicaoId && (
+          {camposContextoPartida}
+
+          {exibirCampoNomeGrupo && (
             <label className="campo-largo">
-              Nome do grupo opcional
+              Nome do grupo (opcional)
               <input
                 type="text"
                 value={formulario.nomeGrupo}
@@ -2608,14 +2613,16 @@ export function PaginaPartidas() {
             />
           </label>
 
-          <label className="campo-largo">
-            Observações
-            <textarea
-              rows={3}
-              value={formulario.observacoes}
-              onChange={(evento) => atualizarCampo('observacoes', evento.target.value)}
-            />
-          </label>
+          {!paginaRegistro && (
+            <label className="campo-largo">
+              Observações
+              <textarea
+                rows={3}
+                value={formulario.observacoes}
+                onChange={(evento) => atualizarCampo('observacoes', evento.target.value)}
+              />
+            </label>
+          )}
 
           <div className="acoes-formulario">
             <button type="submit" className="botao-primario botao-compacto" disabled={!podeSalvarFormulario}>
@@ -2631,31 +2638,18 @@ export function PaginaPartidas() {
         </form>
       )}
 
-      {feedbackPendencias.length > 0 && (
-        <div className="cartao-lista">
-          <h3>Pendências para completar depois</h3>
-          <p>
-            {feedbackPendencias.map((item) => item.nomeAtleta).join(', ')} ainda não possuem e-mail.
-            Você pode concluir isso depois sem bloquear o registro da partida.
-          </p>
-          <Link className="link-acao" to="/pendencias">
-            Ir para pendências
-          </Link>
-        </div>
-      )}
-
       {erro && <p className="texto-erro">{erro}</p>}
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}
 
-      {grupoSelecionado && atletaUsuarioSemVinculo && (
+      {permiteEdicaoNaPagina && grupoSelecionado && atletaUsuarioSemVinculo && (
         <p className="texto-aviso">
           Vincule um atleta ao seu usuário antes de registrar partidas no grupo. O atleta vinculado ao seu perfil precisa compor a primeira dupla no lado informado no cadastro.
         </p>
       )}
 
-      {exibirVisaoGrupo && renderizarVisaoGrupo()}
+      {!ocultarPartidasRegistradasNaPagina && exibirVisaoGrupo && renderizarVisaoGrupo()}
 
-      {exibirChaveVisual && visualizacaoTabela && (
+      {!ocultarPartidasRegistradasNaPagina && exibirChaveVisual && visualizacaoTabela && (
         <section ref={tabelaJogosRef} className="cartao chave-visualizacao">
           <div className="chave-visualizacao-cabecalho">
             <div className="chave-visualizacao-introducao">
@@ -2722,7 +2716,7 @@ export function PaginaPartidas() {
 
       {carregando ? (
         <p>Carregando partidas...</p>
-      ) : exibirListaDetalhada ? (
+      ) : !ocultarPartidasRegistradasNaPagina && exibirListaDetalhada ? (
         <div className="lista-cartoes">
           {partidas.map((partida) => (
             <article key={partida.id} className="cartao-lista partida-lista-card">
@@ -2766,7 +2760,7 @@ export function PaginaPartidas() {
 
               {renderizarLancamentoResultado(partida, 'lista')}
 
-              {podeEditarPartidas && (
+              {podeEditarPartidasNaPagina && (
                 <div className="acoes-item">
                   <button type="button" className="botao-secundario botao-compacto" onClick={() => iniciarEdicao(partida)}>
                     <ConteudoBotao icone="editar" texto={tabelaJogosAprovada || grupoSelecionado ? 'Editar' : 'Ajustar'} />

@@ -44,6 +44,15 @@ const tiposCompeticao = [
   { valor: 3, rotulo: 'Grupo' }
 ];
 
+const tiposCompeticaoFormulario = [
+  { valor: 1, rotulo: 'Campeonato' },
+  { valor: 3, rotulo: 'Grupo' }
+];
+
+function normalizarTipoCompeticaoFormulario(tipo) {
+  return Number(tipo) === 3 ? '3' : '1';
+}
+
 const estadoInicialGrupoAtleta = {
   nomeAtleta: '',
   apelidoAtleta: ''
@@ -68,6 +77,7 @@ export function PaginaCompeticoes() {
   const { usuario, atualizarUsuarioLocal } = useAutenticacao();
   const gestorCompeticao = ehGestorCompeticao(usuario);
   const usuarioAtleta = ehAtleta(usuario);
+  const usuarioAdministrador = Number(usuario?.perfil) === PERFIS_USUARIO.administrador;
   const podeCriarCompeticao = gestorCompeticao || usuarioAtleta;
   const [competicoes, setCompeticoes] = useState([]);
   const [ligas, setLigas] = useState([]);
@@ -248,7 +258,7 @@ export function PaginaCompeticoes() {
     setCompeticaoEdicaoId(competicao.id);
     setFormulario({
       nome: competicao.nome,
-      tipo: String(competicao.tipo),
+      tipo: normalizarTipoCompeticaoFormulario(competicao.tipo),
       descricao: competicao.descricao || '',
       dataInicio: paraInputData(competicao.dataInicio),
       dataFim: paraInputData(competicao.dataFim),
@@ -397,7 +407,7 @@ export function PaginaCompeticoes() {
       });
 
       setAviso(resultado.resumo);
-      navegar(`/partidas?competicaoId=${competicao.id}&categoriaId=${categoria.id}&visualizacao=tabela`);
+      navegar(`/partidas/consulta?competicaoId=${competicao.id}&categoriaId=${categoria.id}&visualizacao=tabela`);
     } catch (error) {
       const mensagemErro = extrairMensagemErro(error);
 
@@ -506,30 +516,6 @@ export function PaginaCompeticoes() {
 
   return (
     <section className="pagina">
-      <div className="cabecalho-pagina">
-        <h2>Competições</h2>
-        <p>
-          {gestorCompeticao
-            ? 'Crie campeonatos, eventos e grupos de jogos.'
-            : 'Veja campeonatos com inscrições abertas e grupos disponíveis. Você também pode criar seu próprio grupo para lançar jogos.'}
-        </p>
-      </div>
-
-      <div className="competicoes-resumo" aria-label="Resumo das competições">
-        <div className="competicoes-resumo-item">
-          <span>Total</span>
-          <strong>{totalCompeticoes}</strong>
-        </div>
-        <div className="competicoes-resumo-item">
-          <span>Inscrições abertas</span>
-          <strong>{totalComInscricoesAbertas}</strong>
-        </div>
-        <div className="competicoes-resumo-item">
-          <span>Grupos</span>
-          <strong>{totalGrupos}</strong>
-        </div>
-      </div>
-
       {podeCriarCompeticao && (
         <form ref={formularioCompeticaoRef} className="formulario-grid formulario-competicao" onSubmit={aoSubmeter}>
           <div className="formulario-competicao-cabecalho campo-largo">
@@ -563,7 +549,7 @@ export function PaginaCompeticoes() {
                 onChange={(evento) => atualizarCampo('tipo', evento.target.value)}
                 required
               >
-                {tiposCompeticao.map((tipo) => (
+                {tiposCompeticaoFormulario.map((tipo) => (
                   <option key={tipo.valor} value={tipo.valor}>
                     {tipo.rotulo}
                   </option>
@@ -595,31 +581,24 @@ export function PaginaCompeticoes() {
             </>
           )}
 
-          <label className="campo-largo">
-            Descrição
-            <textarea
-              value={formulario.descricao}
-              onChange={(evento) => atualizarCampo('descricao', evento.target.value)}
-              rows={3}
-            />
-          </label>
+          {usuarioAdministrador && (
+            <label>
+              Forma de competição
+              <select
+                value={formulario.formatoCampeonatoId}
+                onChange={(evento) => atualizarCampo('formatoCampeonatoId', evento.target.value)}
+              >
+                <option value="">Usar padrão do tipo</option>
+                {obterFormatosDisponiveisParaTipo(usuarioAtleta ? 3 : formulario.tipo).map((formato) => (
+                  <option key={formato.id} value={formato.id}>
+                    {formato.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
-          <label>
-            Forma de competição
-            <select
-              value={formulario.formatoCampeonatoId}
-              onChange={(evento) => atualizarCampo('formatoCampeonatoId', evento.target.value)}
-            >
-              <option value="">Usar padrão do tipo</option>
-              {obterFormatosDisponiveisParaTipo(usuarioAtleta ? 3 : formulario.tipo).map((formato) => (
-                <option key={formato.id} value={formato.id}>
-                  {formato.nome}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {!usuarioAtleta && Number(formulario.tipo) !== 3 && formatoEfetivoDaCompeticaoEhChaveDuplaEliminacao(formulario.tipo, formulario.formatoCampeonatoId) && (
+          {usuarioAdministrador && Number(formulario.tipo) !== 3 && formatoEfetivoDaCompeticaoEhChaveDuplaEliminacao(formulario.tipo, formulario.formatoCampeonatoId) && (
             <label className="campo-checkbox">
               <input
                 type="checkbox"
@@ -630,41 +609,41 @@ export function PaginaCompeticoes() {
             </label>
           )}
 
-          {!usuarioAtleta && (
-            <>
-              <label>
-                Liga
-                <select
-                  value={formulario.ligaId}
-                  onChange={(evento) => atualizarCampo('ligaId', evento.target.value)}
-                >
-                  <option value="">Sem liga</option>
-                  {ligas.map((liga) => (
-                    <option key={liga.id} value={liga.id}>
-                      {liga.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Local
-                <select
-                  value={formulario.localId}
-                  onChange={(evento) => atualizarCampo('localId', evento.target.value)}
-                >
-                  <option value="">Sem local</option>
-                  {locais.map((local) => (
-                    <option key={local.id} value={local.id}>
-                      {local.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
+          {usuarioAdministrador && (
+            <label>
+              Liga
+              <select
+                value={formulario.ligaId}
+                onChange={(evento) => atualizarCampo('ligaId', evento.target.value)}
+              >
+                <option value="">Sem liga</option>
+                {ligas.map((liga) => (
+                  <option key={liga.id} value={liga.id}>
+                    {liga.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
 
-          {!usuarioAtleta && regrasDisponiveis && (
+          {usuarioAdministrador && (
+            <label>
+              Local
+              <select
+                value={formulario.localId}
+                onChange={(evento) => atualizarCampo('localId', evento.target.value)}
+              >
+                <option value="">Sem local</option>
+                {locais.map((local) => (
+                  <option key={local.id} value={local.id}>
+                    {local.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {usuarioAdministrador && regrasDisponiveis && (
             <label>
               Regra
               <select
@@ -696,18 +675,6 @@ export function PaginaCompeticoes() {
             <p className="campo-largo">
               O grupo criado por atleta permite lançar jogos sem categoria e também organizar partidas por categoria quando você quiser.
             </p>
-          )}
-
-          {!usuarioAtleta && regrasDisponiveis && (
-            <div className="acoes-item campo-largo">
-              <button
-                type="button"
-                className="botao-terciario"
-                onClick={() => navegar('/regras')}
-              >
-                Gerenciar regras
-              </button>
-            </div>
           )}
 
           <div className="acoes-formulario">
@@ -770,17 +737,16 @@ export function PaginaCompeticoes() {
                   </div>
 
                   <div className="competicao-card-detalhes">
-                    <p>Liga: {competicao.nomeLiga || '-'}</p>
                     <p>Local: {competicao.nomeLocal || '-'}</p>
-                    <p>Forma de competição: {competicao.nomeFormatoCampeonato || 'Padrão do tipo'}</p>
-                    {competicao.tipo !== 3 && (
-                      <p>Final reset: {competicao.possuiFinalReset ? 'Habilitada' : 'Desabilitada'}</p>
-                    )}
-                    <p>Regra: {competicao.nomeRegraCompeticao || 'Padrão'}</p>
-                    <p>Ranking da liga: {competicao.ligaId ? 'Conta automaticamente' : 'Sem liga vinculada'}</p>
                     <p>Início: {formatarData(competicao.dataInicio)}</p>
                     <p>Fim: {formatarData(competicao.dataFim)}</p>
-                    {competicao.descricao && <p>Descrição: {competicao.descricao}</p>}
+                    {usuarioAdministrador && <p>Liga: {competicao.nomeLiga || '-'}</p>}
+                    {usuarioAdministrador && <p>Forma de competição: {competicao.nomeFormatoCampeonato || 'Padrão do tipo'}</p>}
+                    {usuarioAdministrador && competicao.tipo !== 3 && (
+                      <p>Final reset: {competicao.possuiFinalReset ? 'Habilitada' : 'Desabilitada'}</p>
+                    )}
+                    {usuarioAdministrador && <p>Regra: {competicao.nomeRegraCompeticao || 'Padrão'}</p>}
+                    {usuarioAdministrador && <p>Ranking da liga: {competicao.ligaId ? 'Conta automaticamente' : 'Sem liga vinculada'}</p>}
                     {competicao.tipo === 3 && (
                       <p>Responsável: {competicao.nomeUsuarioOrganizador || 'Não informado'}</p>
                     )}
@@ -819,7 +785,7 @@ export function PaginaCompeticoes() {
                     <button
                       type="button"
                       className="botao-terciario"
-                      onClick={() => navegar(`/partidas?competicaoId=${competicao.id}`)}
+                      onClick={() => navegar(`/partidas/registrar?competicaoId=${competicao.id}`)}
                     >
                       Jogos
                     </button>
@@ -925,7 +891,7 @@ export function PaginaCompeticoes() {
                                   <button
                                     type="button"
                                     className="botao-terciario"
-                                    onClick={() => navegar(`/partidas?competicaoId=${competicao.id}&categoriaId=${categoria.id}&visualizacao=tabela`)}
+                                    onClick={() => navegar(`/partidas/consulta?competicaoId=${competicao.id}&categoriaId=${categoria.id}&visualizacao=tabela`)}
                                   >
                                     Ver tabela de jogos
                                   </button>

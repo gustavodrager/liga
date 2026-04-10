@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { definirManipuladorNaoAutorizado, definirTokenAutorizacao } from '../services/http';
 import { autenticacaoServico } from '../services/autenticacaoServico';
+import { obterEstadoAcessoUsuario, obterRotaPadraoEstado } from '../utils/acesso';
 
 const CHAVE_ARMAZENAMENTO = 'plataforma_futevolei_autenticacao';
 const ANTECEDENCIA_RENOVACAO_MS = 60 * 1000;
@@ -63,7 +64,8 @@ function normalizarSessaoPersistida(conteudo) {
         refreshToken: typeof dados.refreshToken === 'string' ? dados.refreshToken : null,
         tokenExpiraEmUtc: dados.tokenExpiraEmUtc ?? null,
         refreshTokenExpiraEmUtc: dados.refreshTokenExpiraEmUtc ?? null,
-        usuario: dados.usuario ?? null
+        usuario: dados.usuario ?? null,
+        primeiroAcessoPendente: Boolean(dados.primeiroAcessoPendente)
       };
     }
   } catch {
@@ -75,7 +77,8 @@ function normalizarSessaoPersistida(conteudo) {
       refreshToken: null,
       tokenExpiraEmUtc: null,
       refreshTokenExpiraEmUtc: null,
-      usuario: null
+      usuario: null,
+      primeiroAcessoPendente: false
     }
     : null;
 }
@@ -88,6 +91,9 @@ export function ProvedorAutenticacao({ children }) {
 
   const token = sessao?.token ?? null;
   const usuario = sessao?.usuario ?? null;
+  const primeiroAcessoPendente = Boolean(sessao?.primeiroAcessoPendente);
+  const estadoAcesso = obterEstadoAcessoUsuario(usuario, { primeiroAcessoPendente });
+  const rotaInicial = obterRotaPadraoEstado(usuario, estadoAcesso);
 
   useEffect(() => {
     sessaoRef.current = sessao;
@@ -100,13 +106,14 @@ export function ProvedorAutenticacao({ children }) {
     }
   }, []);
 
-  const salvarAutenticacao = useCallback((resposta) => {
+  const salvarAutenticacao = useCallback((resposta, opcoes = {}) => {
     const proximaSessao = {
       token: resposta.token,
       refreshToken: resposta.refreshToken,
       tokenExpiraEmUtc: resposta.tokenExpiraEmUtc,
       refreshTokenExpiraEmUtc: resposta.refreshTokenExpiraEmUtc,
-      usuario: resposta.usuario
+      usuario: resposta.usuario,
+      primeiroAcessoPendente: opcoes.primeiroAcessoPendente ?? sessaoRef.current?.primeiroAcessoPendente ?? false
     };
 
     setSessao(proximaSessao);
@@ -147,7 +154,7 @@ export function ProvedorAutenticacao({ children }) {
       refreshToken: sessaoAtual.refreshToken
     });
 
-    salvarAutenticacao(resposta);
+    salvarAutenticacao(resposta, { primeiroAcessoPendente: Boolean(sessaoAtual.primeiroAcessoPendente) });
     return resposta;
   }, [salvarAutenticacao]);
 
@@ -267,9 +274,25 @@ export function ProvedorAutenticacao({ children }) {
       email,
       senha
     });
-    salvarAutenticacao(resposta);
+    salvarAutenticacao(resposta, { primeiroAcessoPendente: true });
     return resposta;
   }, [salvarAutenticacao]);
+
+  const concluirPrimeiroAcesso = useCallback(() => {
+    setSessao((sessaoAtual) => {
+      if (!sessaoAtual || !sessaoAtual.primeiroAcessoPendente) {
+        return sessaoAtual;
+      }
+
+      const proximaSessao = {
+        ...sessaoAtual,
+        primeiroAcessoPendente: false
+      };
+
+      localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify(proximaSessao));
+      return proximaSessao;
+    });
+  }, []);
 
   const recarregarUsuario = useCallback(async () => {
     const usuarioAtual = await autenticacaoServico.me();
@@ -289,15 +312,33 @@ export function ProvedorAutenticacao({ children }) {
     () => ({
       token,
       usuario,
+      primeiroAcessoPendente,
+      estadoAcesso,
+      rotaInicial,
       carregando,
       solicitarCodigoLogin,
       entrarComCodigo,
       registrarPorConvite,
       sair,
       recarregarUsuario,
-      atualizarUsuarioLocal
+      atualizarUsuarioLocal,
+      concluirPrimeiroAcesso
     }),
-    [token, usuario, carregando, solicitarCodigoLogin, entrarComCodigo, registrarPorConvite, sair, recarregarUsuario, atualizarUsuarioLocal]
+    [
+      token,
+      usuario,
+      primeiroAcessoPendente,
+      estadoAcesso,
+      rotaInicial,
+      carregando,
+      solicitarCodigoLogin,
+      entrarComCodigo,
+      registrarPorConvite,
+      sair,
+      recarregarUsuario,
+      atualizarUsuarioLocal,
+      concluirPrimeiroAcesso
+    ]
   );
 
   return <AutenticacaoContexto.Provider value={valor}>{children}</AutenticacaoContexto.Provider>;

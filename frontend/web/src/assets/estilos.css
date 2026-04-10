@@ -729,19 +729,52 @@ code {
   gap: 0.35rem;
   min-height: 168px;
   text-align: left;
-  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  color: var(--cor-texto);
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-.cartao-atalho:hover {
-  border-color: var(--cor-borda-forte);
-  box-shadow: var(--sombra-suave);
-  transform: translateY(-1px);
+.cartao-atalho:hover,
+.cartao-atalho:focus-visible {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria);
+  color: #111;
+  box-shadow: 0 14px 28px rgba(201, 139, 0, 0.18);
+  transform: translateY(-2px);
+}
+
+.cartao-atalho:focus-visible {
+  outline: 2px solid rgba(255, 180, 0, 0.35);
+  outline-offset: 2px;
+}
+
+.cartao-atalho:active {
+  background: var(--cor-primaria-escura);
+  border-color: var(--cor-primaria-escura);
+  color: #111;
+  box-shadow: 0 10px 20px rgba(201, 139, 0, 0.22);
+  transform: translateY(0);
 }
 
 .cartao-atalho-destaque {
   border-color: var(--cor-borda-forte);
   background:
     linear-gradient(180deg, #ffffff 0%, var(--cor-superficie-suave) 100%);
+}
+
+.cartao-atalho-destaque:hover,
+.cartao-atalho-destaque:focus-visible {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria);
+}
+
+.cartao-atalho-destaque:active {
+  background: var(--cor-primaria-escura);
+  border-color: var(--cor-primaria-escura);
 }
 
 .cartao-atalho-cabecalho {
@@ -753,6 +786,15 @@ code {
 
 .cartao-atalho .link-acao {
   margin-top: auto;
+}
+
+.cartao-atalho:hover h3,
+.cartao-atalho:hover p,
+.cartao-atalho:focus-visible h3,
+.cartao-atalho:focus-visible p,
+.cartao-atalho:active h3,
+.cartao-atalho:active p {
+  color: inherit;
 }
 
 .cartao-atalho-meta {
@@ -1878,6 +1920,21 @@ code {
 
 .partida-lista-card {
   gap: 0.95rem;
+}
+
+.partidas-detalhes-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cabecalho-secao-partidas h3,
+.cabecalho-secao-partidas p {
+  margin: 0;
+}
+
+.cabecalho-secao-partidas p {
+  color: #5f5f5f;
 }
 
 .partida-lista-topo {

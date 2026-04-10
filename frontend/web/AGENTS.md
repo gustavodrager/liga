@@ -27,3 +27,11 @@ Seguir o `AGENTS.md` da raiz. Neste diretório, além disso:
 - `Ranking` deve exibir atletas sem usuário como pendentes no mesmo ranking, sem tela ou cálculo paralelo de pontos
 - `Pendências` centraliza aprovar/contestar partidas e completar contato de atleta pendente; o frontend só reflete as pendências e ações retornadas pela API
 - `Modelos de importação` já oferece download e upload CSV por tipo de cadastro
+
+## Acesso no frontend
+- Centralizar guardas de rota, landing page e menu a partir de perfil e estado do usuário
+- Perfis principais: Visitante, Atleta, Organizador e Administrador
+- Estados de acesso podem incluir `PrimeiroAcesso`, `CadastroIncompleto` e `Ativo`; se a API ainda não expuser o estado de forma explícita, o frontend pode inferi-lo de maneira previsível a partir da sessão atual
+- `Meu Perfil` é a tela padrão para conclusão de `PrimeiroAcesso` e de `CadastroIncompleto`
+- Organizador e administrador não devem ser forçados a criar atleta para concluir o acesso
+- Preservar as rotas existentes sempre que possível; preferir aliases e redirecionamentos pontuais a uma quebra ampla de URLs

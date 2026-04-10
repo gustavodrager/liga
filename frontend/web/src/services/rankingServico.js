@@ -6,6 +6,11 @@ export const rankingServico = {
     return resposta.data;
   },
 
+  async listarAtletasGeral() {
+    const resposta = await http.get('/ranking/geral/atletas');
+    return resposta.data;
+  },
+
   async listarAtletasPorLiga(ligaId) {
     const resposta = await http.get(`/ranking/ligas/${ligaId}/atletas`);
     return resposta.data;
