@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BotaoVoltar } from '../components/BotaoVoltar';
+import { IconeAcao } from '../components/ConteudoBotao';
+import { useAutenticacao } from '../hooks/useAutenticacao';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { partidasServico } from '../services/partidasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
+import { ehGestorCompeticao } from '../utils/perfis';
+import { rolarParaTopo } from '../utils/rolagem';
 
 const TIPOS_COMPETICAO = {
   campeonato: 1,
@@ -266,7 +269,15 @@ function compararPartidasChave(a, b) {
   return (a.faseOrdemInterna || 0) - (b.faseOrdemInterna || 0);
 }
 
+function aguardarProximoCicloInterface() {
+  return new Promise((resolver) => {
+    window.setTimeout(resolver, 0);
+  });
+}
+
 export function PaginaPartidasCampeonato() {
+  const { usuario } = useAutenticacao();
+  const gestorCompeticao = ehGestorCompeticao(usuario);
   const [params, setParams] = useSearchParams();
   const [competicoes, setCompeticoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -277,7 +288,12 @@ export function PaginaPartidasCampeonato() {
   const [abaAtiva, setAbaAtiva] = useState(params.get('aba') === 'lista' ? 'lista' : 'chaveamento');
   const [filtroChaveamento, setFiltroChaveamento] = useState('completa');
   const [erro, setErro] = useState('');
+  const [mensagem, setMensagem] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [aprovandoTabela, setAprovandoTabela] = useState(false);
+  const [placaresRapidos, setPlacaresRapidos] = useState({});
+  const [salvandoResultadoIds, setSalvandoResultadoIds] = useState({});
+  const [partidaResultadoModal, setPartidaResultadoModal] = useState(null);
 
   const competicoesDisponiveis = useMemo(
     () => competicoes.filter((competicao) => ehCompeticaoComCategoriasDeCampeonato(competicao)),
@@ -457,6 +473,7 @@ export function PaginaPartidasCampeonato() {
     };
   }, [partidas]);
 
+  const podeLancarResultadoDireto = gestorCompeticao && Boolean(categoriaSelecionada?.tabelaJogosAprovada);
   const exibirChaveVisual = categoriaId && partidas.length > 0 && colunasEmVisualizacao.length > 0;
 
   useEffect(() => {
@@ -519,6 +536,7 @@ export function PaginaPartidasCampeonato() {
 
   async function carregarBase() {
     setErro('');
+    setMensagem('');
     setCarregando(true);
 
     try {
@@ -575,6 +593,7 @@ export function PaginaPartidasCampeonato() {
 
   async function carregarCategorias(idCompeticao) {
     setErro('');
+    setMensagem('');
 
     try {
       const lista = await categoriasServico.listarPorCompeticao(idCompeticao);
@@ -594,6 +613,7 @@ export function PaginaPartidasCampeonato() {
 
   async function carregarCategoria(idCategoria) {
     setErro('');
+    setMensagem('');
     setCarregando(true);
 
     try {
@@ -604,6 +624,7 @@ export function PaginaPartidasCampeonato() {
 
       setPartidas(listaPartidas);
       setDadosChaveamento(chaveamento);
+      setPlacaresRapidos({});
       atualizarParametrosUrl(competicaoId, idCategoria, abaAtiva);
     } catch (error) {
       setErro(extrairMensagemErro(error));
@@ -614,13 +635,145 @@ export function PaginaPartidasCampeonato() {
     }
   }
 
+  function obterPlacaresRapidos(partida) {
+    return placaresRapidos[partida.id] || {
+      placarDuplaA: partida.status === 2 ? String(partida.placarDuplaA) : '',
+      placarDuplaB: partida.status === 2 ? String(partida.placarDuplaB) : ''
+    };
+  }
+
+  function atualizarPlacarRapido(partidaId, campo, valor) {
+    if (!/^\d*$/.test(valor)) {
+      return;
+    }
+
+    setPlacaresRapidos((anterior) => ({
+      ...anterior,
+      [partidaId]: {
+        ...(anterior[partidaId] || {}),
+        [campo]: valor
+      }
+    }));
+  }
+
+  async function salvarResultadoRapido(partida) {
+    if (!categoriaSelecionada?.tabelaJogosAprovada) {
+      setErro('Aprove os jogos desta categoria antes de lançar resultados.');
+      setMensagem('');
+      return;
+    }
+
+    const placares = obterPlacaresRapidos(partida);
+    if (placares.placarDuplaA === '' || placares.placarDuplaB === '') {
+      setErro('Informe os pontos das duas duplas antes de salvar o resultado.');
+      setMensagem('');
+      return;
+    }
+
+    setErro('');
+    setMensagem('');
+    setSalvandoResultadoIds((anterior) => ({ ...anterior, [partida.id]: true }));
+
+    try {
+      const partidaAtualizada = await partidasServico.atualizar(partida.id, {
+        competicaoId: competicaoSelecionada?.id || null,
+        categoriaCompeticaoId: partida.categoriaCompeticaoId,
+        duplaAId: partida.duplaAId,
+        duplaBId: partida.duplaBId,
+        duplaAAtleta1Id: null,
+        duplaAAtleta2Id: null,
+        duplaBAtleta1Id: null,
+        duplaBAtleta2Id: null,
+        faseCampeonato: partida.faseCampeonato || null,
+        status: 2,
+        placarDuplaA: Number(placares.placarDuplaA),
+        placarDuplaB: Number(placares.placarDuplaB),
+        dataPartida: partida.dataPartida || null,
+        observacoes: partida.observacoes || null
+      });
+
+      setPartidaResultadoModal(null);
+      setPartidas((anteriores) => anteriores.map((item) => (
+        item.id === partidaAtualizada.id ? partidaAtualizada : item
+      )));
+      setPlacaresRapidos((anterior) => {
+        const proximo = { ...anterior };
+        delete proximo[partida.id];
+        return proximo;
+      });
+      await aguardarProximoCicloInterface();
+      await carregarCategoria(partida.categoriaCompeticaoId);
+      setMensagem(`Resultado salvo para ${partida.nomeDuplaA} x ${partida.nomeDuplaB}.`);
+      rolarParaTopo();
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setSalvandoResultadoIds((anterior) => ({ ...anterior, [partida.id]: false }));
+    }
+  }
+
+  async function aprovarJogosCategoria() {
+    if (!categoriaSelecionada) {
+      setErro('Selecione uma categoria para aprovar os jogos.');
+      setMensagem('');
+      return;
+    }
+
+    const confirmar = window.confirm(
+      'Deseja aprovar os jogos desta categoria? Depois disso, o lançamento dos resultados ficará liberado.'
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setErro('');
+    setMensagem('');
+    setAprovandoTabela(true);
+
+    try {
+      await categoriasServico.aprovarTabelaPartidas(categoriaSelecionada.id);
+      await carregarCategorias(competicaoId);
+      await carregarCategoria(categoriaSelecionada.id);
+      setMensagem('Jogos aprovados. O lançamento dos resultados foi liberado para esta categoria.');
+    } catch (error) {
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setAprovandoTabela(false);
+    }
+  }
+
+  function abrirModalResultado(partida) {
+    setErro('');
+    setMensagem('');
+    setPlacaresRapidos((anterior) => ({
+      ...anterior,
+      [partida.id]: obterPlacaresRapidos(partida)
+    }));
+    setPartidaResultadoModal(partida);
+  }
+
+  function fecharModalResultado() {
+    setPartidaResultadoModal(null);
+  }
+
   function renderizarColunaChave(coluna, indiceColuna, totalColunas, lado, conectar = true) {
     const primeiraColuna = indiceColuna === 0;
     const ultimaColuna = indiceColuna === totalColunas - 1;
+    const alturaCardRem = 4.35;
+    const passoVerticalRem = 5.8;
+    const multiplicadorRodada = Math.max(1, 2 ** indiceColuna);
+    const deslocamentoTopo = ((multiplicadorRodada - 1) * passoVerticalRem) / 2;
+    const espacamentoJogos = Math.max(1.45, (multiplicadorRodada * passoVerticalRem) - alturaCardRem);
 
     return (
       <section
         key={coluna.titulo}
+        style={{
+          '--chave-coluna-offset': `${deslocamentoTopo}rem`,
+          '--chave-coluna-gap': `${espacamentoJogos}rem`,
+          '--chave-distancia-centros': `${alturaCardRem + espacamentoJogos}rem`
+        }}
         className={[
           'chave-coluna',
           `lado-${lado}`,
@@ -644,30 +797,56 @@ export function PaginaPartidasCampeonato() {
           {coluna.partidas.map((partida, indicePartida) => {
             const duplaAVenceu = partida.duplaVencedoraId === partida.duplaAId;
             const duplaBVenceu = partida.duplaVencedoraId === partida.duplaBId;
+            const podeEditarResultado = podeLancarResultadoDireto
+              && partida.ativa
+              && Boolean(partida.duplaAId)
+              && Boolean(partida.duplaBId);
+            const salvandoResultado = Boolean(salvandoResultadoIds[partida.id]);
 
             return (
               <article key={partida.id} className="chave-jogo">
-                <div className="chave-jogo-cabecalho">
-                  <div className="chave-jogo-cabecalho-meta">
-                    <span className="chave-jogo-indice">Jogo {indicePartida + 1}</span>
-                    <small>{partida.dataPartida ? formatarDataHora(partida.dataPartida) : 'Data a definir'}</small>
+                <div className="chave-jogo-cartao">
+                  <div className="chave-jogo-cabecalho">
+                    <div className="chave-jogo-cabecalho-meta">
+                      <span className="chave-jogo-indice">{partida.posicaoNaChave || indicePartida + 1}</span>
+                      <small>{partida.dataPartida ? formatarDataHora(partida.dataPartida) : 'Data a definir'}</small>
+                    </div>
+                    <span className={`chave-jogo-status status-${partida.status === 2 ? 'encerrada' : 'agendada'}`}>
+                      {obterNomeStatus(partida.status, partida.ativa)}
+                    </span>
                   </div>
-                  <span className={`chave-jogo-status status-${partida.status === 2 ? 'encerrada' : 'agendada'}`}>
-                    {obterNomeStatus(partida.status, partida.ativa)}
-                  </span>
-                </div>
 
-                {partida.faseCampeonato && <small>{partida.faseCampeonato}</small>}
-                {partida.ehPreliminar && <small>Rodada preliminar</small>}
+                  {partida.faseCampeonato && <small>{partida.faseCampeonato}</small>}
+                  {partida.ehPreliminar && <small>Rodada preliminar</small>}
 
-                <div className={`chave-jogo-linha ${duplaAVenceu ? 'vencedora' : ''}`}>
-                  <span className="chave-jogo-pontuacao-texto">{partida.status === 2 ? partida.placarDuplaA : '-'}</span>
-                  <strong>{partida.nomeDuplaA}</strong>
-                </div>
+                  <div className={`chave-jogo-linha ${duplaAVenceu ? 'vencedora' : ''}`}>
+                    <span className="chave-jogo-pontuacao-texto">{partida.status === 2 ? partida.placarDuplaA : '-'}</span>
+                    <strong>{partida.nomeDuplaA}</strong>
+                  </div>
 
-                <div className={`chave-jogo-linha ${duplaBVenceu ? 'vencedora' : ''}`}>
-                  <span className="chave-jogo-pontuacao-texto">{partida.status === 2 ? partida.placarDuplaB : '-'}</span>
-                  <strong>{partida.nomeDuplaB}</strong>
+                  <div className={`chave-jogo-linha ${duplaBVenceu ? 'vencedora' : ''}`}>
+                    <span className="chave-jogo-pontuacao-texto">{partida.status === 2 ? partida.placarDuplaB : '-'}</span>
+                    <strong>{partida.nomeDuplaB}</strong>
+                  </div>
+
+                  {podeEditarResultado && (
+                    <div className="chave-jogo-acoes">
+                      <div className="lancamento-resultado lancamento-resultado-chave lancamento-resultado-chave-discreto">
+                        <div className="lancamento-resultado-acoes">
+                          <button
+                            type="button"
+                            className="botao-secundario botao-compacto"
+                            onClick={() => abrirModalResultado(partida)}
+                            disabled={salvandoResultado}
+                            aria-label="Informar placar"
+                            title="Informar placar"
+                          >
+                            Placar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </article>
             );
@@ -680,14 +859,11 @@ export function PaginaPartidasCampeonato() {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
-        <div className="acoes-item">
-          <BotaoVoltar fallback="/competicoes" />
-        </div>
         <h2>Partidas de campeonato</h2>
         <p>Selecione a competição e a categoria para acompanhar o chaveamento e os resultados.</p>
       </div>
 
-      <div className="formulario-grid filtro-partidas">
+      <div className="formulario-grid filtro-partidas barra-selecao-fixa">
         <label>
           Competição
           <select
@@ -746,7 +922,25 @@ export function PaginaPartidasCampeonato() {
         </div>
       )}
 
+      {competicaoSelecionada && categoriaSelecionada && gestorCompeticao && partidas.length > 0 && (
+        <div className="acoes-item">
+          {!categoriaSelecionada.tabelaJogosAprovada ? (
+            <button
+              type="button"
+              className="botao-primario botao-compacto"
+              onClick={aprovarJogosCategoria}
+              disabled={aprovandoTabela}
+            >
+              {aprovandoTabela ? 'Aprovando...' : 'Aprovar jogos'}
+            </button>
+          ) : (
+            <span>Jogos aprovados para lançar placares</span>
+          )}
+        </div>
+      )}
+
       {erro && <p className="texto-erro">{erro}</p>}
+      {mensagem && <p>{mensagem}</p>}
 
       {!carregando && competicaoId && categorias.length === 0 && (
         <section className="cartao">
@@ -755,7 +949,7 @@ export function PaginaPartidasCampeonato() {
       )}
 
       {abaAtiva === 'chaveamento' && exibirChaveVisual && (
-        <section className="cartao grupos-visualizacao">
+        <section className="cartao grupos-visualizacao chaveamento-modelo">
           <div className="grupos-visualizacao-cabecalho">
             <div>
               <h3>{categoriaSelecionada?.nome || 'Chaveamento'}</h3>
@@ -810,7 +1004,13 @@ export function PaginaPartidasCampeonato() {
                   )}
 
                   <div className="chave-jogos">
-                    {bloco.colunas.map((coluna, indice) => renderizarColunaChave(coluna, indice, bloco.colunas.length, indice === 0 ? 'esquerda' : 'direita', coluna.conectar !== false))}
+                    {bloco.colunas.map((coluna, indice) => renderizarColunaChave(
+                      coluna,
+                      indice,
+                      bloco.colunas.length,
+                      'esquerda',
+                      coluna.conectar !== false && indice < bloco.colunas.length - 1
+                    ))}
                   </div>
                 </section>
               ))}
@@ -882,6 +1082,67 @@ export function PaginaPartidasCampeonato() {
           </div>
         </section>
       ) : null}
+
+      {partidaResultadoModal && (
+        <div className="modal-sobreposicao" role="presentation" onClick={fecharModalResultado}>
+          <div className="modal-conteudo modal-placar" role="dialog" aria-modal="true" aria-labelledby="modal-placar-titulo" onClick={(evento) => evento.stopPropagation()}>
+            <div className="modal-cabecalho">
+              <div>
+                <h3 id="modal-placar-titulo">Informar placar</h3>
+                <p>{partidaResultadoModal.faseCampeonato || 'Partida de campeonato'}</p>
+              </div>
+              <button type="button" className="botao-terciario botao-compacto botao-icone" onClick={fecharModalResultado} aria-label="Fechar">
+                <IconeAcao nome="cancelar" />
+              </button>
+            </div>
+
+            {!categoriaSelecionada?.tabelaJogosAprovada && (
+              <p className="texto-alerta">A tabela precisa estar aprovada para salvar resultados.</p>
+            )}
+            {erro && <p className="texto-erro">{erro}</p>}
+
+            <div className="modal-placar-linhas">
+              <label className="modal-placar-linha">
+                <span>{partidaResultadoModal.nomeDuplaA}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={obterPlacaresRapidos(partidaResultadoModal).placarDuplaA}
+                  onChange={(evento) => atualizarPlacarRapido(partidaResultadoModal.id, 'placarDuplaA', evento.target.value)}
+                  disabled={Boolean(salvandoResultadoIds[partidaResultadoModal.id])}
+                  aria-label={`Pontos de ${partidaResultadoModal.nomeDuplaA}`}
+                />
+              </label>
+
+              <label className="modal-placar-linha">
+                <span>{partidaResultadoModal.nomeDuplaB}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={obterPlacaresRapidos(partidaResultadoModal).placarDuplaB}
+                  onChange={(evento) => atualizarPlacarRapido(partidaResultadoModal.id, 'placarDuplaB', evento.target.value)}
+                  disabled={Boolean(salvandoResultadoIds[partidaResultadoModal.id])}
+                  aria-label={`Pontos de ${partidaResultadoModal.nomeDuplaB}`}
+                />
+              </label>
+            </div>
+
+            <div className="acoes-formulario">
+              <button
+                type="button"
+                className="botao-primario"
+                onClick={() => salvarResultadoRapido(partidaResultadoModal)}
+                disabled={Boolean(salvandoResultadoIds[partidaResultadoModal.id])}
+              >
+                {salvandoResultadoIds[partidaResultadoModal.id] ? 'Salvando...' : 'Salvar placar'}
+              </button>
+              <button type="button" className="botao-secundario" onClick={fecharModalResultado}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

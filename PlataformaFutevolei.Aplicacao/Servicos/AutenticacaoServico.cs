@@ -47,7 +47,7 @@ public class AutenticacaoServico(
             Nome = dto.Nome.Trim(),
             Email = emailNormalizado,
             SenhaHash = senhaServico.GerarHash(dto.Senha),
-            Perfil = conviteCadastro.PerfilDestino,
+            Perfil = PerfilUsuario.Atleta,
             Ativo = true
         };
 

@@ -8,7 +8,7 @@ public class ConviteCadastro : EntidadeBase
     public string? Telefone { get; set; }
     public string IdentificadorPublico { get; set; } = string.Empty;
     public string? CodigoConviteHash { get; set; }
-    public PerfilUsuario PerfilDestino { get; set; } = PerfilUsuario.Organizador;
+    public PerfilUsuario PerfilDestino { get; set; } = PerfilUsuario.Atleta;
     public DateTime ExpiraEmUtc { get; set; }
     public DateTime? UsadoEmUtc { get; set; }
     public bool Ativo { get; set; } = true;

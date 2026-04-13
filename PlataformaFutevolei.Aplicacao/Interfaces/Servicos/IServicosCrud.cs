@@ -48,7 +48,10 @@ public interface IDuplaServico
 
 public interface ICompeticaoServico
 {
-    Task<IReadOnlyList<CompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CompeticaoDto>> ListarAsync(
+        bool incluirPublicas = false,
+        CancellationToken cancellationToken = default);
+    Task<ResumoCompeticoesPublicoDto> ObterResumoPublicoAsync(CancellationToken cancellationToken = default);
     Task<CompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default);
     Task<CompeticaoDto> AtualizarAsync(Guid id, AtualizarCompeticaoDto dto, CancellationToken cancellationToken = default);
@@ -188,6 +191,10 @@ public interface IInscricaoCampeonatoServico
         Guid inscricaoId,
         CriarInscricaoCampeonatoDto dto,
         CancellationToken cancellationToken = default);
+    Task<InscricaoCampeonatoDto> AprovarAsync(
+        Guid campeonatoId,
+        Guid inscricaoId,
+        CancellationToken cancellationToken = default);
     Task RemoverAsync(
         Guid campeonatoId,
         Guid inscricaoId,
@@ -204,6 +211,15 @@ public interface IRankingServico
 
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
+        CancellationToken cancellationToken = default);
+
+    Task<RankingRegiaoFiltroDto> ListarRegioesDisponiveisAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorRegiaoAsync(
+        string? estado,
+        string? cidade,
+        string? bairro,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(

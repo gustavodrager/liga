@@ -555,7 +555,7 @@ public class PartidaServico(
             var atletaDuplaB1 = await ResolverAtletaPartidaGrupoAsync(duplaBAtleta1Id, duplaBAtleta1Nome, cancellationToken);
             var atletaDuplaB2 = await ResolverAtletaPartidaGrupoAsync(duplaBAtleta2Id, duplaBAtleta2Nome, cancellationToken);
 
-            ValidarAtletaUsuarioNaPartidaGrupo(usuarioAtual, atletaDuplaA1);
+            ValidarAtletaUsuarioNaPartidaGrupo(usuarioAtual, atletaDuplaA1, atletaDuplaA2);
             ValidarAtletasGrupo(atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2);
 
             foreach (var atleta in new[] { atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2 }.DistinctBy(x => x.Id))
@@ -566,10 +566,10 @@ public class PartidaServico(
             duplaA = await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atletaDuplaA1, atletaDuplaA2, cancellationToken);
             duplaB = await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atletaDuplaB1, atletaDuplaB2, cancellationToken);
             metadadosLados = new MetadadosLados(
-                duplaA.Atleta1Id,
-                duplaA.Atleta2Id,
-                duplaB.Atleta1Id,
-                duplaB.Atleta2Id);
+                atletaDuplaA1.Id,
+                atletaDuplaA2.Id,
+                atletaDuplaB1.Id,
+                atletaDuplaB2.Id);
         }
         else
         {
@@ -688,6 +688,11 @@ public class PartidaServico(
         {
             throw new RegraNegocioException($"A dupla {dupla.Nome} precisa estar inscrita nesta categoria da competição.");
         }
+
+        if (inscricao.Status != StatusInscricaoCampeonato.Ativa)
+        {
+            throw new RegraNegocioException($"A inscrição da dupla {dupla.Nome} precisa estar aprovada para registrar partidas nesta categoria.");
+        }
     }
 
     private async Task<Atleta> ResolverAtletaPartidaGrupoAsync(
@@ -752,7 +757,7 @@ public class PartidaServico(
         }
     }
 
-    private static void ValidarAtletaUsuarioNaPartidaGrupo(Usuario usuario, Atleta atletaDuplaA1)
+    private static void ValidarAtletaUsuarioNaPartidaGrupo(Usuario usuario, Atleta atletaDuplaA1, Atleta atletaDuplaA2)
     {
         if (usuario.Perfil != PerfilUsuario.Atleta)
         {
@@ -764,9 +769,9 @@ public class PartidaServico(
             throw new RegraNegocioException("Você precisa ter um atleta vinculado para registrar partidas no grupo.");
         }
 
-        if (usuario.AtletaId.Value != atletaDuplaA1.Id)
+        if (usuario.AtletaId.Value != atletaDuplaA1.Id && usuario.AtletaId.Value != atletaDuplaA2.Id)
         {
-            throw new RegraNegocioException("A sua dupla deve começar pelo atleta vinculado ao seu usuário.");
+            throw new RegraNegocioException("O atleta vinculado ao seu usuário precisa compor a primeira dupla.");
         }
     }
 
@@ -938,7 +943,7 @@ public class PartidaServico(
     {
         var duplas = new List<Dupla>();
 
-        foreach (var inscricao in inscricoes)
+        foreach (var inscricao in inscricoes.Where(x => x.Status == StatusInscricaoCampeonato.Ativa))
         {
             var dupla = await duplaRepositorio.ObterPorIdAsync(inscricao.DuplaId, cancellationToken);
 

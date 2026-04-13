@@ -3,7 +3,7 @@ import { ConteudoBotao } from '../components/ConteudoBotao';
 import { ligasServico } from '../services/ligasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 
 const estadoInicial = {
   nome: '',
@@ -74,6 +74,7 @@ export function PaginaLigas() {
 
       cancelarEdicao();
       await carregarLigas();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

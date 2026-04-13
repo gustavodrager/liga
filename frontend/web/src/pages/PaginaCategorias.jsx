@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BotaoVoltar } from '../components/BotaoVoltar';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
 import { extrairMensagemErro } from '../utils/erros';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 
 const estadoInicial = {
   competicaoId: '',
@@ -244,6 +243,7 @@ export function PaginaCategorias() {
       cancelarEdicao();
       await carregarCategorias(formulario.competicaoId);
       setFormularioAberto(false);
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -296,9 +296,6 @@ export function PaginaCategorias() {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
-        <div className="acoes-item">
-          <BotaoVoltar fallback="/competicoes" />
-        </div>
         <h2>Categorias</h2>
         <p>Cada categoria pertence a uma competição e define gênero e nível técnico.</p>
       </div>

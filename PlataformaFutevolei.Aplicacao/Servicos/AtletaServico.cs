@@ -121,8 +121,8 @@ public class AtletaServico(
         }
 
         var dados = usuarioComum
-            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
-            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
+            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado)
+            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
 
         var criandoMeuProprioAtleta = usuarioComum &&
@@ -150,6 +150,7 @@ public class AtletaServico(
         atleta.Email = dados.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
+        atleta.Bairro = dados.Bairro;
         atleta.Cidade = dados.Cidade;
         atleta.Estado = dados.Estado;
         atleta.CadastroPendente = criandoMeuProprioAtleta ? false : dto.CadastroPendente;
@@ -178,10 +179,7 @@ public class AtletaServico(
         var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioAtual.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
-        var usandoNomeDoUsuario = usuario.Perfil == PerfilUsuario.Atleta;
-        var dados = usandoNomeDoUsuario
-            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
-            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
+        var dados = Normalizar(dto.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, false, dados.PossuiIdentificador);
 
         Atleta atleta;
@@ -209,6 +207,7 @@ public class AtletaServico(
         atleta.Email = usuario.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
+        atleta.Bairro = dados.Bairro;
         atleta.Cidade = dados.Cidade;
         atleta.Estado = dados.Estado;
         atleta.CadastroPendente = false;
@@ -224,6 +223,11 @@ public class AtletaServico(
 
         usuario.AtletaId = atleta.Id;
         usuario.Atleta = atleta;
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            usuario.Nome = dados.Nome;
+        }
+
         usuario.AtualizarDataModificacao();
         atleta.Usuario = usuario;
 
@@ -249,8 +253,8 @@ public class AtletaServico(
         }
 
         var dados = usuarioComum
-            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado)
-            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Cidade, dto.Estado);
+            ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado)
+            : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
         var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (atleta is null)
@@ -264,6 +268,7 @@ public class AtletaServico(
         atleta.Email = dados.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
+        atleta.Bairro = dados.Bairro;
         atleta.Cidade = dados.Cidade;
         atleta.Estado = dados.Estado;
         atleta.CadastroPendente = dto.CadastroPendente;
@@ -360,6 +365,7 @@ public class AtletaServico(
         string? Email,
         string? Instagram,
         string? Cpf,
+        string? Bairro,
         string? Cidade,
         string? Estado,
         bool PossuiIdentificador
@@ -370,6 +376,7 @@ public class AtletaServico(
         string? email,
         string? instagram,
         string? cpf,
+        string? bairro,
         string? cidade,
         string? estado)
     {
@@ -379,6 +386,7 @@ public class AtletaServico(
         var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
         var instagramNormalizado = NormalizadorNomeAtleta.NormalizarTexto(instagram);
         var cpfNormalizado = ValidadorCpf.Normalizar(cpf);
+        var bairroNormalizado = NormalizadorNomeAtleta.NormalizarTexto(bairro);
         var cidadeNormalizada = NormalizadorNomeAtleta.NormalizarTexto(cidade);
         var estadoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(estado);
 
@@ -389,6 +397,7 @@ public class AtletaServico(
             string.IsNullOrWhiteSpace(emailNormalizado) ? null : emailNormalizado,
             string.IsNullOrWhiteSpace(instagramNormalizado) ? null : instagramNormalizado,
             string.IsNullOrWhiteSpace(cpfNormalizado) ? null : cpfNormalizado,
+            string.IsNullOrWhiteSpace(bairroNormalizado) ? null : bairroNormalizado,
             string.IsNullOrWhiteSpace(cidadeNormalizada) ? null : cidadeNormalizada,
             string.IsNullOrWhiteSpace(estadoNormalizado) ? null : estadoNormalizado,
             !string.IsNullOrWhiteSpace(telefoneNormalizado)

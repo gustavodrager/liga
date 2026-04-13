@@ -5,7 +5,7 @@ import { useAutenticacao } from '../hooks/useAutenticacao';
 import { atletasServico } from '../services/atletasServico';
 import { duplasServico } from '../services/duplasServico';
 import { extrairMensagemErro } from '../utils/erros';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 import { ehOrganizador } from '../utils/perfis';
 
 const estadoInicial = {
@@ -104,6 +104,7 @@ export function PaginaDuplas() {
 
       cancelarEdicao();
       await carregarDados();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

@@ -4,7 +4,7 @@ import { useAutenticacao } from '../hooks/useAutenticacao';
 import { regrasCompeticaoServico } from '../services/regrasCompeticaoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 import { ehAdministrador } from '../utils/perfis';
 
 const estadoInicial = {
@@ -130,6 +130,7 @@ export function PaginaRegrasCompeticao() {
 
       cancelarEdicao();
       await carregarRegras();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

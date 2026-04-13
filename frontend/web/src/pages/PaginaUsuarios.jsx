@@ -4,6 +4,7 @@ import { atletasServico } from '../services/atletasServico';
 import { usuariosServico } from '../services/usuariosServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { nomePerfil, PERFIS_USUARIO } from '../utils/perfis';
+import { rolarParaTopo } from '../utils/rolagem';
 
 function criarEdicao(usuario) {
   return {
@@ -86,6 +87,7 @@ export function PaginaUsuarios() {
 
       await carregarUsuarios();
       setMensagem('Usuário atualizado com sucesso.');
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

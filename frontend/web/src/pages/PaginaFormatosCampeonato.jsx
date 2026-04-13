@@ -3,7 +3,7 @@ import { ConteudoBotao } from '../components/ConteudoBotao';
 import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 
 const textoAjudaCabecaDeChave =
   'O sistema de cabeça de chave serve para distribuir melhor as duplas na chave, evitando que as mais fortes se enfrentem logo nas primeiras partidas. Quando essa opção está habilitada, o organizador pode definir algumas duplas como cabeça de chave com base em ranking, histórico ou critério próprio. O sistema monta a chave respeitando essa ordem e sorteia normalmente as demais duplas.';
@@ -172,6 +172,7 @@ export function PaginaFormatosCampeonato() {
 
       cancelarEdicao();
       await carregarFormatos();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

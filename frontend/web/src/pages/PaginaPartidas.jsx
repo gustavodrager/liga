@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { BotaoVoltar } from '../components/BotaoVoltar';
 import { ConteudoBotao, IconeAcao } from '../components/ConteudoBotao';
 import { atletasServico } from '../services/atletasServico';
 import { categoriasServico } from '../services/categoriasServico';
@@ -12,7 +11,7 @@ import { partidasServico } from '../services/partidasServico';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora, paraInputDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 import { ehAtleta, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
 
 function obterDataHoraAtualInput() {
@@ -452,6 +451,7 @@ function buscarSugestoesAtleta(atletas, termo, atletaSelecionadoId, idsBloqueado
   const idsBloqueadosSet = new Set(idsBloqueados.filter(Boolean));
 
   return atletas
+    .filter((atleta) => !atleta.cadastroPendente)
     .filter((atleta) => !idsBloqueadosSet.has(atleta.id))
     .filter((atleta) => {
       const nome = normalizarNome(atleta.nome);
@@ -1090,7 +1090,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
     [inscricoesCategoria]
   );
   const exibirCampoCompeticao = competicoesDisponiveis.length > 0;
-  const exibirCampoCategoria = Boolean(competicaoId) && categorias.length > 0;
+  const exibirCampoCategoria = Boolean(competicaoId) && !grupoSelecionado && categorias.length > 0;
   const exibirCampoNomeGrupo = !exibirCampoCompeticao || !competicaoId;
   const camposContextoPartida = (
     <>
@@ -1345,6 +1345,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
         const mapa = new Map();
         [...sugestoesLocais, ...sugestoesRemotas]
+          .filter((atleta) => !atleta.cadastroPendente)
           .filter((atleta) => !campo.idsBloqueados.includes(atleta.id))
           .forEach((atleta) => {
             if (!mapa.has(atleta.id)) {
@@ -1775,6 +1776,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
           }
         }
 
+        rolarParaTopo();
         return;
       }
 
@@ -1792,6 +1794,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
       } else if (grupoSelecionado && competicaoSelecionada?.id) {
         await carregarPartidasPorCompeticao(competicaoSelecionada.id);
       }
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -1992,6 +1995,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
       } else if (grupoSelecionado && competicaoSelecionada?.id) {
         await carregarPartidasPorCompeticao(competicaoSelecionada.id);
       }
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -2369,9 +2373,6 @@ export function PaginaPartidas({ modo = 'consulta' }) {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
-        <div className="acoes-item">
-          <BotaoVoltar fallback="/dashboard" />
-        </div>
         <h2>{tituloPagina}</h2>
         <p>{descricaoPagina}</p>
       </div>

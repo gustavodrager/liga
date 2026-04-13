@@ -37,6 +37,28 @@ public class RankingController(IRankingServico rankingServico) : ControllerBase
         return Ok(ranking);
     }
 
+    [HttpGet("regioes")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RankingRegiaoFiltroDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarRegioesDisponiveis(CancellationToken cancellationToken)
+    {
+        var regioes = await rankingServico.ListarRegioesDisponiveisAsync(cancellationToken);
+        return Ok(regioes);
+    }
+
+    [HttpGet("regiao/atletas")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarAtletasPorRegiao(
+        [FromQuery] string? estado,
+        [FromQuery] string? cidade,
+        [FromQuery] string? bairro,
+        CancellationToken cancellationToken)
+    {
+        var ranking = await rankingServico.ListarAtletasPorRegiaoAsync(estado, cidade, bairro, cancellationToken);
+        return Ok(ranking);
+    }
+
     [HttpGet("competicoes/{competicaoId:guid}/atletas")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]

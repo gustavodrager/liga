@@ -60,6 +60,12 @@ export function IconeAcao({ nome }) {
           <path d="M3.5 2.8h5v10.4h-5zm1.2 0V2h4.6v1.2M9 8h4m-1.7-1.8L13 8l-1.7 1.8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
+    case 'entrar':
+      return (
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M7 2.8h5.5v10.4H7M3 8h6m-2-2.1L9.1 8 7 10.1" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
     case 'email':
       return (
         <svg viewBox="0 0 16 16" aria-hidden="true">

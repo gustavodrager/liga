@@ -13,6 +13,8 @@ public class CategoriaCompeticaoRepositorio(PlataformaFutevoleiDbContext dbConte
             .AsNoTracking()
             .Include(x => x.Competicao)
                 .ThenInclude(x => x.FormatoCampeonato)
+            .Include(x => x.Competicao)
+                .ThenInclude(x => x.RegraCompeticao)
             .Include(x => x.FormatoCampeonato)
             .Include(x => x.Inscricoes)
             .Where(x => x.CompeticaoId == competicaoId)
@@ -25,6 +27,8 @@ public class CategoriaCompeticaoRepositorio(PlataformaFutevoleiDbContext dbConte
         return dbContext.CategoriasCompeticao
             .Include(x => x.Competicao)
                 .ThenInclude(x => x.FormatoCampeonato)
+            .Include(x => x.Competicao)
+                .ThenInclude(x => x.RegraCompeticao)
             .Include(x => x.FormatoCampeonato)
             .Include(x => x.Inscricoes)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

@@ -75,12 +75,18 @@ public class GrupoAtletaServico(
     public async Task RemoverAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicaoId, cancellationToken);
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         await ObterGrupoValidoAsync(competicaoId, cancellationToken);
 
         var grupoAtleta = await grupoAtletaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (grupoAtleta is null || grupoAtleta.CompeticaoId != competicaoId)
         {
             throw new EntidadeNaoEncontradaException("Atleta do grupo não encontrado.");
+        }
+
+        if (usuarioAtual.AtletaId.HasValue && grupoAtleta.AtletaId == usuarioAtual.AtletaId.Value)
+        {
+            throw new RegraNegocioException("Você não pode remover o próprio atleta do grupo.");
         }
 
         grupoAtletaRepositorio.Remover(grupoAtleta);

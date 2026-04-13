@@ -19,6 +19,7 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
         builder.Property(x => x.Email).HasColumnName("email").HasMaxLength(150);
         builder.Property(x => x.Instagram).HasColumnName("instagram").HasMaxLength(100);
         builder.Property(x => x.Cpf).HasColumnName("cpf").HasMaxLength(20);
+        builder.Property(x => x.Bairro).HasColumnName("bairro").HasMaxLength(120);
         builder.Property(x => x.Cidade).HasColumnName("cidade").HasMaxLength(120);
         builder.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(60);
         builder.Property(x => x.CadastroPendente).HasColumnName("cadastro_pendente").HasDefaultValue(false).IsRequired();

@@ -15,6 +15,7 @@ public class CompeticaoMapeamento : IEntityTypeConfiguration<Competicao>
         builder.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(200).IsRequired();
         builder.Property(x => x.Tipo).HasColumnName("tipo").IsRequired();
         builder.Property(x => x.Descricao).HasColumnName("descricao").HasMaxLength(1000);
+        builder.Property(x => x.Link).HasColumnName("link").HasMaxLength(500);
         builder.Property(x => x.DataInicio).HasColumnName("data_inicio").IsRequired();
         builder.Property(x => x.DataFim).HasColumnName("data_fim");
         builder.Property(x => x.LigaId).HasColumnName("liga_id");

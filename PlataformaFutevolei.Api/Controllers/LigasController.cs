@@ -12,7 +12,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class LigasController(ILigaServico ligaServico) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<LigaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(CancellationToken cancellationToken)
     {
@@ -21,7 +21,7 @@ public class LigasController(ILigaServico ligaServico) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(LigaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {

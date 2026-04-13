@@ -1,16 +1,40 @@
+function obterContainerRolagem() {
+  return document.querySelector('.conteudo-principal') || window;
+}
+
+function ehJanela(container) {
+  return container === window;
+}
+
 export function rolarParaElemento(elemento) {
   if (!elemento) {
     return;
   }
 
   window.requestAnimationFrame(() => {
+    const container = obterContainerRolagem();
+    const retanguloElemento = elemento.getBoundingClientRect();
+    const retanguloContainer = ehJanela(container)
+      ? { top: 0 }
+      : container.getBoundingClientRect();
     const topoDestino = Math.max(
-      window.scrollY + elemento.getBoundingClientRect().top,
+      (ehJanela(container) ? window.scrollY : container.scrollTop)
+        + retanguloElemento.top
+        - retanguloContainer.top,
       0
     );
 
-    window.scrollTo({
+    container.scrollTo({
       top: topoDestino,
+      behavior: 'smooth'
+    });
+  });
+}
+
+export function rolarParaTopo() {
+  window.requestAnimationFrame(() => {
+    obterContainerRolagem().scrollTo({
+      top: 0,
       behavior: 'smooth'
     });
   });

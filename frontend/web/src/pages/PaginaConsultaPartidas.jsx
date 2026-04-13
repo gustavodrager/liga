@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BotaoVoltar } from '../components/BotaoVoltar';
 import { competicoesServico } from '../services/competicoesServico';
 import { categoriasServico } from '../services/categoriasServico';
 import { partidasServico } from '../services/partidasServico';
@@ -618,7 +617,9 @@ export function PaginaConsultaPartidas() {
 
   const podeVisualizarGrupo = partidas.length > 0 && (grupoSelecionado || formatoComFaseDeGrupos || possuiJogosNomeadosPorGrupo);
   const exibirVisaoGrupo = podeVisualizarGrupo;
-  const exibirChaveVisual = competicaoComInscricoes && partidas.length > 0 && colunasEmVisualizacao.length > 0;
+  const podeExibirAbaChaveamento = competicaoComInscricoes && !grupoSelecionado;
+  const podeExibirAbaLista = !grupoSelecionado;
+  const exibirChaveVisual = podeExibirAbaChaveamento && partidas.length > 0 && colunasEmVisualizacao.length > 0;
   const exibirListaDetalhada = true;
 
   const blocosVisualizacaoChave = useMemo(() => {
@@ -688,6 +689,12 @@ export function PaginaConsultaPartidas() {
   }, [abaAtiva]);
 
   useEffect(() => {
+    if (grupoSelecionado && abaAtiva === 'chaveamento') {
+      setAbaAtiva('lista');
+    }
+  }, [grupoSelecionado, abaAtiva]);
+
+  useEffect(() => {
     if (competicaoId && !competicoesDisponiveis.some((competicao) => competicao.id === competicaoId)) {
       setCompeticaoId('');
       setCategoriaId('');
@@ -715,13 +722,18 @@ export function PaginaConsultaPartidas() {
       return;
     }
 
-    if (categoriaId) {
-      carregarPartidasPorCategoria(categoriaId);
+    if (grupoSelecionado) {
+      if (categoriaId) {
+        setCategoriaId('');
+        atualizarParametrosUrl(competicaoSelecionada.id, '', 'lista');
+      }
+
+      carregarPartidasPorCompeticao(competicaoSelecionada.id);
       return;
     }
 
-    if (grupoSelecionado) {
-      carregarPartidasPorCompeticao(competicaoSelecionada.id);
+    if (categoriaId) {
+      carregarPartidasPorCategoria(categoriaId);
       return;
     }
 
@@ -1079,14 +1091,11 @@ export function PaginaConsultaPartidas() {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
-        <div className="acoes-item">
-          <BotaoVoltar fallback="/dashboard" />
-        </div>
         <h2>Consultar Partidas</h2>
         <p>Filtre a competição e acompanhe tabela, grupos e resultados.</p>
       </div>
 
-      <div className="formulario-grid filtro-partidas">
+      <div className="formulario-grid filtro-partidas barra-selecao-fixa">
         <label>
           Competição
           <select
@@ -1106,7 +1115,7 @@ export function PaginaConsultaPartidas() {
           </select>
         </label>
 
-        {competicaoId && categorias.length > 0 && (
+        {competicaoId && !grupoSelecionado && categorias.length > 0 && (
           <label>
             Categoria
             <select
@@ -1115,9 +1124,9 @@ export function PaginaConsultaPartidas() {
                 setCategoriaId(evento.target.value);
                 atualizarParametrosUrl(competicaoId, evento.target.value);
               }}
-              required={!grupoSelecionado}
+              required
             >
-              <option value="">{grupoSelecionado ? 'Sem categoria' : 'Selecione'}</option>
+              <option value="">Selecione</option>
               {categorias.map((categoria) => (
                 <option key={categoria.id} value={categoria.id}>
                   {categoria.nome}
@@ -1128,22 +1137,26 @@ export function PaginaConsultaPartidas() {
         )}        
       </div>
 
-      {(competicaoId || categoriaId) && (
+      {(competicaoId || categoriaId) && (podeExibirAbaChaveamento || podeExibirAbaLista) && (
         <div className="acoes-item">
-          <button
-            type="button"
-            className={abaAtiva === 'chaveamento' ? 'botao-primario' : 'botao-terciario'}
-            onClick={() => setAbaAtiva('chaveamento')}
-          >
-            Chaveamento
-          </button>
-          <button
-            type="button"
-            className={abaAtiva === 'lista' ? 'botao-primario' : 'botao-terciario'}
-            onClick={() => setAbaAtiva('lista')}
-          >
-            Lista de partidas
-          </button>
+          {podeExibirAbaChaveamento && (
+            <button
+              type="button"
+              className={abaAtiva === 'chaveamento' ? 'botao-primario' : 'botao-terciario'}
+              onClick={() => setAbaAtiva('chaveamento')}
+            >
+              Chaveamento
+            </button>
+          )}
+          {podeExibirAbaLista && (
+            <button
+              type="button"
+              className={abaAtiva === 'lista' ? 'botao-primario' : 'botao-terciario'}
+              onClick={() => setAbaAtiva('lista')}
+            >
+              Lista de partidas
+            </button>
+          )}
         </div>
       )}
 
@@ -1214,7 +1227,7 @@ export function PaginaConsultaPartidas() {
         </section>
       )}
 
-      {abaAtiva === 'chaveamento' && !exibirChaveVisual && !carregando && (
+      {podeExibirAbaChaveamento && abaAtiva === 'chaveamento' && !exibirChaveVisual && !carregando && (
         <section className="cartao">
           <p>{categoriaId ? 'Nenhum chaveamento gerado para esta categoria.' : 'Selecione uma categoria para visualizar o chaveamento.'}</p>
         </section>

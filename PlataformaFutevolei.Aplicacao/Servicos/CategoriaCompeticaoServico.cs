@@ -21,8 +21,8 @@ public class CategoriaCompeticaoServico(
 {
     public async Task<IReadOnlyList<CategoriaCompeticaoDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Atleta)
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+        if (usuario is null)
         {
             var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
             if (competicao is null)
@@ -30,15 +30,27 @@ public class CategoriaCompeticaoServico(
                 throw new EntidadeNaoEncontradaException("Competição não encontrada.");
             }
 
-            if (competicao.Tipo == TipoCompeticao.Grupo)
-            {
-                var categoriasGrupo = await categoriaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
-                return categoriasGrupo.Select(x => x.ParaDto()).ToList();
-            }
-
             if (!AceitaInscricoes(competicao.Tipo) || !competicao.InscricoesAbertas)
             {
-                throw new RegraNegocioException("Atletas só podem visualizar categorias de grupos e competições com inscrições abertas.");
+                throw new RegraNegocioException("Visitantes só podem visualizar categorias de competições com inscrições abertas.");
+            }
+        }
+        else if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
+            if (competicao is null)
+            {
+                throw new EntidadeNaoEncontradaException("Competição não encontrada.");
+            }
+
+            var possuiAcesso = await competicaoRepositorio.AtletaPossuiAcessoAsync(
+                competicaoId,
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            if (!possuiAcesso)
+            {
+                throw new RegraNegocioException("Atletas só podem visualizar categorias de competições das quais fazem parte.");
             }
         }
         else
@@ -61,10 +73,14 @@ public class CategoriaCompeticaoServico(
 
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
-            if (categoria.Competicao.Tipo != TipoCompeticao.Grupo &&
-                (!AceitaInscricoes(categoria.Competicao.Tipo) || !categoria.Competicao.InscricoesAbertas))
+            var possuiAcesso = await competicaoRepositorio.AtletaPossuiAcessoAsync(
+                categoria.CompeticaoId,
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            if (!possuiAcesso)
             {
-                throw new RegraNegocioException("Atletas só podem visualizar categorias de grupos e competições com inscrições abertas.");
+                throw new RegraNegocioException("Atletas só podem visualizar categorias de competições das quais fazem parte.");
             }
         }
         else

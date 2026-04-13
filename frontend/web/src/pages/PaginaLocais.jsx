@@ -4,7 +4,7 @@ import { useAutenticacao } from '../hooks/useAutenticacao';
 import { locaisServico } from '../services/locaisServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 import { ehAdministrador } from '../utils/perfis';
 
 const estadoInicial = {
@@ -93,6 +93,7 @@ export function PaginaLocais() {
 
       cancelarEdicao();
       await carregarLocais();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {

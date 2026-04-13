@@ -18,6 +18,11 @@ export const inscricoesCampeonatoServico = {
     return resposta.data;
   },
 
+  async aprovar(campeonatoId, inscricaoId) {
+    const resposta = await http.post(`/campeonatos/${campeonatoId}/inscricoes/${inscricaoId}/aprovar`);
+    return resposta.data;
+  },
+
   async remover(campeonatoId, inscricaoId) {
     await http.delete(`/campeonatos/${campeonatoId}/inscricoes/${inscricaoId}`);
   }

@@ -40,6 +40,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasDefaultValue(false)
                         .HasColumnName("cadastro_pendente");
 
+                    b.Property<string>("Bairro")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("bairro");
+
                     b.Property<string>("Cidade")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
@@ -225,6 +230,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<Guid?>("LigaId")
                         .HasColumnType("uuid")
                         .HasColumnName("liga_id");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("link");
 
                     b.Property<Guid?>("LocalId")
                         .HasColumnType("uuid")

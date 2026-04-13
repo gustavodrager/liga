@@ -89,7 +89,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     public async Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default)
     {
         return await CriarConsultaRanking()
-            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
             .Where(x => x.CategoriaCompeticao.Competicao.LigaId == ligaId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -100,11 +100,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         CancellationToken cancellationToken = default)
     {
         var consulta = CriarConsultaRanking()
-            .Where(x =>
-                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
-                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
-                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
-                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada));
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada);
 
         if (usuarioOrganizadorId.HasValue)
         {
@@ -138,11 +134,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     public async Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
         return await CriarConsultaRanking()
-            .Where(x =>
-                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
-                (!x.CategoriaCompeticao.Competicao.LigaId.HasValue &&
-                 x.CategoriaCompeticao.Nome == NomeCategoriaSemCategoria &&
-                 x.StatusAprovacao != StatusAprovacaoPartida.Contestada))
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
             .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
             .OrderByDescending(x => x.DataPartida)
             .ToListAsync(cancellationToken);
@@ -203,6 +195,28 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
 
     public void Atualizar(Partida partida)
     {
+        var partidaPersistida = dbContext.ChangeTracker
+            .Entries<Partida>()
+            .FirstOrDefault(x => x.Entity.Id == partida.Id)?
+            .Entity;
+
+        if (partidaPersistida is not null)
+        {
+            if (!ReferenceEquals(partidaPersistida, partida))
+            {
+                dbContext.Entry(partidaPersistida).CurrentValues.SetValues(partida);
+            }
+
+            return;
+        }
+
+        // A atualização usa as FKs. Limpar as navegações evita que o EF tente anexar
+        // outro grafo materializado para a mesma partida durante a progressão da chave.
+        partida.CategoriaCompeticao = null!;
+        partida.CriadoPorUsuario = null;
+        partida.DuplaA = null;
+        partida.DuplaB = null;
+        partida.DuplaVencedora = null;
         dbContext.Partidas.Update(partida);
     }
 

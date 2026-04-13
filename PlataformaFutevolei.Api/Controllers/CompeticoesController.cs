@@ -12,11 +12,21 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class CompeticoesController(ICompeticaoServico competicaoServico, ICategoriaCompeticaoServico categoriaServico) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<CompeticaoDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Listar(CancellationToken cancellationToken)
+    public async Task<IActionResult> Listar([FromQuery] bool incluirPublicas = false, CancellationToken cancellationToken = default)
     {
-        var competicoes = await competicaoServico.ListarAsync(cancellationToken);
+        var competicoes = await competicaoServico.ListarAsync(incluirPublicas, cancellationToken);
         return Ok(competicoes);
+    }
+
+    [HttpGet("resumo-publico")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ResumoCompeticoesPublicoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterResumoPublico(CancellationToken cancellationToken)
+    {
+        var resumo = await competicaoServico.ObterResumoPublicoAsync(cancellationToken);
+        return Ok(resumo);
     }
 
     [HttpGet("{id:guid}")]
@@ -52,6 +62,7 @@ public class CompeticoesController(ICompeticaoServico competicaoServico, ICatego
     }
 
     [HttpGet("{id:guid}/categorias")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<CategoriaCompeticaoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarCategorias(Guid id, CancellationToken cancellationToken)
     {

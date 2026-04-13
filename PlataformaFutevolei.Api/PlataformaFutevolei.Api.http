@@ -10,8 +10,8 @@ Content-Type: application/json
 {
   "conviteIdPublico": "{{ConviteIdPublico}}",
   "codigoConvite": "{{CodigoConvite}}",
-  "nome": "Organizador Convidado",
-  "email": "organizador@futevolei.com",
+  "nome": "Atleta Convidado",
+  "email": "atleta@futevolei.com",
   "senha": "123456"
 }
 
@@ -51,7 +51,7 @@ Authorization: Bearer {{TokenAdministrador}}
 Content-Type: application/json
 
 {
-  "email": "organizador@futevolei.com",
+  "email": "atleta@futevolei.com",
   "telefone": "+5511999999999",
   "canalEnvio": "E-mail e WhatsApp"
 }

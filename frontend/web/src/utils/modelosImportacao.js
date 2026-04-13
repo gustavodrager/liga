@@ -31,8 +31,8 @@ export const modelosImportacao = [
       'Se CadastroPendente for false, informe ao menos um identificador.'
     ],
     csv: gerarCsv(
-      ['nome', 'apelido', 'telefone', 'email', 'instagram', 'cpf', 'cidade', 'estado', 'cadastroPendente', 'nivel', 'lado', 'dataNascimento'],
-      ['Maria Silva', 'Mari', '(11)99999-8888', 'maria@email.com', '@mari.silva', '12345678900', 'Santos', 'SP', false, 2, 3, '1998-04-12']
+      ['nome', 'apelido', 'telefone', 'email', 'instagram', 'cpf', 'bairro', 'cidade', 'estado', 'cadastroPendente', 'nivel', 'lado', 'dataNascimento'],
+      ['Maria Silva', 'Mari', '(11)99999-8888', 'maria@email.com', '@mari.silva', '12345678900', 'Boqueirão', 'Santos', 'SP', false, 2, 3, '1998-04-12']
     )
   },
   {
@@ -136,12 +136,12 @@ export const modelosImportacao = [
     descricao: 'Modelo para importar competições.',
     observacoes: [
       'Tipo: 1=Campeonato, 2=Evento, 3=Grupo.',
-      'LigaId, LocalId, FormatoCampeonatoId, RegraCompeticaoId e PossuiFinalReset são opcionais e usam GUIDs existentes.',
+      'Link, LigaId, LocalId, FormatoCampeonatoId, RegraCompeticaoId e PossuiFinalReset são opcionais. IDs usam GUIDs existentes.',
       'Datas no formato AAAA-MM-DD.'
     ],
     csv: gerarCsv(
-      ['nome', 'tipo', 'descricao', 'dataInicio', 'dataFim', 'ligaId', 'localId', 'formatoCampeonatoId', 'regraCompeticaoId', 'inscricoesAbertas', 'possuiFinalReset'],
-      ['Copa Verão 2026', 1, 'Campeonato de verão', '2026-01-10', '2026-02-28', 'GUID_LIGA', 'GUID_LOCAL', 'GUID_FORMATO', 'GUID_REGRA', true, true]
+      ['nome', 'tipo', 'descricao', 'link', 'dataInicio', 'dataFim', 'ligaId', 'localId', 'formatoCampeonatoId', 'regraCompeticaoId', 'inscricoesAbertas', 'possuiFinalReset'],
+      ['Copa Verão 2026', 1, 'Campeonato de verão', 'https://inscricoes.exemplo.com/copa-verao', '2026-01-10', '2026-02-28', 'GUID_LIGA', 'GUID_LOCAL', 'GUID_FORMATO', 'GUID_REGRA', true, true]
     )
   },
   {
