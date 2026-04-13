@@ -5,6 +5,7 @@ import { pendenciasServico } from '../services/pendenciasServico';
 import { ESTADOS_ACESSO } from '../utils/acesso';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
+import { rolarParaTopo } from '../utils/rolagem';
 
 const TIPOS_PENDENCIA = {
   aprovarPartida: 1,
@@ -18,10 +19,26 @@ const STATUS_APROVACAO = {
   contestada: 4
 };
 
+const STATUS_PENDENCIA = {
+  pendente: 1
+};
+
+function pendenciaAindaVisivel(item) {
+  if (!item || item.status !== STATUS_PENDENCIA.pendente) {
+    return false;
+  }
+
+  if (item.tipo !== TIPOS_PENDENCIA.completarContato) {
+    return true;
+  }
+
+  return !item.emailAtleta && !item.atletaPossuiUsuarioVinculado;
+}
+
 function criarEstadoEmails(lista) {
   const proximo = {};
   (lista || []).forEach((item) => {
-    if (item.tipo === TIPOS_PENDENCIA.completarContato) {
+    if (pendenciaAindaVisivel(item) && item.tipo === TIPOS_PENDENCIA.completarContato) {
       proximo[item.id] = item.emailAtleta || '';
     }
   });
@@ -31,7 +48,7 @@ function criarEstadoEmails(lista) {
 function obterTituloPendencia(tipo) {
   return tipo === TIPOS_PENDENCIA.aprovarPartida
     ? 'Aprovação de partida'
-    : 'Completar contato do atleta';
+    : 'Completar e-mail';
 }
 
 function obterRotuloStatusAprovacao(status) {
@@ -105,6 +122,10 @@ export function PaginaPendenciasAtletas() {
     () => pendencias.filter((item) => item.tipo === TIPOS_PENDENCIA.completarContato && !item.emailAtleta).length,
     [pendencias]
   );
+  const totalPendenciasContato = useMemo(
+    () => pendencias.filter((item) => item.tipo === TIPOS_PENDENCIA.completarContato).length,
+    [pendencias]
+  );
   const pendenciasPerfil = useMemo(
     () => criarPendenciasPerfil(estadoAcesso, usuario),
     [estadoAcesso, usuario]
@@ -116,8 +137,9 @@ export function PaginaPendenciasAtletas() {
 
     try {
       const lista = await pendenciasServico.listar();
-      setPendencias(lista);
-      setEmails(criarEstadoEmails(lista));
+      const pendenciasVisiveis = (lista || []).filter(pendenciaAindaVisivel);
+      setPendencias(pendenciasVisiveis);
+      setEmails(criarEstadoEmails(pendenciasVisiveis));
     } catch (error) {
       setErro(extrairMensagemErro(error));
       setPendencias([]);
@@ -132,9 +154,18 @@ export function PaginaPendenciasAtletas() {
     setProcessandoId(pendenciaId);
 
     try {
-      await pendenciasServico.completarContato(pendenciaId, emails[pendenciaId] || '');
-      setMensagem('Contato atualizado. A pendência continua aberta até o atleta ficar apto a aprovar.');
+      const pendenciaAtualizada = await pendenciasServico.completarContato(pendenciaId, emails[pendenciaId] || '');
+      setPendencias((listaAtual) => listaAtual.filter((item) =>
+        item.id !== pendenciaId &&
+        (
+          item.tipo !== TIPOS_PENDENCIA.completarContato ||
+          !pendenciaAtualizada?.atletaId ||
+          item.atletaId !== pendenciaAtualizada.atletaId
+        )
+      ));
+      setMensagem('Contato atualizado. A pendência saiu da lista.');
       await carregarPendencias();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -167,13 +198,12 @@ export function PaginaPendenciasAtletas() {
   return (
     <section className="pagina">
       <div className="cabecalho-pagina">
-        <h2>Pendências</h2>
-        <p>Centralize aqui as aprovações de partidas e a regularização de atletas que ainda não podem aprovar.</p>
-        {!carregando && pendencias.length > 0 && (
+        <h2>Pendências</h2>       
+        {!carregando && totalPendenciasContato > 0 && (
           <p>
             {totalSemContato > 0
               ? `${totalSemContato} pendência(s) ainda sem e-mail informado.`
-              : 'Todas as pendências de contato já possuem e-mail informado.'}
+              : 'Todas as pendências de contato estão em dia.'}
           </p>
         )}
       </div>
@@ -234,7 +264,7 @@ export function PaginaPendenciasAtletas() {
               {item.tipo === TIPOS_PENDENCIA.completarContato ? (
                 <>
                   <label className="campo-largo">
-                    E-mail do atleta
+                    E-mail do {item.nomeAtleta || 'atleta'}
                     <input
                       type="email"
                       value={emails[item.id] || ''}

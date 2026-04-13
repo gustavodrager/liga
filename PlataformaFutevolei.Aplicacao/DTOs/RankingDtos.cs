@@ -21,6 +21,9 @@ public record RankingAtletaDto(
     Guid AtletaId,
     string NomeAtleta,
     string? ApelidoAtleta,
+    string? Bairro,
+    string? Cidade,
+    string? Estado,
     LadoAtleta Lado,
     bool PossuiUsuarioVinculado,
     bool CadastroPendente,
@@ -31,7 +34,25 @@ public record RankingAtletaDto(
     int Derrotas,
     int Empates,
     decimal Pontos,
+    decimal PontosPendentes,
     IReadOnlyList<RankingPartidaDto> Partidas
+);
+
+public record RankingRegiaoFiltroDto(
+    IReadOnlyList<string> Estados,
+    IReadOnlyList<RankingRegiaoCidadeDto> Cidades,
+    IReadOnlyList<RankingRegiaoBairroDto> Bairros
+);
+
+public record RankingRegiaoCidadeDto(
+    string Estado,
+    string Cidade
+);
+
+public record RankingRegiaoBairroDto(
+    string Estado,
+    string Cidade,
+    string Bairro
 );
 
 public record RankingPartidaDto(

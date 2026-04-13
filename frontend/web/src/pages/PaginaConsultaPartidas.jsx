@@ -292,15 +292,18 @@ function compararPartidasChave(a, b) {
 export function PaginaConsultaPartidas() {
   const { usuario } = useAutenticacao();
   const usuarioAtleta = Boolean(usuario) && Number(usuario?.perfil) === 3;
+  const [params, setParams] = useSearchParams();
   const [competicoes, setCompeticoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [partidas, setPartidas] = useState([]);
   const [estruturaRodadas, setEstruturaRodadas] = useState([]);
+  const [dadosChaveamento, setDadosChaveamento] = useState(null);
   const [competicaoId, setCompeticaoId] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
+  const [abaAtiva, setAbaAtiva] = useState(params.get('aba') === 'lista' ? 'lista' : 'chaveamento');
+  const [filtroChaveamento, setFiltroChaveamento] = useState('completa');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
-  const [params, setParams] = useSearchParams();
 
   const competicoesDisponiveis = useMemo(
     () => competicoes.filter((competicao) => !ehCompeticaoPartidasAvulsas(competicao)),
@@ -614,7 +617,9 @@ export function PaginaConsultaPartidas() {
 
   const podeVisualizarGrupo = partidas.length > 0 && (grupoSelecionado || formatoComFaseDeGrupos || possuiJogosNomeadosPorGrupo);
   const exibirVisaoGrupo = podeVisualizarGrupo;
-  const exibirChaveVisual = competicaoComInscricoes && partidas.length > 0 && colunasEmVisualizacao.length > 0;
+  const podeExibirAbaChaveamento = competicaoComInscricoes && !grupoSelecionado;
+  const podeExibirAbaLista = !grupoSelecionado;
+  const exibirChaveVisual = podeExibirAbaChaveamento && partidas.length > 0 && colunasEmVisualizacao.length > 0;
   const exibirListaDetalhada = true;
 
   const blocosVisualizacaoChave = useMemo(() => {
@@ -663,9 +668,31 @@ export function PaginaConsultaPartidas() {
     };
   }, [colunasEmVisualizacao.length, partidas]);
 
+  const blocosChaveamentoFiltrados = useMemo(() => {
+    if (filtroChaveamento === 'vencedores') {
+      return blocosVisualizacaoChave.filter((bloco) => bloco.id === 'vencedores' || bloco.id === 'finais');
+    }
+
+    if (filtroChaveamento === 'perdedores') {
+      return blocosVisualizacaoChave.filter((bloco) => bloco.id === 'perdedores' || bloco.id === 'finais');
+    }
+
+    return blocosVisualizacaoChave;
+  }, [blocosVisualizacaoChave, filtroChaveamento]);
+
   useEffect(() => {
     carregarBase();
   }, []);
+
+  useEffect(() => {
+    atualizarParametrosUrl(competicaoId, categoriaId, abaAtiva);
+  }, [abaAtiva]);
+
+  useEffect(() => {
+    if (grupoSelecionado && abaAtiva === 'chaveamento') {
+      setAbaAtiva('lista');
+    }
+  }, [grupoSelecionado, abaAtiva]);
 
   useEffect(() => {
     if (competicaoId && !competicoesDisponiveis.some((competicao) => competicao.id === competicaoId)) {
@@ -680,6 +707,7 @@ export function PaginaConsultaPartidas() {
       setCategoriaId('');
       setPartidas([]);
       setEstruturaRodadas([]);
+      setDadosChaveamento(null);
       return;
     }
 
@@ -690,6 +718,17 @@ export function PaginaConsultaPartidas() {
     if (!competicaoSelecionada) {
       setPartidas([]);
       setEstruturaRodadas([]);
+      setDadosChaveamento(null);
+      return;
+    }
+
+    if (grupoSelecionado) {
+      if (categoriaId) {
+        setCategoriaId('');
+        atualizarParametrosUrl(competicaoSelecionada.id, '', 'lista');
+      }
+
+      carregarPartidasPorCompeticao(competicaoSelecionada.id);
       return;
     }
 
@@ -698,16 +737,12 @@ export function PaginaConsultaPartidas() {
       return;
     }
 
-    if (grupoSelecionado) {
-      carregarPartidasPorCompeticao(competicaoSelecionada.id);
-      return;
-    }
-
     setPartidas([]);
     setEstruturaRodadas([]);
+    setDadosChaveamento(null);
   }, [competicaoSelecionada, categoriaId, grupoSelecionado]);
 
-  function atualizarParametrosUrl(proximoCompeticaoId, proximaCategoriaId = '') {
+  function atualizarParametrosUrl(proximoCompeticaoId, proximaCategoriaId = '', proximaAba = abaAtiva) {
     const parametros = {};
 
     if (proximoCompeticaoId) {
@@ -716,6 +751,10 @@ export function PaginaConsultaPartidas() {
 
     if (proximaCategoriaId) {
       parametros.categoriaId = proximaCategoriaId;
+    }
+
+    if (proximaAba) {
+      parametros.aba = proximaAba;
     }
 
     setParams(parametros);
@@ -731,6 +770,8 @@ export function PaginaConsultaPartidas() {
 
       const categoriaUrl = params.get('categoriaId');
       const competicaoUrl = params.get('competicaoId');
+      const abaUrl = params.get('aba');
+      setAbaAtiva(abaUrl === 'lista' ? 'lista' : 'chaveamento');
 
       if (categoriaUrl) {
         const categoria = await categoriasServico.obterPorId(categoriaUrl);
@@ -739,13 +780,13 @@ export function PaginaConsultaPartidas() {
         if (ehCompeticaoPartidasAvulsas(competicaoCategoria) || categoria.nomeCompeticao === NOME_COMPETICAO_PARTIDAS_AVULSAS) {
           setCompeticaoId('');
           setCategoriaId('');
-          atualizarParametrosUrl('');
+          atualizarParametrosUrl('', '', abaUrl === 'lista' ? 'lista' : 'chaveamento');
           return;
         }
 
         setCompeticaoId(categoria.competicaoId);
         setCategoriaId(categoria.id);
-        atualizarParametrosUrl(categoria.competicaoId, categoria.id);
+        atualizarParametrosUrl(categoria.competicaoId, categoria.id, abaUrl === 'lista' ? 'lista' : 'chaveamento');
         return;
       }
 
@@ -755,19 +796,19 @@ export function PaginaConsultaPartidas() {
         if (ehCompeticaoPartidasAvulsas(competicaoSelecionadaUrl)) {
           setCompeticaoId('');
           setCategoriaId('');
-          atualizarParametrosUrl('');
+          atualizarParametrosUrl('', '', abaUrl === 'lista' ? 'lista' : 'chaveamento');
           return;
         }
 
         setCompeticaoId(competicaoUrl);
         setCategoriaId('');
-        atualizarParametrosUrl(competicaoUrl);
+        atualizarParametrosUrl(competicaoUrl, '', abaUrl === 'lista' ? 'lista' : 'chaveamento');
         return;
       }
 
       setCompeticaoId('');
       setCategoriaId('');
-      atualizarParametrosUrl('');
+      atualizarParametrosUrl('', '', abaUrl === 'lista' ? 'lista' : 'chaveamento');
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -799,17 +840,20 @@ export function PaginaConsultaPartidas() {
 
   async function carregarPartidasPorCategoria(idCategoria) {
     try {
-      const [lista, estrutura] = await Promise.all([
+      const [lista, estrutura, chaveamento] = await Promise.all([
         partidasServico.listarPorCategoria(idCategoria),
-        categoriasServico.listarEstrutura(idCategoria)
+        categoriasServico.listarEstrutura(idCategoria),
+        categoriasServico.obterChaveamento(idCategoria)
       ]);
       setPartidas(lista);
       setEstruturaRodadas(estrutura);
-      atualizarParametrosUrl(competicaoId, idCategoria);
+      setDadosChaveamento(chaveamento);
+      atualizarParametrosUrl(competicaoId, idCategoria, abaAtiva);
     } catch (error) {
       setErro(extrairMensagemErro(error));
       setPartidas([]);
       setEstruturaRodadas([]);
+      setDadosChaveamento(null);
     }
   }
 
@@ -821,11 +865,13 @@ export function PaginaConsultaPartidas() {
       ]);
       setPartidas(lista);
       setEstruturaRodadas(estrutura);
-      atualizarParametrosUrl(idCompeticao);
+      setDadosChaveamento(null);
+      atualizarParametrosUrl(idCompeticao, '', abaAtiva);
     } catch (error) {
       setErro(extrairMensagemErro(error));
       setPartidas([]);
       setEstruturaRodadas([]);
+      setDadosChaveamento(null);
     }
   }
 
@@ -859,6 +905,9 @@ export function PaginaConsultaPartidas() {
           {coluna.partidas.map((partida, indicePartida) => {
             const duplaAVenceu = partida.duplaVencedoraId === partida.duplaAId;
             const duplaBVenceu = partida.duplaVencedoraId === partida.duplaBId;
+            const statusExibicao = !partida.ativa
+              ? 'Aguardando definição'
+              : obterNomeStatus(partida.status);
 
             return (
               <article key={partida.id} className="chave-jogo">
@@ -868,9 +917,12 @@ export function PaginaConsultaPartidas() {
                     <small>{partida.dataPartida ? formatarDataHora(partida.dataPartida) : 'Data a definir'}</small>
                   </div>
                   <span className={`chave-jogo-status status-${partida.status === 2 ? 'encerrada' : 'agendada'}`}>
-                    {obterNomeStatus(partida.status)}
+                    {statusExibicao}
                   </span>
                 </div>
+
+                {partida.faseCampeonato && <small>{partida.faseCampeonato}</small>}
+                {partida.ehPreliminar && <small>Rodada preliminar</small>}
 
                 <div className={`chave-jogo-linha ${duplaAVenceu ? 'vencedora' : ''}`}>
                   <span className="chave-jogo-pontuacao-texto">{partida.status === 2 ? partida.placarDuplaA : '-'}</span>
@@ -1043,7 +1095,7 @@ export function PaginaConsultaPartidas() {
         <p>Filtre a competição e acompanhe tabela, grupos e resultados.</p>
       </div>
 
-      <div className="formulario-grid filtro-partidas">
+      <div className="formulario-grid filtro-partidas barra-selecao-fixa">
         <label>
           Competição
           <select
@@ -1063,7 +1115,7 @@ export function PaginaConsultaPartidas() {
           </select>
         </label>
 
-        {competicaoId && categorias.length > 0 && (
+        {competicaoId && !grupoSelecionado && categorias.length > 0 && (
           <label>
             Categoria
             <select
@@ -1072,9 +1124,9 @@ export function PaginaConsultaPartidas() {
                 setCategoriaId(evento.target.value);
                 atualizarParametrosUrl(competicaoId, evento.target.value);
               }}
-              required={!grupoSelecionado}
+              required
             >
-              <option value="">{grupoSelecionado ? 'Sem categoria' : 'Selecione'}</option>
+              <option value="">Selecione</option>
               {categorias.map((categoria) => (
                 <option key={categoria.id} value={categoria.id}>
                   {categoria.nome}
@@ -1085,11 +1137,105 @@ export function PaginaConsultaPartidas() {
         )}        
       </div>
 
+      {(competicaoId || categoriaId) && (podeExibirAbaChaveamento || podeExibirAbaLista) && (
+        <div className="acoes-item">
+          {podeExibirAbaChaveamento && (
+            <button
+              type="button"
+              className={abaAtiva === 'chaveamento' ? 'botao-primario' : 'botao-terciario'}
+              onClick={() => setAbaAtiva('chaveamento')}
+            >
+              Chaveamento
+            </button>
+          )}
+          {podeExibirAbaLista && (
+            <button
+              type="button"
+              className={abaAtiva === 'lista' ? 'botao-primario' : 'botao-terciario'}
+              onClick={() => setAbaAtiva('lista')}
+            >
+              Lista de partidas
+            </button>
+          )}
+        </div>
+      )}
+
       {erro && <p className="texto-erro">{erro}</p>}
+
+      {abaAtiva === 'chaveamento' && exibirChaveVisual && (
+        <section className="cartao grupos-visualizacao">
+          <div className="grupos-visualizacao-cabecalho">
+            <div>
+              <h3>Chaveamento</h3>
+              <p>
+                {dadosChaveamento?.possuiFinalReset
+                  ? 'A finalíssima permanece pendente e só é ativada se a dupla da losers vencer a final.'
+                  : 'Acompanhe winners, losers e final por categoria.'}
+              </p>
+            </div>
+            <div className="acoes-item">
+              <button
+                type="button"
+                className={filtroChaveamento === 'completa' ? 'botao-primario' : 'botao-terciario'}
+                onClick={() => setFiltroChaveamento('completa')}
+              >
+                Chave completa
+              </button>
+              <button
+                type="button"
+                className={filtroChaveamento === 'vencedores' ? 'botao-primario' : 'botao-terciario'}
+                onClick={() => setFiltroChaveamento('vencedores')}
+              >
+                Vencedores
+              </button>
+              <button
+                type="button"
+                className={filtroChaveamento === 'perdedores' ? 'botao-primario' : 'botao-terciario'}
+                onClick={() => setFiltroChaveamento('perdedores')}
+              >
+                Perdedores
+              </button>
+            </div>
+          </div>
+
+          <div className="acoes-item">
+            <span>Total de jogos: {resumoTabelaJogos.totalJogos}</span>
+            <span>Encerrados: {resumoTabelaJogos.jogosEncerrados}</span>
+            <span>Pendentes: {resumoTabelaJogos.jogosPendentes}</span>
+          </div>
+
+          <div className="chave-jogos-wrapper">
+            <div className="chave-jogos-blocos">
+              {blocosChaveamentoFiltrados.map((bloco) => (
+                <section key={bloco.id} className="chave-jogos-bloco">
+                  {bloco.titulo && (
+                    <div className="chave-jogos-bloco-cabecalho">
+                      <div>
+                        <strong>{bloco.titulo}</strong>
+                        <small>{bloco.colunas.reduce((total, coluna) => total + coluna.partidas.length, 0)} jogo(s)</small>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="chave-jogos">
+                    {bloco.colunas.map((coluna, indice) => renderizarColunaChave(coluna, indice, bloco.colunas.length, indice === 0 ? 'esquerda' : 'direita', coluna.conectar !== false))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {podeExibirAbaChaveamento && abaAtiva === 'chaveamento' && !exibirChaveVisual && !carregando && (
+        <section className="cartao">
+          <p>{categoriaId ? 'Nenhum chaveamento gerado para esta categoria.' : 'Selecione uma categoria para visualizar o chaveamento.'}</p>
+        </section>
+      )}
 
       {carregando ? (
         <p>Carregando partidas...</p>
-      ) : exibirListaDetalhada ? (
+      ) : abaAtiva === 'lista' && exibirListaDetalhada ? (
         <section className="partidas-detalhes-secao">
           <div className="cabecalho-pagina cabecalho-secao-partidas">
             <h3>Lista de partidas</h3>

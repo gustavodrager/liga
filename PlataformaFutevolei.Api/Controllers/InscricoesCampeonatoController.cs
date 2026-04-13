@@ -50,6 +50,14 @@ public class InscricoesCampeonatoController(IInscricaoCampeonatoServico inscrica
         return Ok(inscricao);
     }
 
+    [HttpPost("{id:guid}/aprovar")]
+    [ProducesResponseType(typeof(InscricaoCampeonatoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Aprovar(Guid campeonatoId, Guid id, CancellationToken cancellationToken)
+    {
+        var inscricao = await inscricaoServico.AprovarAsync(campeonatoId, id, cancellationToken);
+        return Ok(inscricao);
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid campeonatoId, Guid id, CancellationToken cancellationToken)

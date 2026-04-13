@@ -15,6 +15,8 @@ import {
 import { opcoesNivelAtleta } from '../utils/niveisAtleta';
 import { PERFIS_USUARIO } from '../utils/perfis';
 import { nomeEstadoAcesso } from '../utils/acesso';
+import { buscarCidadesPorEstado, estadosBrasil, normalizarEstadoParaUf } from '../utils/localidadesBrasil';
+import { rolarParaTopo } from '../utils/rolagem';
 
 const estadoInicialAtleta = {
   nome: '',
@@ -23,6 +25,7 @@ const estadoInicialAtleta = {
   email: '',
   instagram: '',
   cpf: '',
+  bairro: '',
   cidade: '',
   estado: '',
   cadastroPendente: false,
@@ -102,6 +105,7 @@ function criarResumoAtleta(atleta) {
     instagram: atleta.instagram,
     cpf: formatarCpfParaInput(atleta.cpf),
     cadastroPendente: Boolean(atleta.cadastroPendente),
+    bairro: atleta.bairro,
     cidade: atleta.cidade,
     estado: atleta.estado,
     nivel: atleta.nivel
@@ -110,7 +114,7 @@ function criarResumoAtleta(atleta) {
 
 function obterNomeCompletoMeuPerfil(atleta, usuarioBase, perfilUsuario) {
   if (Number(perfilUsuario) === PERFIS_USUARIO.atleta) {
-    return usuarioBase?.nome || atleta?.nome || '';
+    return atleta?.nome || usuarioBase?.nome || '';
   }
 
   return atleta?.nome || '';
@@ -131,6 +135,8 @@ export function PaginaMeuPerfil() {
   const [carregando, setCarregando] = useState(true);
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
   const [salvandoAtleta, setSalvandoAtleta] = useState(false);
+  const [cidadesEstado, setCidadesEstado] = useState([]);
+  const [carregandoCidades, setCarregandoCidades] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
   const emailUsuarioPerfil = usuarioDetalhe?.email || usuario?.email || '';
@@ -138,6 +144,37 @@ export function PaginaMeuPerfil() {
   useEffect(() => {
     carregarPerfil();
   }, [usuario?.id]);
+
+  useEffect(() => {
+    if (!formularioAtleta.estado) {
+      setCidadesEstado([]);
+      return;
+    }
+
+    let ativo = true;
+    setCarregandoCidades(true);
+
+    buscarCidadesPorEstado(formularioAtleta.estado)
+      .then((cidades) => {
+        if (ativo) {
+          setCidadesEstado(cidades);
+        }
+      })
+      .catch(() => {
+        if (ativo) {
+          setCidadesEstado([]);
+        }
+      })
+      .finally(() => {
+        if (ativo) {
+          setCarregandoCidades(false);
+        }
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [formularioAtleta.estado]);
 
   async function carregarPerfil() {
     setCarregando(true);
@@ -196,8 +233,9 @@ export function PaginaMeuPerfil() {
       email: emailUsuarioPerfil,
       instagram: atleta.instagram || '',
       cpf: formatarCpfParaInput(atleta.cpf),
+      bairro: atleta.bairro || '',
       cidade: atleta.cidade || '',
-      estado: atleta.estado || '',
+      estado: normalizarEstadoParaUf(atleta.estado || ''),
       cadastroPendente: Boolean(atleta.cadastroPendente),
       nivel: atleta.nivel ? String(atleta.nivel) : '',
       lado: String(atleta.lado || 3),
@@ -213,6 +251,15 @@ export function PaginaMeuPerfil() {
 
     if (campo === 'cpf') {
       setFormularioAtleta((anterior) => ({ ...anterior, cpf: formatarCpfParaInput(valor) }));
+      return;
+    }
+
+    if (campo === 'estado') {
+      setFormularioAtleta((anterior) => ({
+        ...anterior,
+        estado: valor,
+        cidade: valor === anterior.estado ? anterior.cidade : ''
+      }));
       return;
     }
 
@@ -247,6 +294,7 @@ export function PaginaMeuPerfil() {
       }
 
       setMensagem('Dados do acesso atualizados com sucesso.');
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -287,8 +335,9 @@ export function PaginaMeuPerfil() {
       email: emailUsuarioPerfil || null,
       instagram: formularioAtleta.instagram.trim() || null,
       cpf: cpfLimpo || null,
+      bairro: formularioAtleta.bairro.trim() || null,
       cidade: formularioAtleta.cidade.trim() || null,
-      estado: formularioAtleta.estado.trim() || null,
+      estado: normalizarEstadoParaUf(formularioAtleta.estado.trim()) || null,
       cadastroPendente: Boolean(formularioAtleta.cadastroPendente),
       nivel: formularioAtleta.nivel ? Number(formularioAtleta.nivel) : null,
       lado: Number(formularioAtleta.lado),
@@ -298,8 +347,10 @@ export function PaginaMeuPerfil() {
     try {
       const atleta = await atletasServico.salvarMeu(dados);
       const possuiAtletaAnterior = Boolean(usuarioDetalhe?.atletaId);
+      const usuarioAtualEhAtleta = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.atleta;
       const proximoUsuario = {
         ...(usuarioDetalhe || usuario),
+        nome: usuarioAtualEhAtleta ? atleta.nome : (usuarioDetalhe || usuario)?.nome,
         atletaId: atleta.id,
         atleta: criarResumoAtleta(atleta)
       };
@@ -311,6 +362,7 @@ export function PaginaMeuPerfil() {
         concluirPrimeiroAcesso();
       }
       setMensagem(possuiAtletaAnterior ? 'Dados do atleta atualizados com sucesso.' : 'Atleta criado com sucesso.');
+      rolarParaTopo();
     } catch (error) {
       setErro(obterMensagemErroPerfil(error));
     } finally {
@@ -332,7 +384,6 @@ export function PaginaMeuPerfil() {
   const usuarioEhAtleta = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.atleta;
   const usuarioEhAdministrador = Number(usuarioDetalhe?.perfil || usuario?.perfil) === PERFIS_USUARIO.administrador;
   const possuiAtleta = Boolean(usuarioDetalhe?.atletaId);
-  const nomeSomenteLeitura = usuarioEhAtleta;
   const textoBotao = possuiAtleta
     ? 'Salvar atleta'
     : (usuarioEhAtleta ? 'Criar meu atleta' : 'Criar e vincular atleta');
@@ -406,8 +457,6 @@ export function PaginaMeuPerfil() {
                 type="text"
                 value={formularioAtleta.nome}
                 onChange={(evento) => atualizarCampoAtleta('nome', evento.target.value)}
-                readOnly={nomeSomenteLeitura}
-                disabled={nomeSomenteLeitura}
                 required
               />
             </label>
@@ -479,20 +528,43 @@ export function PaginaMeuPerfil() {
             </label>
 
             <label>
-              Cidade
-              <input
-                type="text"
-                value={formularioAtleta.cidade}
-                onChange={(evento) => atualizarCampoAtleta('cidade', evento.target.value)}
-              />
+              Estado
+              <select
+                value={formularioAtleta.estado}
+                onChange={(evento) => atualizarCampoAtleta('estado', evento.target.value)}
+              >
+                <option value="">Selecione</option>
+                {estadosBrasil.map((estado) => (
+                  <option key={estado.sigla} value={estado.sigla}>
+                    {estado.nome}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label>
-              Estado
+              Cidade
               <input
                 type="text"
-                value={formularioAtleta.estado}
-                onChange={(evento) => atualizarCampoAtleta('estado', evento.target.value)}
+                list="cidades-estado-perfil"
+                value={formularioAtleta.cidade}
+                onChange={(evento) => atualizarCampoAtleta('cidade', evento.target.value)}
+                placeholder={formularioAtleta.estado ? 'Digite para buscar' : 'Selecione o estado'}
+              />
+              <datalist id="cidades-estado-perfil">
+                {cidadesEstado.map((cidade) => (
+                  <option key={cidade} value={cidade} />
+                ))}
+              </datalist>
+              {carregandoCidades && <small>Carregando cidades...</small>}
+            </label>
+
+            <label>
+              Bairro
+              <input
+                type="text"
+                value={formularioAtleta.bairro}
+                onChange={(evento) => atualizarCampoAtleta('bairro', evento.target.value)}
               />
             </label>
           </div>

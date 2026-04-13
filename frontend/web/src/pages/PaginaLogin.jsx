@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { autenticacaoServico } from '../services/autenticacaoServico';
 import { extrairMensagemErro } from '../utils/erros';
-import logoLiga from '../assets/logo-liga.svg';
 
 const USUARIOS_TESTE_DESENVOLVIMENTO = import.meta.env.DEV
   ? [
@@ -119,12 +118,7 @@ export function PaginaLogin() {
   return (
     <section className="pagina-login">
       <div className="painel-login">
-        <img className="logo-login" src={logoLiga} alt="Logo Liga" />
-        <h1>Plataforma QuebraNunca Futevôlei</h1>
-        <p>Registre partidas, atletas e competições em um fluxo simples.</p>
-
-        <p>O cadastro público foi desativado. Novas contas só podem ser criadas por convite. Para entrar, informe seu e-mail e receba um código de acesso.</p>
-
+        
         {USUARIOS_TESTE_DESENVOLVIMENTO.length > 0 && (
           <div className="acoes-formulario">
             {USUARIOS_TESTE_DESENVOLVIMENTO.map((usuarioTeste) => (
@@ -224,30 +218,8 @@ export function PaginaLogin() {
           <button type="submit" className="botao-primario" disabled={carregando}>
             {carregando
               ? (emModoRecuperacao ? 'Redefinindo...' : 'Entrando...')
-              : (emModoRecuperacao ? 'Redefinir senha' : 'Entrar com código')}
-          </button>
-
-          {!emModoRecuperacao && (
-            <button
-              type="button"
-              className="botao-secundario"
-              onClick={() => alterarModo('recuperacao')}
-              disabled={carregando || carregandoCodigo}
-            >
-              Esqueci minha senha
-            </button>
-          )}
-
-          {emModoRecuperacao && (
-            <button
-              type="button"
-              className="botao-secundario"
-              onClick={() => alterarModo('login')}
-              disabled={carregando || carregandoCodigo}
-            >
-              Voltar ao login
-            </button>
-          )}
+              : (emModoRecuperacao ? 'Redefinir senha' : 'Entrar')}
+          </button>          
         </form>
       </div>
     </section>

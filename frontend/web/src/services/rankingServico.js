@@ -16,6 +16,27 @@ export const rankingServico = {
     return resposta.data;
   },
 
+  async listarRegioesDisponiveis() {
+    const resposta = await http.get('/ranking/regioes');
+    return resposta.data;
+  },
+
+  async listarAtletasPorRegiao(filtros = {}) {
+    const params = {};
+    if (filtros.estado) {
+      params.estado = filtros.estado;
+    }
+    if (filtros.cidade) {
+      params.cidade = filtros.cidade;
+    }
+    if (filtros.bairro) {
+      params.bairro = filtros.bairro;
+    }
+
+    const resposta = await http.get('/ranking/regiao/atletas', { params });
+    return resposta.data;
+  },
+
   async listarAtletasPorCompeticao(competicaoId) {
     const resposta = await http.get(`/ranking/competicoes/${competicaoId}/atletas`);
     return resposta.data;

@@ -9,7 +9,7 @@ public class InscricaoCampeonato : EntidadeBase
     public Guid DuplaId { get; set; }
     public bool Pago { get; set; }
     public DateTime DataInscricaoUtc { get; set; } = DateTime.UtcNow;
-    public StatusInscricaoCampeonato Status { get; set; } = StatusInscricaoCampeonato.Ativa;
+    public StatusInscricaoCampeonato Status { get; set; } = StatusInscricaoCampeonato.PendenteAprovacao;
     public string? Observacao { get; set; }
 
     public Competicao Competicao { get; set; } = default!;

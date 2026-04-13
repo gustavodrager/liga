@@ -12,6 +12,7 @@ import { ehAtleta } from '../utils/perfis';
 const tiposConsulta = [
   { valor: 'competicao', rotulo: 'Competições' },
   { valor: 'liga', rotulo: 'Liga' },
+  { valor: 'regiao', rotulo: 'Região' },
   { valor: 'geral', rotulo: 'Geral' }
 ];
 
@@ -21,6 +22,17 @@ const generos = {
   3: 'Misto'
 };
 
+const TIPOS_COMPETICAO = {
+  grupo: 3
+};
+
+const NOME_COMPETICAO_PARTIDAS_AVULSAS = 'Partidas avulsas';
+
+function ehCompeticaoPartidasAvulsas(competicao) {
+  return Number(competicao?.tipo) === TIPOS_COMPETICAO.grupo &&
+    (competicao?.nome || '').trim().toLowerCase() === NOME_COMPETICAO_PARTIDAS_AVULSAS.toLowerCase();
+}
+
 function normalizarRanking(lista, tipoConsulta) {
   const grupos = (lista || [])
     .map((grupo) => ({
@@ -28,6 +40,7 @@ function normalizarRanking(lista, tipoConsulta) {
       chave: `${tipoConsulta}-${grupo.categoriaId}`,
       atletas: (grupo.atletas || []).map((atleta) => ({
         ...atleta,
+        pontosPendentes: Number(atleta.pontosPendentes || 0),
         partidas: atleta.partidas || []
       }))
     }));
@@ -70,32 +83,41 @@ function formatarPontuacao(valor) {
   });
 }
 
-function obterTiposConsultaDisponiveis(usuarioAtleta, ligas, competicoes) {
-  if (usuarioAtleta) {
-    return tiposConsulta;
-  }
+function formatarRegiaoAtleta(item) {
+  const partes = [item.estado, item.cidade, item.bairro].filter(Boolean);
+  return partes.length > 0 ? partes.join(' / ') : '-';
+}
 
-  const opcoes = [{ valor: 'geral', rotulo: 'Geral' }];
+function obterTiposConsultaDisponiveis(usuarioAtleta, ligas, competicoes) {
+  const opcoes = [];
 
   if ((competicoes || []).length > 0) {
-    opcoes.unshift(tiposConsulta.find((tipo) => tipo.valor === 'competicao'));
+    opcoes.push(tiposConsulta.find((tipo) => tipo.valor === 'competicao'));
   }
 
-  if ((ligas || []).length > 0) {
-    opcoes.splice(opcoes.length - 1, 0, tiposConsulta.find((tipo) => tipo.valor === 'liga'));
+  if (!usuarioAtleta && (ligas || []).length > 0) {
+    opcoes.push(tiposConsulta.find((tipo) => tipo.valor === 'liga'));
   }
 
-  return opcoes;
+  opcoes.push(tiposConsulta.find((tipo) => tipo.valor === 'regiao'));
+  opcoes.push(tiposConsulta.find((tipo) => tipo.valor === 'geral'));
+
+  return opcoes.filter(Boolean);
 }
 
 export function PaginaRanking() {
   const { usuario } = useAutenticacao();
   const usuarioAtleta = ehAtleta(usuario);
   const [ligas, setLigas] = useState([]);
+  const [regioes, setRegioes] = useState({ estados: [], cidades: [], bairros: [] });
   const [competicoes, setCompeticoes] = useState([]);
   const [tipoConsulta, setTipoConsulta] = useState(usuarioAtleta ? 'competicao' : 'geral');
   const [ligaId, setLigaId] = useState('');
   const [competicaoId, setCompeticaoId] = useState('');
+  const [estadoRegiao, setEstadoRegiao] = useState('');
+  const [cidadeRegiao, setCidadeRegiao] = useState('');
+  const [bairroRegiao, setBairroRegiao] = useState('');
+  const [categoriaId, setCategoriaId] = useState('');
   const [ranking, setRanking] = useState([]);
   const [detalheAberto, setDetalheAberto] = useState(null);
   const [carregandoBase, setCarregandoBase] = useState(true);
@@ -110,6 +132,51 @@ export function PaginaRanking() {
     [competicaoId, competicoes]
   );
   const competicaoSelecionadaEhGrupo = Number(competicaoSelecionada?.tipo) === 3;
+  const cidadesRegiao = useMemo(() => {
+    return (regioes.cidades || [])
+      .filter((cidade) => !estadoRegiao || cidade.estado === estadoRegiao)
+      .map((cidade) => cidade.cidade)
+      .filter((cidade, indice, lista) => lista.indexOf(cidade) === indice)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [estadoRegiao, regioes.cidades]);
+  const bairrosRegiao = useMemo(() => {
+    return (regioes.bairros || [])
+      .filter((bairro) => !estadoRegiao || bairro.estado === estadoRegiao)
+      .filter((bairro) => !cidadeRegiao || bairro.cidade === cidadeRegiao)
+      .map((bairro) => bairro.bairro)
+      .filter((bairro, indice, lista) => lista.indexOf(bairro) === indice)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [cidadeRegiao, estadoRegiao, regioes.bairros]);
+  const categoriasRanking = useMemo(() => {
+    if (tipoConsulta !== 'competicao' || competicaoSelecionadaEhGrupo) {
+      return [];
+    }
+
+    return ranking
+      .map((grupo) => ({
+        id: grupo.categoriaId,
+        nome: grupo.nomeCategoria,
+        genero: grupo.genero
+      }))
+      .filter((categoria, indice, lista) => (
+        categoria.id && lista.findIndex((item) => item.id === categoria.id) === indice
+      ))
+      .sort((a, b) => {
+        if ((a.genero ?? 0) !== (b.genero ?? 0)) {
+          return (a.genero ?? 0) - (b.genero ?? 0);
+        }
+
+        return a.nome.localeCompare(b.nome, 'pt-BR');
+      });
+  }, [tipoConsulta, competicaoSelecionadaEhGrupo, ranking]);
+  const exibirFiltroCategoria = tipoConsulta === 'competicao' && categoriasRanking.length > 0;
+  const rankingFiltrado = useMemo(() => {
+    if (!categoriaId) {
+      return ranking;
+    }
+
+    return ranking.filter((grupo) => grupo.categoriaId === categoriaId);
+  }, [ranking, categoriaId]);
 
   useEffect(() => {
     carregarBase();
@@ -127,27 +194,44 @@ export function PaginaRanking() {
     }
 
     carregarRanking();
-  }, [tipoConsulta, ligaId, competicaoId]);
+  }, [tipoConsulta, ligaId, competicaoId, estadoRegiao, cidadeRegiao, bairroRegiao]);
+
+  useEffect(() => {
+    if (!categoriaId || categoriasRanking.length === 0) {
+      return;
+    }
+
+    const categoriaExiste = categoriasRanking.some((categoria) => categoria.id === categoriaId);
+    if (!categoriaExiste) {
+      setCategoriaId('');
+      atualizarParametros(tipoConsulta, ligaId, competicaoId, estadoRegiao, cidadeRegiao, bairroRegiao, '');
+    }
+  }, [categoriaId, categoriasRanking, tipoConsulta, ligaId, competicaoId, estadoRegiao, cidadeRegiao, bairroRegiao]);
 
   async function carregarBase() {
     setCarregandoBase(true);
     setErro('');
 
     try {
-      const [listaCompeticoes, listaLigas, filtroInicial] = await Promise.all([
+      const [listaCompeticoes, listaLigas, filtroInicial, filtroRegioes] = await Promise.all([
         competicoesServico.listar(),
         usuarioAtleta ? Promise.resolve([]) : ligasServico.listar(),
-        rankingServico.obterFiltroInicial()
+        rankingServico.obterFiltroInicial(),
+        rankingServico.listarRegioesDisponiveis()
       ]);
 
       let competicoesDisponiveis = listaCompeticoes;
       if (usuarioAtleta) {
         if (!usuario?.atletaId) {
-          competicoesDisponiveis = [];
+          competicoesDisponiveis = listaCompeticoes.filter(ehCompeticaoPartidasAvulsas);
         } else {
           const grupos = listaCompeticoes.filter((competicao) => competicao.tipo === 3);
           const gruposParticipando = await Promise.all(
             grupos.map(async (competicao) => {
+              if (ehCompeticaoPartidasAvulsas(competicao)) {
+                return competicao;
+              }
+
               try {
                 const atletasGrupo = await grupoAtletasServico.listarPorCompeticao(competicao.id);
                 return atletasGrupo.some((item) => item.atletaId === usuario.atletaId) ? competicao : null;
@@ -162,6 +246,11 @@ export function PaginaRanking() {
       }
 
       setLigas(listaLigas);
+      setRegioes({
+        estados: filtroRegioes?.estados || [],
+        cidades: filtroRegioes?.cidades || [],
+        bairros: filtroRegioes?.bairros || []
+      });
       setCompeticoes(competicoesDisponiveis);
 
       const tiposConsultaDisponiveis = obterTiposConsultaDisponiveis(
@@ -173,7 +262,11 @@ export function PaginaRanking() {
       const tipoUrl = params.get('tipo');
       const ligaUrl = params.get('ligaId');
       const competicaoUrl = params.get('competicaoId');
-      const haFiltroUrl = Boolean(tipoUrl || ligaUrl || competicaoUrl);
+      const categoriaUrl = params.get('categoriaId');
+      const estadoUrl = params.get('estado') || '';
+      const cidadeUrl = params.get('cidade') || '';
+      const bairroUrl = params.get('bairro') || '';
+      const haFiltroUrl = Boolean(tipoUrl || ligaUrl || competicaoUrl || categoriaUrl || estadoUrl || cidadeUrl || bairroUrl);
       const competicaoHistoricoValida = filtroInicial?.competicaoId &&
         competicoesDisponiveis.some((competicao) => competicao.id === filtroInicial.competicaoId)
         ? filtroInicial.competicaoId
@@ -191,14 +284,25 @@ export function PaginaRanking() {
         : !haFiltroUrl && competicaoHistoricoValida
           ? competicaoHistoricoValida
           : competicoesDisponiveis[0]?.id || '';
-      const tipoConsultaInicial = usuarioAtleta
-        ? 'competicao'
-        : tipoUrlValido || tipoHistoricoValido || 'geral';
+      const tipoConsultaPadrao = usuarioAtleta && competicoesDisponiveis.length > 0 ? 'competicao' : 'geral';
+      const tipoConsultaInicial = tipoUrlValido || tipoHistoricoValido || tipoConsultaPadrao;
 
       setTipoConsulta(tipoConsultaInicial);
       setLigaId(ligaInicial);
       setCompeticaoId(competicaoInicial);
-      atualizarParametros(tipoConsultaInicial, ligaInicial, competicaoInicial);
+      setEstadoRegiao(estadoUrl);
+      setCidadeRegiao(cidadeUrl);
+      setBairroRegiao(bairroUrl);
+      setCategoriaId(tipoConsultaInicial === 'competicao' ? categoriaUrl || '' : '');
+      atualizarParametros(
+        tipoConsultaInicial,
+        ligaInicial,
+        competicaoInicial,
+        estadoUrl,
+        cidadeUrl,
+        bairroUrl,
+        tipoConsultaInicial === 'competicao' ? categoriaUrl || '' : ''
+      );
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -217,12 +321,18 @@ export function PaginaRanking() {
         lista = await rankingServico.listarAtletasGeral();
       } else if (tipoConsulta === 'liga') {
         lista = await rankingServico.listarAtletasPorLiga(ligaId);
+      } else if (tipoConsulta === 'regiao') {
+        lista = await rankingServico.listarAtletasPorRegiao({
+          estado: estadoRegiao,
+          cidade: cidadeRegiao,
+          bairro: bairroRegiao
+        });
       } else {
         lista = await rankingServico.listarAtletasPorCompeticao(competicaoId);
       }
 
       setRanking(normalizarRanking(lista, tipoConsulta));
-      atualizarParametros(tipoConsulta, ligaId, competicaoId);
+      atualizarParametros(tipoConsulta, ligaId, competicaoId, estadoRegiao, cidadeRegiao, bairroRegiao, categoriaId);
     } catch (error) {
       setErro(extrairMensagemErro(error));
       setRanking([]);
@@ -231,7 +341,15 @@ export function PaginaRanking() {
     }
   }
 
-  function atualizarParametros(tipo, novaLigaId, novaCompeticaoId) {
+  function atualizarParametros(
+    tipo,
+    novaLigaId,
+    novaCompeticaoId,
+    novoEstadoRegiao = '',
+    novaCidadeRegiao = '',
+    novoBairroRegiao = '',
+    novaCategoriaId = ''
+  ) {
     const proximos = { tipo };
 
     if (tipo === 'liga' && novaLigaId) {
@@ -242,26 +360,73 @@ export function PaginaRanking() {
       proximos.competicaoId = novaCompeticaoId;
     }
 
+    if (tipo === 'competicao' && novaCompeticaoId && novaCategoriaId) {
+      proximos.categoriaId = novaCategoriaId;
+    }
+
+    if (tipo === 'regiao') {
+      if (novoEstadoRegiao) {
+        proximos.estado = novoEstadoRegiao;
+      }
+      if (novaCidadeRegiao) {
+        proximos.cidade = novaCidadeRegiao;
+      }
+      if (novoBairroRegiao) {
+        proximos.bairro = novoBairroRegiao;
+      }
+    }
+
     setParams(proximos);
   }
 
   function selecionarTipoConsulta(valor) {
-    if (usuarioAtleta) {
-      return;
-    }
-
     setTipoConsulta(valor);
-    atualizarParametros(valor, ligaId, competicaoId);
+    if (valor !== 'competicao') {
+      setCategoriaId('');
+    }
+    atualizarParametros(
+      valor,
+      ligaId,
+      competicaoId,
+      estadoRegiao,
+      cidadeRegiao,
+      bairroRegiao,
+      valor === 'competicao' ? categoriaId : ''
+    );
   }
 
   function selecionarLiga(valor) {
     setLigaId(valor);
-    atualizarParametros(tipoConsulta, valor, competicaoId);
+    atualizarParametros(tipoConsulta, valor, competicaoId, estadoRegiao, cidadeRegiao, bairroRegiao, categoriaId);
   }
 
   function selecionarCompeticao(valor) {
     setCompeticaoId(valor);
-    atualizarParametros(tipoConsulta, ligaId, valor);
+    setCategoriaId('');
+    atualizarParametros(tipoConsulta, ligaId, valor, estadoRegiao, cidadeRegiao, bairroRegiao, '');
+  }
+
+  function selecionarEstadoRegiao(valor) {
+    setEstadoRegiao(valor);
+    setCidadeRegiao('');
+    setBairroRegiao('');
+    atualizarParametros(tipoConsulta, ligaId, competicaoId, valor, '', '', categoriaId);
+  }
+
+  function selecionarCidadeRegiao(valor) {
+    setCidadeRegiao(valor);
+    setBairroRegiao('');
+    atualizarParametros(tipoConsulta, ligaId, competicaoId, estadoRegiao, valor, '', categoriaId);
+  }
+
+  function selecionarBairroRegiao(valor) {
+    setBairroRegiao(valor);
+    atualizarParametros(tipoConsulta, ligaId, competicaoId, estadoRegiao, cidadeRegiao, valor, categoriaId);
+  }
+
+  function selecionarCategoria(valor) {
+    setCategoriaId(valor);
+    atualizarParametros(tipoConsulta, ligaId, competicaoId, estadoRegiao, cidadeRegiao, bairroRegiao, valor);
   }
 
   function alternarDetalhe(chaveGrupo, atletaId) {
@@ -299,19 +464,17 @@ export function PaginaRanking() {
         <h2>Ranking</h2>
       </div>
 
-      <div className="formulario-grid">
-        {!usuarioAtleta && (
-          <label>
-            Tipo
-            <select value={tipoConsulta} onChange={(evento) => selecionarTipoConsulta(evento.target.value)}>
-              {opcoesTipoConsulta.map((tipo) => (
-                <option key={tipo.valor} value={tipo.valor}>
-                  {tipo.rotulo}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+      <div className="formulario-grid barra-selecao-fixa">
+        <label>
+          Tipo
+          <select value={tipoConsulta} onChange={(evento) => selecionarTipoConsulta(evento.target.value)}>
+            {opcoesTipoConsulta.map((tipo) => (
+              <option key={tipo.valor} value={tipo.valor}>
+                {tipo.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {tipoConsulta === 'liga' ? (
           <label>
@@ -326,17 +489,71 @@ export function PaginaRanking() {
             </select>
           </label>
         ) : tipoConsulta === 'competicao' ? (
-          <label>
-            Competição
-            <select value={competicaoId} onChange={(evento) => selecionarCompeticao(evento.target.value)}>
-              <option value="">Selecione</option>
-              {competicoes.map((competicao) => (
-                <option key={competicao.id} value={competicao.id}>
-                  {competicao.nome}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label>
+              Competição
+              <select value={competicaoId} onChange={(evento) => selecionarCompeticao(evento.target.value)}>
+                <option value="">Selecione</option>
+                {competicoes.map((competicao) => (
+                  <option key={competicao.id} value={competicao.id}>
+                    {competicao.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {exibirFiltroCategoria && (
+              <label>
+                Categoria
+                <select value={categoriaId} onChange={(evento) => selecionarCategoria(evento.target.value)}>
+                  <option value="">Todas as categorias</option>
+                  {categoriasRanking.map((categoria) => (
+                    <option key={categoria.id} value={categoria.id}>
+                      {categoria.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </>
+        ) : tipoConsulta === 'regiao' ? (
+          <>
+            <label>
+              Estado
+              <select value={estadoRegiao} onChange={(evento) => selecionarEstadoRegiao(evento.target.value)}>
+                <option value="">Todos os estados</option>
+                {(regioes.estados || []).map((estado) => (
+                  <option key={estado} value={estado}>
+                    {estado}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Cidade
+              <select value={cidadeRegiao} onChange={(evento) => selecionarCidadeRegiao(evento.target.value)}>
+                <option value="">Todas as cidades</option>
+                {cidadesRegiao.map((cidade) => (
+                  <option key={cidade} value={cidade}>
+                    {cidade}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Bairro
+              <select value={bairroRegiao} onChange={(evento) => selecionarBairroRegiao(evento.target.value)}>
+                <option value="">Todos os bairros</option>
+                {bairrosRegiao.map((bairro) => (
+                  <option key={bairro} value={bairro}>
+                    {bairro}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         ) : null}
       </div>
 
@@ -346,28 +563,29 @@ export function PaginaRanking() {
         <p>Carregando ranking...</p>
       ) : tipoConsulta === 'liga' && ligas.length === 0 ? (
         <p>Nenhuma liga cadastrada.</p>
-      ) : usuarioAtleta && competicoes.length === 0 ? (
+      ) : tipoConsulta === 'competicao' && usuarioAtleta && competicoes.length === 0 ? (
         <p>Seu atleta ainda não participa de nenhum grupo com ranking disponível.</p>
       ) : tipoConsulta === 'competicao' && competicoes.length === 0 ? (
         <p>Nenhuma competição cadastrada.</p>
       ) : carregandoRanking ? (
         <p>Carregando ranking...</p>
-      ) : ranking.length === 0 ? (
+      ) : rankingFiltrado.length === 0 ? (
         <p>Nenhuma pontuação encontrada para o filtro selecionado.</p>
       ) : (
         <div className="lista-cartoes">
-          {ranking.map((grupo) => (
-            <article key={grupo.categoriaId} className="cartao-lista">
+          {rankingFiltrado.map((grupo) => (
+            <article key={grupo.chave} className="cartao-lista">
               <div>
                 {tipoConsulta === 'competicao' && !competicaoSelecionadaEhGrupo ? (
                   <>
-                  <p>{grupo.nomeCompeticao}</p>
+                    <p>{grupo.nomeCategoria}</p>
                     <p>{`Gênero: ${generos[grupo.genero] || '-'}`}</p>
                     <p>Competição: {grupo.nomeCompeticao}</p>
                   </>
                 ) : tipoConsulta !== 'competicao' ? (
                   <p>{grupo.nomeCompeticao}</p>
                 ) : null}
+                {tipoConsulta === 'regiao' && <p>{grupo.nomeCategoria}</p>}
               </div>
 
               <div className="ranking-tabela-wrapper">
@@ -376,8 +594,10 @@ export function PaginaRanking() {
                     <tr>
                       <th>Pos.</th>
                       <th>Atleta</th>
+                      {tipoConsulta === 'regiao' && <th>Região</th>}
                       <th>Status</th>
                       <th>Pontuação</th>
+                      <th>Pendentes</th>
                       <th>Jogos</th>
                       <th>Vitórias</th>
                       <th>Derrotas</th>
@@ -402,19 +622,21 @@ export function PaginaRanking() {
                                 {item.nomeAtleta}
                               </button>
                             </td>
+                            {tipoConsulta === 'regiao' && <td>{formatarRegiaoAtleta(item)}</td>}
                             <td>
                               <span className={`tag-status ${classeStatusPendencia(item)}`}>
                                 {item.statusPendencia}
                               </span>
                             </td>
                             <td>{formatarPontuacao(item.pontos)}</td>
+                            <td>{formatarPontuacao(item.pontosPendentes)}</td>
                             <td>{item.jogos}</td>
                             <td>{item.vitorias}</td>
                             <td>{item.derrotas}</td>
                           </tr>
                           {aberto && (
                             <tr className="ranking-linha-detalhe">
-                              <td colSpan={7}>
+                              <td colSpan={tipoConsulta === 'regiao' ? 9 : 8}>
                                 {renderizarDetalhesAtleta(item)}
                               </td>
                             </tr>
@@ -437,6 +659,7 @@ export function PaginaRanking() {
                         <span className="ranking-mobile-posicao">{item.posicao}º</span>
                         <div className="ranking-mobile-identidade">
                           <strong className="ranking-mobile-nome">{item.nomeAtleta}</strong>
+                          {tipoConsulta === 'regiao' && <span>{formatarRegiaoAtleta(item)}</span>}
                           <span className={`tag-status ${classeStatusPendencia(item)}`}>
                             {item.statusPendencia}
                           </span>
@@ -448,6 +671,10 @@ export function PaginaRanking() {
                       </div>
 
                       <div className="ranking-mobile-metricas">
+                        <div className="ranking-mobile-metrica">
+                          <span>Pendentes</span>
+                          <strong>{formatarPontuacao(item.pontosPendentes)}</strong>
+                        </div>
                         <div className="ranking-mobile-metrica">
                           <span>Jogos</span>
                           <strong>{item.jogos}</strong>

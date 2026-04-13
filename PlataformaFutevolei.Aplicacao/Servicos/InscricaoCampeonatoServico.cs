@@ -45,6 +45,12 @@ public class InscricaoCampeonatoServico(
         {
             await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(campeonatoId, cancellationToken);
         }
+        else
+        {
+            inscricoes = inscricoes
+                .Where(x => x.Status == StatusInscricaoCampeonato.Ativa)
+                .ToList();
+        }
 
         return inscricoes.Select(x => x.ParaDto()).ToList();
     }
@@ -114,7 +120,9 @@ public class InscricaoCampeonatoServico(
             DuplaId = dupla.Id,
             Pago = usuario.Perfil == PerfilUsuario.Atleta ? false : dto.Pago,
             DataInscricaoUtc = DateTime.UtcNow,
-            Status = StatusInscricaoCampeonato.Ativa,
+            Status = usuario.Perfil == PerfilUsuario.Atleta
+                ? StatusInscricaoCampeonato.PendenteAprovacao
+                : StatusInscricaoCampeonato.Ativa,
             Observacao = MontarObservacaoInscricao(dto.Observacao, parceiroCadastroPendente),
             Competicao = campeonato,
             CategoriaCompeticao = categoria,
@@ -180,7 +188,11 @@ public class InscricaoCampeonatoServico(
         inscricao.DuplaId = dupla.Id;
         inscricao.Observacao = MontarObservacaoInscricao(dto.Observacao, parceiroCadastroPendente);
 
-        if (usuario.Perfil != PerfilUsuario.Atleta)
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            inscricao.Status = StatusInscricaoCampeonato.PendenteAprovacao;
+        }
+        else
         {
             inscricao.Pago = dto.Pago;
         }
@@ -191,6 +203,38 @@ public class InscricaoCampeonatoServico(
 
         var inscricaoAtualizada = await inscricaoRepositorio.ObterPorIdAsync(inscricao.Id, cancellationToken);
         return inscricaoAtualizada!.ParaDto();
+    }
+
+    public async Task<InscricaoCampeonatoDto> AprovarAsync(
+        Guid campeonatoId,
+        Guid inscricaoId,
+        CancellationToken cancellationToken = default)
+    {
+        await ObterCompeticaoComInscricaoValidaAsync(campeonatoId, cancellationToken);
+        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(campeonatoId, cancellationToken);
+
+        var inscricao = await inscricaoRepositorio.ObterPorIdAsync(inscricaoId, cancellationToken);
+        if (inscricao is null || inscricao.CompeticaoId != campeonatoId)
+        {
+            throw new EntidadeNaoEncontradaException("Inscrição não encontrada para o campeonato informado.");
+        }
+
+        if (inscricao.Status == StatusInscricaoCampeonato.Cancelada)
+        {
+            throw new RegraNegocioException("Inscrições canceladas não podem ser aprovadas.");
+        }
+
+        if (inscricao.Status != StatusInscricaoCampeonato.Ativa)
+        {
+            await ValidarLimiteAprovacaoAsync(inscricao.CategoriaCompeticao, inscricao.Id, cancellationToken);
+            inscricao.Status = StatusInscricaoCampeonato.Ativa;
+            inscricao.AtualizarDataModificacao();
+            inscricaoRepositorio.Atualizar(inscricao);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
+
+        var inscricaoAprovada = await inscricaoRepositorio.ObterPorIdAsync(inscricao.Id, cancellationToken);
+        return inscricaoAprovada!.ParaDto();
     }
 
     public async Task RemoverAsync(
@@ -322,6 +366,31 @@ public class InscricaoCampeonatoServico(
         if (quantidadeInscricoes >= categoria.QuantidadeMaximaDuplas.Value)
         {
             throw new RegraNegocioException("A categoria já atingiu a quantidade máxima de duplas inscritas.");
+        }
+    }
+
+    private async Task ValidarLimiteAprovacaoAsync(
+        CategoriaCompeticao categoria,
+        Guid inscricaoId,
+        CancellationToken cancellationToken)
+    {
+        if (!categoria.QuantidadeMaximaDuplas.HasValue)
+        {
+            return;
+        }
+
+        var inscricoesCategoria = await inscricaoRepositorio.ListarPorCampeonatoAsync(
+            categoria.CompeticaoId,
+            categoria.Id,
+            cancellationToken);
+
+        var quantidadeAtivas = inscricoesCategoria.Count(x =>
+            x.Id != inscricaoId &&
+            x.Status == StatusInscricaoCampeonato.Ativa);
+
+        if (quantidadeAtivas >= categoria.QuantidadeMaximaDuplas.Value)
+        {
+            throw new RegraNegocioException("A categoria já atingiu a quantidade máxima de duplas aprovadas.");
         }
     }
 

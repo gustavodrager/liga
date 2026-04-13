@@ -11,7 +11,7 @@ import { partidasServico } from '../services/partidasServico';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora, paraInputDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 import { ehAtleta, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
 
 function obterDataHoraAtualInput() {
@@ -451,6 +451,7 @@ function buscarSugestoesAtleta(atletas, termo, atletaSelecionadoId, idsBloqueado
   const idsBloqueadosSet = new Set(idsBloqueados.filter(Boolean));
 
   return atletas
+    .filter((atleta) => !atleta.cadastroPendente)
     .filter((atleta) => !idsBloqueadosSet.has(atleta.id))
     .filter((atleta) => {
       const nome = normalizarNome(atleta.nome);
@@ -1089,7 +1090,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
     [inscricoesCategoria]
   );
   const exibirCampoCompeticao = competicoesDisponiveis.length > 0;
-  const exibirCampoCategoria = Boolean(competicaoId) && categorias.length > 0;
+  const exibirCampoCategoria = Boolean(competicaoId) && !grupoSelecionado && categorias.length > 0;
   const exibirCampoNomeGrupo = !exibirCampoCompeticao || !competicaoId;
   const camposContextoPartida = (
     <>
@@ -1344,6 +1345,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
         const mapa = new Map();
         [...sugestoesLocais, ...sugestoesRemotas]
+          .filter((atleta) => !atleta.cadastroPendente)
           .filter((atleta) => !campo.idsBloqueados.includes(atleta.id))
           .forEach((atleta) => {
             if (!mapa.has(atleta.id)) {
@@ -1774,6 +1776,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
           }
         }
 
+        rolarParaTopo();
         return;
       }
 
@@ -1791,6 +1794,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
       } else if (grupoSelecionado && competicaoSelecionada?.id) {
         await carregarPartidasPorCompeticao(competicaoSelecionada.id);
       }
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -1991,6 +1995,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
       } else if (grupoSelecionado && competicaoSelecionada?.id) {
         await carregarPartidasPorCompeticao(competicaoSelecionada.id);
       }
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -2218,7 +2223,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
           {partida && podeEditarPartidasNaPagina && (
             <div className="acoes-item acoes-item-compactas">
-              <button type="button" className="botao-secundario botao-compacto" onClick={() => iniciarEdicao(partida)}>
+              <button type="button" className="botao-secundario botao-editar botao-compacto" onClick={() => iniciarEdicao(partida)}>
                 <ConteudoBotao icone="editar" texto={tabelaJogosAprovada || grupoSelecionado ? 'Editar' : 'Ajustar'} />
               </button>
               {grupoSelecionado && (
@@ -2367,6 +2372,10 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
   return (
     <section className="pagina">
+      <div className="cabecalho-pagina">
+        <h2>{tituloPagina}</h2>
+        <p>{descricaoPagina}</p>
+      </div>
 
       {podeExibirFormulario && (
         <form ref={formularioRef} className="formulario-grid formulario-partida" onSubmit={aoSubmeter}>
@@ -2762,7 +2771,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
 
               {podeEditarPartidasNaPagina && (
                 <div className="acoes-item">
-                  <button type="button" className="botao-secundario botao-compacto" onClick={() => iniciarEdicao(partida)}>
+                  <button type="button" className="botao-secundario botao-editar botao-compacto" onClick={() => iniciarEdicao(partida)}>
                     <ConteudoBotao icone="editar" texto={tabelaJogosAprovada || grupoSelecionado ? 'Editar' : 'Ajustar'} />
                   </button>
                   {grupoSelecionado && (

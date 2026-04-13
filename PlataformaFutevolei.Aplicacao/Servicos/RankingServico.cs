@@ -19,6 +19,8 @@ public class RankingServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
 {
+    private const string NomeCompeticaoPartidasAvulsas = "Partidas avulsas";
+
     public async Task<RankingFiltroInicialDto> ObterFiltroInicialAsync(
         CancellationToken cancellationToken = default)
     {
@@ -58,15 +60,7 @@ public class RankingServico(
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasGeralAsync(
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
-        if (usuario?.Perfil == PerfilUsuario.Atleta)
-        {
-            throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
-        }
-
-        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(
-            usuario?.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
-            cancellationToken);
+        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
 
         var rankingGeral = MontarRankingConsolidado(
             Guid.Empty,
@@ -101,6 +95,63 @@ public class RankingServico(
         return MontarRankingLiga(ligaId, liga.Nome, partidas, partidasSemCompeticaoOuCategoria);
     }
 
+    public async Task<RankingRegiaoFiltroDto> ListarRegioesDisponiveisAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
+        var atletas = partidas
+            .SelectMany(EnumerarAtletasRanking)
+            .Where(EhCadastroCompleto)
+            .DistinctBy(x => x.Id)
+            .ToList();
+
+        var estados = atletas
+            .Select(x => x.Estado)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
+
+        var cidades = atletas
+            .Where(x => !string.IsNullOrWhiteSpace(x.Estado) && !string.IsNullOrWhiteSpace(x.Cidade))
+            .GroupBy(x => $"{NormalizarChaveRegiao(x.Estado)}|{NormalizarChaveRegiao(x.Cidade)}")
+            .Select(x => new RankingRegiaoCidadeDto(x.First().Estado!, x.First().Cidade!))
+            .OrderBy(x => x.Estado)
+            .ThenBy(x => x.Cidade)
+            .ToList();
+
+        var bairros = atletas
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x.Estado) &&
+                !string.IsNullOrWhiteSpace(x.Cidade) &&
+                !string.IsNullOrWhiteSpace(x.Bairro))
+            .GroupBy(x => $"{NormalizarChaveRegiao(x.Estado)}|{NormalizarChaveRegiao(x.Cidade)}|{NormalizarChaveRegiao(x.Bairro)}")
+            .Select(x => new RankingRegiaoBairroDto(x.First().Estado!, x.First().Cidade!, x.First().Bairro!))
+            .OrderBy(x => x.Estado)
+            .ThenBy(x => x.Cidade)
+            .ThenBy(x => x.Bairro)
+            .ToList();
+
+        return new RankingRegiaoFiltroDto(estados, cidades, bairros);
+    }
+
+    public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorRegiaoAsync(
+        string? estado,
+        string? cidade,
+        string? bairro,
+        CancellationToken cancellationToken = default)
+    {
+        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
+        var ranking = MontarRankingRegiao(
+            partidas,
+            NormalizarFiltroRegiao(estado),
+            NormalizarFiltroRegiao(cidade),
+            NormalizarFiltroRegiao(bairro));
+
+        return ranking is null ? [] : [ranking];
+    }
+
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(
         Guid competicaoId,
         CancellationToken cancellationToken = default)
@@ -114,30 +165,42 @@ public class RankingServico(
 
         if (usuario?.Perfil == PerfilUsuario.Atleta)
         {
+            var competicaoPartidasAvulsas = EhCompeticaoPartidasAvulsas(competicao);
+
             if (competicao.Tipo != TipoCompeticao.Grupo)
             {
                 throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
             }
 
-            if (!usuario.AtletaId.HasValue)
+            if (!competicaoPartidasAvulsas && !usuario.AtletaId.HasValue)
             {
                 throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar o ranking do grupo.");
             }
 
-            var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
-                competicaoId,
-                usuario.AtletaId.Value,
-                cancellationToken);
-
-            if (grupoAtleta is null)
+            if (!competicaoPartidasAvulsas)
             {
-                throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
+                var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
+                    competicaoId,
+                    usuario.AtletaId!.Value,
+                    cancellationToken);
+
+                if (grupoAtleta is null)
+                {
+                    throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
+                }
             }
         }
 
         var partidas = await partidaRepositorio.ListarParaRankingPorCompeticaoAsync(competicaoId, cancellationToken);
         return MontarRankingPorCategoria(partidas);
     }
+
+    private static bool EhCompeticaoPartidasAvulsas(Competicao competicao)
+        => competicao.Tipo == TipoCompeticao.Grupo &&
+           string.Equals(
+               competicao.Nome?.Trim(),
+               NomeCompeticaoPartidasAvulsas,
+               StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<RankingCategoriaDto> MontarRankingLiga(
         Guid ligaId,
@@ -184,31 +247,37 @@ public class RankingServico(
         }
 
         var atletas = new Dictionary<Guid, RankingAtletaAcumulado>();
-        var participacoesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+        var participacoesOficiaisAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+        var participacoesPendentesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
 
-        foreach (var partida in partidas)
+        foreach (var partida in OrdenarPartidasParaPontuacao(partidas))
         {
             var categoria = partida.CategoriaCompeticao;
             var competicao = categoria.Competicao;
             var dataPartida = partida.DataPartida ?? partida.DataCriacao;
+            var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
             var pontosVitoria = competicao.ObterPontosVitoria() * peso;
             var pontosDerrota = competicao.ObterPontosDerrota() * peso;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
-            var confronto = $"{partida.DuplaA.Nome} {partida.PlacarDuplaA} x {partida.PlacarDuplaB} {partida.DuplaB.Nome}";
+            var confronto = MontarConfrontoRanking(partida);
+            var duplaA = partida.DuplaA!;
+            var duplaB = partida.DuplaB!;
 
             Acumular(
                 atletas,
-                participacoesAplicadas,
-                partida.DuplaA.Atleta1,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaA.Atleta1,
                 competicao.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaAId,
+                vencedoraId == duplaA.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -216,14 +285,16 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 atletas,
-                participacoesAplicadas,
-                partida.DuplaA.Atleta2,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaA.Atleta2,
                 competicao.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaAId,
+                vencedoraId == duplaA.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -231,14 +302,16 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 atletas,
-                participacoesAplicadas,
-                partida.DuplaB.Atleta1,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaB.Atleta1,
                 competicao.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaBId,
+                vencedoraId == duplaB.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -246,14 +319,16 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 atletas,
-                participacoesAplicadas,
-                partida.DuplaB.Atleta2,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaB.Atleta2,
                 competicao.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaBId,
+                vencedoraId == duplaB.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -263,7 +338,7 @@ public class RankingServico(
 
         foreach (var partidasCategoria in partidas.GroupBy(x => x.CategoriaCompeticaoId))
         {
-                AplicarPontuacaoColocacao(partidasCategoria.ToList(), atletas);
+            AplicarPontuacaoColocacao(partidasCategoria.ToList(), atletas);
         }
 
         return new RankingCategoriaDto(
@@ -275,16 +350,143 @@ public class RankingServico(
             OrdenarAtletas(atletas));
     }
 
-    private static IReadOnlyList<RankingCategoriaDto> MontarRankingPorCategoria(IReadOnlyList<Partida> partidas)
+    private static RankingCategoriaDto? MontarRankingRegiao(
+        IReadOnlyList<Partida> partidas,
+        string? estado,
+        string? cidade,
+        string? bairro)
     {
-        var acumuladoPorCategoria = new Dictionary<Guid, RankingCategoriaAcumulado>();
-        var participacoesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+        if (partidas.Count == 0)
+        {
+            return null;
+        }
 
-        foreach (var partida in partidas)
+        var atletas = new Dictionary<Guid, RankingAtletaAcumulado>();
+        var participacoesOficiaisAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+        var participacoesPendentesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+        bool AtletaElegivel(Atleta atleta) => EhAtletaElegivelRegiao(atleta, estado, cidade, bairro);
+
+        foreach (var partida in OrdenarPartidasParaPontuacao(partidas))
         {
             var categoria = partida.CategoriaCompeticao;
             var competicao = categoria.Competicao;
             var dataPartida = partida.DataPartida ?? partida.DataCriacao;
+            var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
+            var peso = categoria.PesoRanking;
+            var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
+            var pontosVitoria = competicao.ObterPontosVitoria() * peso;
+            var pontosDerrota = competicao.ObterPontosDerrota() * peso;
+            var empate = partida.TerminouEmpatada();
+            var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
+            var confronto = MontarConfrontoRanking(partida);
+            var duplaA = partida.DuplaA!;
+            var duplaB = partida.DuplaB!;
+
+            AcumularSeAtletaElegivel(
+                atletas,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaA.Atleta1,
+                AtletaElegivel,
+                competicao.Id,
+                pontosParticipacao,
+                empate,
+                vencedoraId == duplaA.Id,
+                pontosVitoria,
+                pontosDerrota,
+                pontuacaoPendente,
+                partida.Id,
+                confronto,
+                dataPartida,
+                competicao.Nome,
+                categoria.Nome);
+            AcumularSeAtletaElegivel(
+                atletas,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaA.Atleta2,
+                AtletaElegivel,
+                competicao.Id,
+                pontosParticipacao,
+                empate,
+                vencedoraId == duplaA.Id,
+                pontosVitoria,
+                pontosDerrota,
+                pontuacaoPendente,
+                partida.Id,
+                confronto,
+                dataPartida,
+                competicao.Nome,
+                categoria.Nome);
+            AcumularSeAtletaElegivel(
+                atletas,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaB.Atleta1,
+                AtletaElegivel,
+                competicao.Id,
+                pontosParticipacao,
+                empate,
+                vencedoraId == duplaB.Id,
+                pontosVitoria,
+                pontosDerrota,
+                pontuacaoPendente,
+                partida.Id,
+                confronto,
+                dataPartida,
+                competicao.Nome,
+                categoria.Nome);
+            AcumularSeAtletaElegivel(
+                atletas,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaB.Atleta2,
+                AtletaElegivel,
+                competicao.Id,
+                pontosParticipacao,
+                empate,
+                vencedoraId == duplaB.Id,
+                pontosVitoria,
+                pontosDerrota,
+                pontuacaoPendente,
+                partida.Id,
+                confronto,
+                dataPartida,
+                competicao.Nome,
+                categoria.Nome);
+        }
+
+        foreach (var partidasCategoria in partidas.GroupBy(x => x.CategoriaCompeticaoId))
+        {
+            AplicarPontuacaoColocacao(partidasCategoria.ToList(), atletas, AtletaElegivel);
+        }
+
+        if (atletas.Count == 0)
+        {
+            return null;
+        }
+
+        return new RankingCategoriaDto(
+            Guid.Empty,
+            Guid.Empty,
+            "Ranking por região",
+            MontarNomeRegiao(estado, cidade, bairro),
+            null,
+            OrdenarAtletas(atletas));
+    }
+
+    private static IReadOnlyList<RankingCategoriaDto> MontarRankingPorCategoria(IReadOnlyList<Partida> partidas)
+    {
+        var acumuladoPorCategoria = new Dictionary<Guid, RankingCategoriaAcumulado>();
+        var participacoesOficiaisAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+        var participacoesPendentesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
+
+        foreach (var partida in OrdenarPartidasParaPontuacao(partidas))
+        {
+            var categoria = partida.CategoriaCompeticao;
+            var competicao = categoria.Competicao;
+            var dataPartida = partida.DataPartida ?? partida.DataCriacao;
+            var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
             if (!acumuladoPorCategoria.TryGetValue(categoria.Id, out var categoriaAcumulada))
             {
                 categoriaAcumulada = new RankingCategoriaAcumulado(
@@ -302,18 +504,22 @@ public class RankingServico(
             var pontosDerrota = competicao.ObterPontosDerrota() * peso;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
-            var confronto = $"{partida.DuplaA.Nome} {partida.PlacarDuplaA} x {partida.PlacarDuplaB} {partida.DuplaB.Nome}";
+            var confronto = MontarConfrontoRanking(partida);
+            var duplaA = partida.DuplaA!;
+            var duplaB = partida.DuplaB!;
 
             Acumular(
                 categoriaAcumulada.Atletas,
-                participacoesAplicadas,
-                partida.DuplaA.Atleta1,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaA.Atleta1,
                 categoria.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaAId,
+                vencedoraId == duplaA.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -321,14 +527,16 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 categoriaAcumulada.Atletas,
-                participacoesAplicadas,
-                partida.DuplaA.Atleta2,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaA.Atleta2,
                 categoria.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaAId,
+                vencedoraId == duplaA.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -336,14 +544,16 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 categoriaAcumulada.Atletas,
-                participacoesAplicadas,
-                partida.DuplaB.Atleta1,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaB.Atleta1,
                 categoria.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaBId,
+                vencedoraId == duplaB.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -351,14 +561,16 @@ public class RankingServico(
                 categoria.Nome);
             Acumular(
                 categoriaAcumulada.Atletas,
-                participacoesAplicadas,
-                partida.DuplaB.Atleta2,
+                participacoesOficiaisAplicadas,
+                participacoesPendentesAplicadas,
+                duplaB.Atleta2,
                 categoria.Id,
                 pontosParticipacao,
                 empate,
-                vencedoraId == partida.DuplaBId,
+                vencedoraId == duplaB.Id,
                 pontosVitoria,
                 pontosDerrota,
+                pontuacaoPendente,
                 partida.Id,
                 confronto,
                 dataPartida,
@@ -390,7 +602,8 @@ public class RankingServico(
 
     private static void AplicarPontuacaoColocacao(
         IReadOnlyList<Partida> partidasCategoria,
-        IDictionary<Guid, RankingAtletaAcumulado> atletas)
+        IDictionary<Guid, RankingAtletaAcumulado> atletas,
+        Func<Atleta, bool>? filtroAtleta = null)
     {
         if (partidasCategoria.Count == 0)
         {
@@ -417,18 +630,22 @@ public class RankingServico(
                 ObterDuplaVencedora(final),
                 competicao.ObterPontosPrimeiroLugar() * peso,
                 final,
+                PontuacaoDaPartidaPendente(final),
                 competicao.Nome,
                 categoria.Nome,
-                "1º lugar");
+                "1º lugar",
+                filtroAtleta);
 
             AdicionarPontuacaoColocacao(
                 atletas,
                 ObterDuplaPerdedora(final),
                 competicao.ObterPontosSegundoLugar() * peso,
                 final,
+                PontuacaoDaPartidaPendente(final),
                 competicao.Nome,
                 categoria.Nome,
-                "2º lugar");
+                "2º lugar",
+                filtroAtleta);
         }
 
         var disputaTerceiro = partidasCategoria
@@ -446,9 +663,11 @@ public class RankingServico(
             ObterDuplaVencedora(disputaTerceiro),
             competicao.ObterPontosTerceiroLugar() * peso,
             disputaTerceiro,
+            PontuacaoDaPartidaPendente(disputaTerceiro),
             competicao.Nome,
             categoria.Nome,
-            "3º lugar");
+            "3º lugar",
+            filtroAtleta);
     }
 
     private static void AdicionarPontuacaoColocacao(
@@ -456,16 +675,18 @@ public class RankingServico(
         Dupla? dupla,
         decimal pontos,
         Partida partida,
+        bool pontuacaoPendente,
         string nomeCompeticao,
         string nomeCategoria,
-        string colocacao)
+        string colocacao,
+        Func<Atleta, bool>? filtroAtleta = null)
     {
         if (dupla is null || pontos <= 0)
         {
             return;
         }
 
-        var confronto = $"Pontuação por colocação: {partida.DuplaA.Nome} {partida.PlacarDuplaA} x {partida.PlacarDuplaB} {partida.DuplaB.Nome}";
+        var confronto = $"Pontuação por colocação: {MontarConfrontoRanking(partida)}";
         var dataPartida = partida.DataPartida ?? partida.DataCriacao;
         AdicionarPontuacaoColocacaoAtleta(
             atletas,
@@ -476,7 +697,9 @@ public class RankingServico(
             dataPartida,
             nomeCompeticao,
             nomeCategoria,
-            colocacao);
+            colocacao,
+            pontuacaoPendente,
+            filtroAtleta);
         AdicionarPontuacaoColocacaoAtleta(
             atletas,
             dupla.Atleta2,
@@ -486,7 +709,9 @@ public class RankingServico(
             dataPartida,
             nomeCompeticao,
             nomeCategoria,
-            colocacao);
+            colocacao,
+            pontuacaoPendente,
+            filtroAtleta);
     }
 
     private static void AdicionarPontuacaoColocacaoAtleta(
@@ -498,22 +723,37 @@ public class RankingServico(
         DateTime dataPartida,
         string nomeCompeticao,
         string nomeCategoria,
-        string colocacao)
+        string colocacao,
+        bool pontuacaoPendente,
+        Func<Atleta, bool>? filtroAtleta = null)
     {
+        if (filtroAtleta is not null && !filtroAtleta(atleta))
+        {
+            return;
+        }
+
         if (!atletas.TryGetValue(atleta.Id, out var item))
         {
             item = CriarRankingAtletaAcumulado(atleta);
             atletas[atleta.Id] = item;
         }
 
-        item.Pontos += pontos;
+        if (pontuacaoPendente)
+        {
+            item.PontosPendentes += pontos;
+        }
+        else
+        {
+            item.Pontos += pontos;
+        }
+
         item.Partidas.Add(new RankingPartidaDto(
             partidaId,
             confronto,
             dataPartida,
             nomeCompeticao,
             nomeCategoria,
-            colocacao,
+            pontuacaoPendente ? $"{colocacao} pendente" : colocacao,
             pontos));
     }
 
@@ -551,6 +791,38 @@ public class RankingServico(
     {
         var fase = NormalizarFaseRanking(partida.FaseCampeonato);
         return fase is "FINAL" or "FINAIS" or "GRANDEFINAL";
+    }
+
+    private static string MontarConfrontoRanking(Partida partida)
+    {
+        return $"{FormatarNomeDuplaRanking(partida.DuplaA)} {partida.PlacarDuplaA} x {partida.PlacarDuplaB} {FormatarNomeDuplaRanking(partida.DuplaB)}";
+    }
+
+    private static string FormatarNomeDuplaRanking(Dupla? dupla)
+    {
+        if (dupla is null)
+        {
+            return "A definir";
+        }
+
+        return $"{FormatarNomeAtletaRanking(dupla.Atleta1)} / {FormatarNomeAtletaRanking(dupla.Atleta2)}";
+    }
+
+    private static string FormatarNomeAtletaRanking(Atleta? atleta)
+    {
+        if (atleta is null)
+        {
+            return "A definir";
+        }
+
+        if (!string.IsNullOrWhiteSpace(atleta.Apelido))
+        {
+            return atleta.Apelido.Trim();
+        }
+
+        return atleta.Nome
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault() ?? atleta.Nome;
     }
 
     private static bool EhFaseTerceiroLugar(Partida partida)
@@ -598,6 +870,9 @@ public class RankingServico(
                 atleta.AtletaId,
                 atleta.NomeAtleta,
                 atleta.ApelidoAtleta,
+                atleta.Bairro,
+                atleta.Cidade,
+                atleta.Estado,
                 atleta.Lado,
                 atleta.PossuiUsuarioVinculado,
                 atleta.CadastroPendente,
@@ -608,15 +883,60 @@ public class RankingServico(
                 atleta.Derrotas,
                 atleta.Empates,
                 atleta.Pontos,
+                atleta.PontosPendentes,
                 atleta.Partidas
                     .OrderByDescending(partida => partida.DataPartida)
                     .ToList()))
             .ToList();
     }
 
+    private static void AcumularSeAtletaElegivel(
+        IDictionary<Guid, RankingAtletaAcumulado> acumulado,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesOficiaisAplicadas,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesPendentesAplicadas,
+        Atleta atleta,
+        Func<Atleta, bool> atletaElegivel,
+        Guid referenciaParticipacaoId,
+        decimal pontosParticipacao,
+        bool empate,
+        bool venceu,
+        decimal pontosVitoria,
+        decimal pontosDerrota,
+        bool pontuacaoPendente,
+        Guid partidaId,
+        string confronto,
+        DateTime dataPartida,
+        string nomeCompeticao,
+        string nomeCategoria)
+    {
+        if (!atletaElegivel(atleta))
+        {
+            return;
+        }
+
+        Acumular(
+            acumulado,
+            participacoesOficiaisAplicadas,
+            participacoesPendentesAplicadas,
+            atleta,
+            referenciaParticipacaoId,
+            pontosParticipacao,
+            empate,
+            venceu,
+            pontosVitoria,
+            pontosDerrota,
+            pontuacaoPendente,
+            partidaId,
+            confronto,
+            dataPartida,
+            nomeCompeticao,
+            nomeCategoria);
+    }
+
     private static void Acumular(
         IDictionary<Guid, RankingAtletaAcumulado> acumulado,
-        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesAplicadas,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesOficiaisAplicadas,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesPendentesAplicadas,
         Atleta atleta,
         Guid referenciaParticipacaoId,
         decimal pontosParticipacao,
@@ -624,6 +944,7 @@ public class RankingServico(
         bool venceu,
         decimal pontosVitoria,
         decimal pontosDerrota,
+        bool pontuacaoPendente,
         Guid partidaId,
         string confronto,
         DateTime dataPartida,
@@ -637,14 +958,30 @@ public class RankingServico(
         }
 
         var pontosPartida = ObterPontosParticipacaoUnica(
-            participacoesAplicadas,
+            participacoesOficiaisAplicadas,
+            participacoesPendentesAplicadas,
             atleta.Id,
             referenciaParticipacaoId,
-            pontosParticipacao);
-        item.Jogos++;
+            pontosParticipacao,
+            pontuacaoPendente);
 
         if (empate)
         {
+            if (pontuacaoPendente)
+            {
+                item.PontosPendentes += pontosPartida;
+                item.Partidas.Add(new RankingPartidaDto(
+                    partidaId,
+                    confronto,
+                    dataPartida,
+                    nomeCompeticao,
+                    nomeCategoria,
+                    "Empate pendente",
+                    pontosPartida));
+                return;
+            }
+
+            item.Jogos++;
             item.Empates++;
             item.Pontos += pontosPartida;
             item.Partidas.Add(new RankingPartidaDto(
@@ -660,8 +997,24 @@ public class RankingServico(
 
         if (venceu)
         {
-            item.Vitorias++;
             pontosPartida += pontosVitoria;
+
+            if (pontuacaoPendente)
+            {
+                item.PontosPendentes += pontosPartida;
+                item.Partidas.Add(new RankingPartidaDto(
+                    partidaId,
+                    confronto,
+                    dataPartida,
+                    nomeCompeticao,
+                    nomeCategoria,
+                    "Vitória pendente",
+                    pontosPartida));
+                return;
+            }
+
+            item.Jogos++;
+            item.Vitorias++;
             item.Pontos += pontosPartida;
             item.Partidas.Add(new RankingPartidaDto(
                 partidaId,
@@ -674,8 +1027,24 @@ public class RankingServico(
             return;
         }
 
-        item.Derrotas++;
         pontosPartida += pontosDerrota;
+
+        if (pontuacaoPendente)
+        {
+            item.PontosPendentes += pontosPartida;
+            item.Partidas.Add(new RankingPartidaDto(
+                partidaId,
+                confronto,
+                dataPartida,
+                nomeCompeticao,
+                nomeCategoria,
+                "Derrota pendente",
+                pontosPartida));
+            return;
+        }
+
+        item.Jogos++;
+        item.Derrotas++;
         item.Pontos += pontosPartida;
         item.Partidas.Add(new RankingPartidaDto(
             partidaId,
@@ -688,20 +1057,52 @@ public class RankingServico(
     }
 
     private static decimal ObterPontosParticipacaoUnica(
-        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesAplicadas,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesOficiaisAplicadas,
+        ISet<(Guid AtletaId, Guid ReferenciaId)> participacoesPendentesAplicadas,
         Guid atletaId,
         Guid referenciaParticipacaoId,
-        decimal pontosParticipacao)
+        decimal pontosParticipacao,
+        bool pontuacaoPendente)
     {
-        return participacoesAplicadas.Add((atletaId, referenciaParticipacaoId))
+        var chave = (atletaId, referenciaParticipacaoId);
+
+        if (!pontuacaoPendente)
+        {
+            participacoesPendentesAplicadas.Remove(chave);
+            return participacoesOficiaisAplicadas.Add(chave)
+                ? pontosParticipacao
+                : 0m;
+        }
+
+        if (participacoesOficiaisAplicadas.Contains(chave))
+        {
+            return 0m;
+        }
+
+        return participacoesPendentesAplicadas.Add(chave)
             ? pontosParticipacao
             : 0m;
+    }
+
+    private static IEnumerable<Partida> OrdenarPartidasParaPontuacao(IReadOnlyList<Partida> partidas)
+    {
+        return partidas
+            .OrderBy(x => PontuacaoDaPartidaPendente(x))
+            .ThenByDescending(x => x.DataPartida ?? x.DataCriacao);
+    }
+
+    private static bool PontuacaoDaPartidaPendente(Partida partida)
+    {
+        return partida.StatusAprovacao != StatusAprovacaoPartida.Aprovada;
     }
 
     private sealed class RankingAtletaAcumulado(
         Guid atletaId,
         string nomeAtleta,
         string? apelidoAtleta,
+        string? bairro,
+        string? cidade,
+        string? estado,
         LadoAtleta lado,
         bool possuiUsuarioVinculado,
         bool cadastroPendente,
@@ -711,6 +1112,9 @@ public class RankingServico(
         public Guid AtletaId { get; } = atletaId;
         public string NomeAtleta { get; } = nomeAtleta;
         public string? ApelidoAtleta { get; } = apelidoAtleta;
+        public string? Bairro { get; } = bairro;
+        public string? Cidade { get; } = cidade;
+        public string? Estado { get; } = estado;
         public LadoAtleta Lado { get; } = lado;
         public bool PossuiUsuarioVinculado { get; } = possuiUsuarioVinculado;
         public bool CadastroPendente { get; } = cadastroPendente;
@@ -721,6 +1125,7 @@ public class RankingServico(
         public int Derrotas { get; set; }
         public int Empates { get; set; }
         public decimal Pontos { get; set; }
+        public decimal PontosPendentes { get; set; }
         public List<RankingPartidaDto> Partidas { get; } = [];
     }
 
@@ -730,11 +1135,74 @@ public class RankingServico(
             atleta.Id,
             atleta.Nome,
             atleta.Apelido,
+            atleta.Bairro,
+            atleta.Cidade,
+            atleta.Estado,
             atleta.Lado,
             StatusCadastroAtletaUtil.PossuiUsuarioVinculado(atleta),
             atleta.CadastroPendente,
             StatusCadastroAtletaUtil.TemEmail(atleta),
             StatusCadastroAtletaUtil.ObterStatusPendencia(atleta));
+    }
+
+    private static IEnumerable<Atleta> EnumerarAtletasRanking(Partida partida)
+    {
+        return new[]
+        {
+            partida.DuplaA?.Atleta1,
+            partida.DuplaA?.Atleta2,
+            partida.DuplaB?.Atleta1,
+            partida.DuplaB?.Atleta2
+        }.OfType<Atleta>();
+    }
+
+    private static bool EhAtletaElegivelRegiao(
+        Atleta atleta,
+        string? estado,
+        string? cidade,
+        string? bairro)
+    {
+        if (!EhCadastroCompleto(atleta))
+        {
+            return false;
+        }
+
+        return MesmoTextoRegiao(atleta.Estado, estado) &&
+            MesmoTextoRegiao(atleta.Cidade, cidade) &&
+            MesmoTextoRegiao(atleta.Bairro, bairro);
+    }
+
+    private static bool EhCadastroCompleto(Atleta atleta)
+    {
+        return !atleta.CadastroPendente;
+    }
+
+    private static bool MesmoTextoRegiao(string? valorAtleta, string? filtro)
+    {
+        return string.IsNullOrWhiteSpace(filtro) ||
+            string.Equals(valorAtleta, filtro, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizarFiltroRegiao(string? valor)
+    {
+        var normalizado = NormalizadorNomeAtleta.NormalizarTexto(valor);
+        return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
+    }
+
+    private static string NormalizarChaveRegiao(string? valor)
+    {
+        return NormalizarFiltroRegiao(valor)?.ToUpperInvariant() ?? string.Empty;
+    }
+
+    private static string MontarNomeRegiao(string? estado, string? cidade, string? bairro)
+    {
+        var partes = new[] { estado, cidade, bairro }
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return partes.Count == 0
+            ? "Todas as regiões"
+            : string.Join(" / ", partes);
     }
 
     private sealed class RankingCategoriaAcumulado(

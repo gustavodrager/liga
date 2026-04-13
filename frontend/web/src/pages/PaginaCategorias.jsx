@@ -5,16 +5,16 @@ import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { formatosCampeonatoServico } from '../services/formatosCampeonatoServico';
 import { extrairMensagemErro } from '../utils/erros';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 
 const estadoInicial = {
   competicaoId: '',
   formatoCampeonatoId: '',
   nome: '',
-  genero: '1',
-  nivel: '1',
+  genero: '',
+  nivel: '',
   pesoRanking: '',
-  quantidadeMaximaDuplas: '16',
+  quantidadeMaximaDuplas: '',
   inscricoesEncerradas: false
 };
 
@@ -34,10 +34,12 @@ const opcoesNivel = [
 ];
 
 export function PaginaCategorias() {
+  const exibirCampoFormatoCompeticao = false;
   const [competicoes, setCompeticoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [formatosCampeonato, setFormatosCampeonato] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(true);
   const [categoriaEdicaoId, setCategoriaEdicaoId] = useState(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -114,6 +116,7 @@ export function PaginaCategorias() {
     try {
       const lista = await categoriasServico.listarPorCompeticao(competicaoId);
       setCategorias(lista);
+      setFormularioAberto(lista.length === 0);
     } catch (error) {
       setErro(extrairMensagemErro(error));
     }
@@ -142,7 +145,12 @@ export function PaginaCategorias() {
     });
 
     if (campo === 'competicaoId') {
+      setFormularioAberto(false);
       setCategoriaEdicaoId(null);
+      setFormulario((anterior) => ({
+        ...estadoInicial,
+        competicaoId: valor
+      }));
       atualizarParametros(valor, '');
     }
   }
@@ -162,6 +170,7 @@ export function PaginaCategorias() {
   }
 
   function iniciarEdicao(categoria) {
+    setFormularioAberto(true);
     setCategoriaEdicaoId(categoria.id);
     setFormulario({
       competicaoId: categoria.competicaoId,
@@ -178,12 +187,24 @@ export function PaginaCategorias() {
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(categorias.length === 0);
     setCategoriaEdicaoId(null);
     setFormulario((anterior) => ({
       ...estadoInicial,
       competicaoId: anterior.competicaoId || ''
     }));
     atualizarParametros(formulario.competicaoId, '');
+  }
+
+  function abrirFormularioCategoria() {
+    setFormularioAberto(true);
+    setCategoriaEdicaoId(null);
+    setFormulario((anterior) => ({
+      ...estadoInicial,
+      competicaoId: anterior.competicaoId || ''
+    }));
+    atualizarParametros(formulario.competicaoId, '');
+    rolarParaElemento(formularioRef.current);
   }
 
   async function aoSubmeter(evento) {
@@ -221,6 +242,8 @@ export function PaginaCategorias() {
 
       cancelarEdicao();
       await carregarCategorias(formulario.competicaoId);
+      setFormularioAberto(false);
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -277,121 +300,141 @@ export function PaginaCategorias() {
         <p>Cada categoria pertence a uma competição e define gênero e nível técnico.</p>
       </div>
 
-      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
-        <label>
-          Competição
-          <select
-            value={formulario.competicaoId}
-            onChange={(evento) => atualizarCampo('competicaoId', evento.target.value)}
-            required
-          >
-            <option value="">Selecione</option>
-            {competicoes.map((competicao) => (
-              <option key={competicao.id} value={competicao.id}>
-                {competicao.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Forma de competição
-          <select
-            value={formulario.formatoCampeonatoId}
-            onChange={(evento) => atualizarCampo('formatoCampeonatoId', evento.target.value)}
-          >
-            <option value="">Seguir formato da competição</option>
-            {obterFormatosDisponiveis().map((formato) => (
-              <option key={formato.id} value={formato.id}>
-                {formato.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {competicaoSelecionada?.nomeFormatoCampeonato && (
-          <p className="campo-largo">
-            Formato definido na competição: {competicaoSelecionada.nomeFormatoCampeonato}.
-          </p>
-        )}
-
-        <label>
-          Nome da categoria
-          <input
-            type="text"
-            value={formulario.nome}
-            onChange={(evento) => atualizarCampo('nome', evento.target.value)}
-            placeholder="Opcional, exceto se já existir mesma combinação"
-          />
-        </label>
-
-        <label>
-          Gênero
-          <select
-            value={formulario.genero}
-            onChange={(evento) => atualizarCampo('genero', evento.target.value)}
-            required
-          >
-            {opcoesGenero.map((opcao) => (
-              <option key={opcao.valor} value={opcao.valor}>
-                {opcao.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Nível técnico
-          <select
-            value={formulario.nivel}
-            onChange={(evento) => atualizarCampo('nivel', evento.target.value)}
-            required
-          >
-            {opcoesNivel.map((opcao) => (
-              <option key={opcao.valor} value={opcao.valor}>
-                {opcao.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {competicaoAceitaInscricoes && (
-          <label>
-            Máx. de duplas
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={formulario.quantidadeMaximaDuplas}
-              onChange={(evento) => atualizarCampo('quantidadeMaximaDuplas', evento.target.value)}
-              placeholder="Em branco = até encerrar as inscrições"
-            />
-          </label>
-        )}
-
-        {competicaoAceitaInscricoes && categoriaEdicaoId && (
-          <label className="checkbox-linha">
-            <input
-              type="checkbox"
-              checked={Boolean(formulario.inscricoesEncerradas)}
-              onChange={(evento) => atualizarCampo('inscricoesEncerradas', evento.target.checked)}
-            />
-            <span>Inscrições encerradas nesta categoria</span>
-          </label>
-        )}
-
-        <div className="acoes-formulario">
-          <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar'}
-          </button>
-
-          {categoriaEdicaoId && (
+      {!carregando && formulario.competicaoId && categorias.length > 0 && (
+        <div className="acoes-item campo-largo">
+          {!formularioAberto ? (
+            <button type="button" className="botao-primario" onClick={abrirFormularioCategoria}>
+              Nova categoria
+            </button>
+          ) : !categoriaEdicaoId && (
             <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              <ConteudoBotao icone="cancelar" texto="Cancelar" />
+              Fechar formulário
             </button>
           )}
         </div>
-      </form>
+      )}
+
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
+          <label>
+            Competição
+            <select
+              value={formulario.competicaoId}
+              onChange={(evento) => atualizarCampo('competicaoId', evento.target.value)}
+              required
+            >
+              <option value="">Selecione</option>
+              {competicoes.map((competicao) => (
+                <option key={competicao.id} value={competicao.id}>
+                  {competicao.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {exibirCampoFormatoCompeticao && (
+            <label>
+              Forma de competição
+              <select
+                value={formulario.formatoCampeonatoId}
+                onChange={(evento) => atualizarCampo('formatoCampeonatoId', evento.target.value)}
+              >
+                <option value="">Seguir formato da competição</option>
+                {obterFormatosDisponiveis().map((formato) => (
+                  <option key={formato.id} value={formato.id}>
+                    {formato.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {exibirCampoFormatoCompeticao && competicaoSelecionada?.nomeFormatoCampeonato && (
+            <p className="campo-largo">
+              Formato definido na competição: {competicaoSelecionada.nomeFormatoCampeonato}.
+            </p>
+          )}
+
+          <label>
+            Nome da categoria
+            <input
+              type="text"
+              value={formulario.nome}
+              onChange={(evento) => atualizarCampo('nome', evento.target.value)}
+              placeholder="Opcional, exceto se já existir mesma combinação"
+            />
+          </label>
+
+          <label>
+            Gênero
+            <select
+              value={formulario.genero}
+              onChange={(evento) => atualizarCampo('genero', evento.target.value)}
+              required
+            >
+              <option value="">Selecione</option>
+              {opcoesGenero.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>
+                  {opcao.rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Nível técnico
+            <select
+              value={formulario.nivel}
+              onChange={(evento) => atualizarCampo('nivel', evento.target.value)}
+              required
+            >
+              <option value="">Selecione</option>
+              {opcoesNivel.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>
+                  {opcao.rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {competicaoAceitaInscricoes && (
+            <label>
+              Quantidade de duplas
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={formulario.quantidadeMaximaDuplas}
+                onChange={(evento) => atualizarCampo('quantidadeMaximaDuplas', evento.target.value)}
+                placeholder="Em branco = até encerrar as inscrições"
+              />
+            </label>
+          )}
+
+          {competicaoAceitaInscricoes && categoriaEdicaoId && (
+            <label>
+              <input
+                type="checkbox"
+                checked={Boolean(formulario.inscricoesEncerradas)}
+                onChange={(evento) => atualizarCampo('inscricoesEncerradas', evento.target.checked)}
+              />
+              <span>Inscrições encerradas nesta categoria</span>
+            </label>
+          )}
+
+          <div className="acoes-formulario">
+            <button type="submit" className="botao-primario" disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+
+            {categoriaEdicaoId && (
+              <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
 
@@ -426,7 +469,7 @@ export function PaginaCategorias() {
                   className="botao-terciario"
                   onClick={() => navegar(`/partidas/registrar?categoriaId=${categoria.id}`)}
                 >
-                  <ConteudoBotao icone="partidas" texto="Partidas" />
+                  Partidas
                 </button>
                 {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
                   <button
@@ -434,11 +477,11 @@ export function PaginaCategorias() {
                     className="botao-terciario"
                     onClick={() => navegar(`/inscricoes?campeonatoId=${categoria.competicaoId}&categoriaId=${categoria.id}`)}
                   >
-                    <ConteudoBotao icone="inscricoes" texto="Inscrições" />
+                    Inscrições
                   </button>
                 )}
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(categoria)}>
-                  <ConteudoBotao icone="editar" texto="Editar" />
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(categoria)}>
+                  Editar
                 </button>
                 {competicoes.find((competicao) => competicao.id === categoria.competicaoId)?.tipo !== 3 && (
                   <button
@@ -446,14 +489,11 @@ export function PaginaCategorias() {
                     className="botao-secundario"
                     onClick={() => alternarEncerramentoInscricoes(categoria)}
                   >
-                    <ConteudoBotao
-                      icone="inscricoes"
-                      texto={categoria.inscricoesEncerradas ? 'Reabrir inscrições' : 'Encerrar inscrições'}
-                    />
+                    {categoria.inscricoesEncerradas ? 'Reabrir inscrições' : 'Encerrar inscrições'}
                   </button>
                 )}
                 <button type="button" className="botao-perigo" onClick={() => removerCategoria(categoria.id)}>
-                  <ConteudoBotao icone="excluir" texto="Excluir" />
+                  Excluir
                 </button>
               </div>
             </article>

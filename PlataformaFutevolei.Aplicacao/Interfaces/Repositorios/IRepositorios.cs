@@ -77,6 +77,15 @@ public interface ILocalRepositorio
 public interface ICompeticaoRepositorio
 {
     Task<IReadOnlyList<Competicao>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default);
+    Task<bool> AtletaPossuiAcessoAsync(
+        Guid competicaoId,
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default);
     Task<Competicao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Competicao competicao, CancellationToken cancellationToken = default);
     void Atualizar(Competicao competicao);

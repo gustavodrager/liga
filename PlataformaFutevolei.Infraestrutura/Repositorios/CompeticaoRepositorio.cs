@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
@@ -18,6 +19,33 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .Include(x => x.UsuarioOrganizador)
             .OrderByDescending(x => x.DataInicio)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await AplicarFiltroAcessoAtleta(
+                dbContext.Competicoes.AsNoTracking(),
+                usuarioId,
+                atletaId)
+            .Select(x => x.Id)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<bool> AtletaPossuiAcessoAsync(
+        Guid competicaoId,
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return AplicarFiltroAcessoAtleta(
+                dbContext.Competicoes.AsNoTracking().Where(x => x.Id == competicaoId),
+                usuarioId,
+                atletaId)
+            .AnyAsync(cancellationToken);
     }
 
     public Task<Competicao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -44,5 +72,24 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
     public void Remover(Competicao competicao)
     {
         dbContext.Competicoes.Remove(competicao);
+    }
+
+    private static IQueryable<Competicao> AplicarFiltroAcessoAtleta(
+        IQueryable<Competicao> query,
+        Guid usuarioId,
+        Guid? atletaId)
+    {
+        if (!atletaId.HasValue)
+        {
+            return query.Where(x => x.UsuarioOrganizadorId == usuarioId);
+        }
+
+        var atletaIdValor = atletaId.Value;
+        return query.Where(x =>
+            x.UsuarioOrganizadorId == usuarioId ||
+            x.GrupoAtletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
+            x.Inscricoes.Any(inscricao =>
+                inscricao.Status != StatusInscricaoCampeonato.Cancelada &&
+                (inscricao.Dupla.Atleta1Id == atletaIdValor || inscricao.Dupla.Atleta2Id == atletaIdValor)));
     }
 }

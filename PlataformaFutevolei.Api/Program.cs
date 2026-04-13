@@ -181,6 +181,7 @@ using (var scope = app.Services.CreateScope())
             app.Logger.LogInformation("Execução de migrations na inicialização desabilitada por configuração.");
         }
 
+        GarantirCompatibilidadeLinkCompeticao(dbContext, app.Logger);
         GarantirCompatibilidadeCriadoPorUsuarioPartidas(dbContext, app.Logger);
         GarantirCompatibilidadeStatusAprovacaoPartidas(dbContext, app.Logger);
         GarantirCompatibilidadeFluxoAprovacaoResultados(dbContext, app.Logger);
@@ -344,6 +345,18 @@ static void GarantirCompatibilidadeStatusAprovacaoPartidas(
         """);
 
     logger.LogInformation("Compatibilidade de schema para partidas.status_aprovacao verificada.");
+}
+
+static void GarantirCompatibilidadeLinkCompeticao(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger logger)
+{
+    dbContext.Database.ExecuteSqlRaw("""
+        ALTER TABLE competicoes
+        ADD COLUMN IF NOT EXISTS link character varying(500) NULL;
+        """);
+
+    logger.LogInformation("Compatibilidade de schema para competicoes.link verificada.");
 }
 
 static void GarantirCompatibilidadeCriadoPorUsuarioPartidas(

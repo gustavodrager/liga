@@ -22,14 +22,46 @@ public class CompeticaoServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : ICompeticaoServico
 {
-    public async Task<IReadOnlyList<CompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default)
+    private const string NomeCompeticaoPartidasAvulsas = "Partidas avulsas";
+
+    public async Task<IReadOnlyList<CompeticaoDto>> ListarAsync(
+        bool incluirPublicas = false,
+        CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var competicoes = await competicaoRepositorio.ListarAsync(cancellationToken);
+        if (usuario is null)
+        {
+            return OrdenarCompeticoes(competicoes.Where(x => AceitaInscricoes(x.Tipo)))
+                .Select(x => x.ParaDto())
+                .ToList();
+        }
+
+        if (incluirPublicas)
+        {
+            var idsComAcesso = (await competicaoRepositorio.ListarIdsComAcessoAtletaAsync(
+                    usuario.Id,
+                    usuario.AtletaId,
+                    cancellationToken))
+                .ToHashSet();
+
+            return OrdenarCompeticoes(competicoes.Where(x =>
+                    AceitaInscricoes(x.Tipo) ||
+                    (x.Tipo == TipoCompeticao.Grupo && idsComAcesso.Contains(x.Id))))
+                .Select(x => x.ParaDto())
+                .ToList();
+        }
+
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
+            var competicoesComAcesso = await competicaoRepositorio.ListarIdsComAcessoAtletaAsync(
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            var idsComAcesso = competicoesComAcesso.ToHashSet();
+
             competicoes = competicoes
-                .Where(x => (AceitaInscricoes(x.Tipo) && x.InscricoesAbertas) || x.Tipo == TipoCompeticao.Grupo)
+                .Where(x => idsComAcesso.Contains(x.Id))
                 .OrderBy(x => x.DataInicio)
                 .ThenBy(x => x.Nome)
                 .ToList();
@@ -45,6 +77,14 @@ public class CompeticaoServico(
         return competicoes.Select(x => x.ParaDto()).ToList();
     }
 
+    public async Task<ResumoCompeticoesPublicoDto> ObterResumoPublicoAsync(CancellationToken cancellationToken = default)
+    {
+        var competicoes = await competicaoRepositorio.ListarAsync(cancellationToken);
+        var totalGrupos = competicoes.Count(EhGrupoVisivelNoResumo);
+
+        return new ResumoCompeticoesPublicoDto(totalGrupos);
+    }
+
     public async Task<CompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -56,14 +96,14 @@ public class CompeticaoServico(
 
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
-            if (competicao.Tipo == TipoCompeticao.Grupo)
+            var possuiAcesso = await competicaoRepositorio.AtletaPossuiAcessoAsync(
+                competicao.Id,
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            if (!possuiAcesso)
             {
-                return competicao.ParaDto();
-            }
-
-            if (!AceitaInscricoes(competicao.Tipo) || !competicao.InscricoesAbertas)
-            {
-                throw new RegraNegocioException("Atletas só podem visualizar grupos e competições com inscrições abertas.");
+                throw new RegraNegocioException("Atletas só podem visualizar competições das quais fazem parte.");
             }
 
             return competicao.ParaDto();
@@ -95,7 +135,9 @@ public class CompeticaoServico(
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
 
-        Validar(dto.Nome, dataInicioUtc, dataFimUtc);
+        var link = NormalizarLink(dto.Link);
+
+        Validar(dto.Nome, dataInicioUtc, dataFimUtc, link);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
         var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(dto.Tipo, dto.FormatoCampeonatoId, cancellationToken);
@@ -107,13 +149,16 @@ public class CompeticaoServico(
             Nome = dto.Nome.Trim(),
             Tipo = dto.Tipo,
             Descricao = dto.Descricao?.Trim(),
+            Link = link,
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             LigaId = dto.LigaId,
             LocalId = dto.LocalId,
             FormatoCampeonatoId = formatoCampeonatoId,
             RegraCompeticaoId = dto.RegraCompeticaoId,
-            UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta ? usuario.Id : null,
+            UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta || dto.Tipo == TipoCompeticao.Grupo
+                ? usuario.Id
+                : null,
             ContaRankingLiga = dto.LigaId.HasValue,
             InscricoesAbertas = ObterInscricoesAbertasParaCriacao(dto.Tipo, dto.InscricoesAbertas),
             PossuiFinalReset = possuiFinalReset
@@ -150,7 +195,9 @@ public class CompeticaoServico(
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
 
-        Validar(dto.Nome, dataInicioUtc, dataFimUtc);
+        var link = NormalizarLink(dto.Link);
+
+        Validar(dto.Nome, dataInicioUtc, dataFimUtc, link);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
 
@@ -168,6 +215,7 @@ public class CompeticaoServico(
         competicao.Nome = dto.Nome.Trim();
         competicao.Tipo = dto.Tipo;
         competicao.Descricao = dto.Descricao?.Trim();
+        competicao.Link = link;
         competicao.DataInicio = dataInicioUtc;
         competicao.DataFim = dataFimUtc;
         competicao.LigaId = dto.LigaId;
@@ -289,6 +337,27 @@ public class CompeticaoServico(
     private static bool AceitaInscricoes(TipoCompeticao tipo)
     {
         return tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento;
+    }
+
+    private static string? NormalizarLink(string? link)
+    {
+        return string.IsNullOrWhiteSpace(link) ? null : link.Trim();
+    }
+
+    private static IEnumerable<Competicao> OrdenarCompeticoes(IEnumerable<Competicao> competicoes)
+    {
+        return competicoes
+            .OrderBy(x => x.DataInicio)
+            .ThenBy(x => x.Nome);
+    }
+
+    private static bool EhGrupoVisivelNoResumo(Competicao competicao)
+    {
+        return competicao.Tipo == TipoCompeticao.Grupo &&
+            !string.Equals(
+                competicao.Nome?.Trim(),
+                NomeCompeticaoPartidasAvulsas,
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<Guid?> ResolverFormatoCampeonatoAsync(
@@ -480,7 +549,8 @@ public class CompeticaoServico(
     private static void Validar(
         string nome,
         DateTime dataInicio,
-        DateTime? dataFim)
+        DateTime? dataFim,
+        string? link)
     {
         if (string.IsNullOrWhiteSpace(nome))
         {
@@ -495,6 +565,18 @@ public class CompeticaoServico(
         if (dataFim.HasValue && dataFim.Value < dataInicio)
         {
             throw new RegraNegocioException("A data fim não pode ser menor que a data de início.");
+        }
+
+        if (link?.Length > 500)
+        {
+            throw new RegraNegocioException("O link da competição deve ter no máximo 500 caracteres.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(link) &&
+            (!Uri.TryCreate(link, UriKind.Absolute, out var uri) ||
+             uri.Scheme is not ("http" or "https")))
+        {
+            throw new RegraNegocioException("O link da competição deve ser uma URL http ou https válida.");
         }
     }
 }

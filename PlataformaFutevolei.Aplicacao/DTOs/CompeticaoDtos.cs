@@ -6,6 +6,7 @@ public record CriarCompeticaoDto(
     string Nome,
     TipoCompeticao Tipo,
     string? Descricao,
+    string? Link,
     DateTime DataInicio,
     DateTime? DataFim,
     Guid? LigaId,
@@ -20,6 +21,7 @@ public record AtualizarCompeticaoDto(
     string Nome,
     TipoCompeticao Tipo,
     string? Descricao,
+    string? Link,
     DateTime DataInicio,
     DateTime? DataFim,
     Guid? LigaId,
@@ -35,6 +37,7 @@ public record CompeticaoDto(
     string Nome,
     TipoCompeticao Tipo,
     string? Descricao,
+    string? Link,
     DateTime DataInicio,
     DateTime? DataFim,
     Guid? LigaId,
@@ -58,4 +61,8 @@ public record CompeticaoDto(
     decimal PontosParticipacaoEfetivo,
     DateTime DataCriacao,
     DateTime DataAtualizacao
+);
+
+public record ResumoCompeticoesPublicoDto(
+    int TotalGrupos
 );

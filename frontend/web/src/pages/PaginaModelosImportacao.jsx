@@ -3,6 +3,7 @@ import { competicoesServico } from '../services/competicoesServico';
 import { importacoesServico } from '../services/importacoesServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { baixarModeloImportacao, modelosImportacao } from '../utils/modelosImportacao';
+import { rolarParaTopo } from '../utils/rolagem';
 
 export function PaginaModelosImportacao() {
   const [arquivos, setArquivos] = useState({});
@@ -107,6 +108,7 @@ export function PaginaModelosImportacao() {
           resultado
         }
       }));
+      rolarParaTopo();
     } catch (erro) {
       setImportacoes((anterior) => ({
         ...anterior,

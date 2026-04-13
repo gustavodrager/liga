@@ -22,7 +22,7 @@ internal static class ConteudoConviteCadastro
             [
                 "Olá!",
                 string.Empty,
-                "Você foi convidado(a) para usar a Plataforma QuebraNunca Futevôlei como organizador(a).",
+                "Você foi convidado(a) para usar a Plataforma QuebraNunca Futevôlei como atleta.",
                 "Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.",
                 string.Empty,
                 $"E-mail liberado para o convite: {conviteCadastro.Email}",
@@ -44,7 +44,7 @@ internal static class ConteudoConviteCadastro
         return $"""
             <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
               <p>Olá!</p>
-              <p>Você foi convidado(a) para usar a <strong>Plataforma QuebraNunca Futevôlei</strong> como organizador(a).</p>
+              <p>Você foi convidado(a) para usar a <strong>Plataforma QuebraNunca Futevôlei</strong> como atleta.</p>
               <p>Preparamos um link pessoal para você criar sua senha e fazer seu primeiro acesso.</p>
               <p><strong>E-mail liberado para o convite:</strong> {email}</p>
               <p><strong>Código do convite:</strong> {codigoConviteCodificado}</p>
@@ -67,7 +67,7 @@ internal static class ConteudoConviteCadastro
             [
                 "Olá!",
                 string.Empty,
-                "Você recebeu um convite para acessar a Plataforma QuebraNunca Futevôlei como organizador(a).",
+                "Você recebeu um convite para acessar a Plataforma QuebraNunca Futevôlei como atleta.",
                 "Use o link abaixo e o código do convite para criar sua senha e concluir seu primeiro acesso:",
                 linkConvite,
                 string.Empty,

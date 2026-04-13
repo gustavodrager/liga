@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { categoriasServico } from '../services/categoriasServico';
@@ -9,10 +9,12 @@ import { inscricoesCampeonatoServico } from '../services/inscricoesCampeonatoSer
 import { ligasServico } from '../services/ligasServico';
 import { locaisServico } from '../services/locaisServico';
 import { regrasCompeticaoServico } from '../services/regrasCompeticaoServico';
+import { ESTADOS_ACESSO } from '../utils/acesso';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarData, paraInputData } from '../utils/formatacao';
+import { abrirLinkExterno, obterLinkHttp } from '../utils/links';
 import { ehAtleta, ehGestorCompeticao, PERFIS_USUARIO } from '../utils/perfis';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 
 function obterDataAtualInput() {
   const agora = new Date();
@@ -27,6 +29,7 @@ function criarEstadoInicialCompeticao(usuarioAtleta = false) {
     nome: '',
     tipo: usuarioAtleta ? '3' : '1',
     descricao: '',
+    link: '',
     dataInicio: usuarioAtleta ? obterDataAtualInput() : '',
     dataFim: '',
     ligaId: '',
@@ -43,6 +46,23 @@ const tiposCompeticao = [
   { valor: 2, rotulo: 'Evento' },
   { valor: 3, rotulo: 'Grupo' }
 ];
+
+const TIPOS_COMPETICAO = {
+  campeonato: 1,
+  evento: 2,
+  grupo: 3,
+  partidasAvulsas: 4
+};
+
+const NOME_COMPETICAO_PARTIDAS_AVULSAS = 'Partidas avulsas';
+
+function ehCompeticaoPartidasAvulsas(competicao) {
+  const tipoCompeticao = Number(competicao?.tipo || 0);
+  const nomeCompeticao = (competicao?.nome || '').trim().toLowerCase();
+
+  return tipoCompeticao === TIPOS_COMPETICAO.partidasAvulsas
+    || (tipoCompeticao === TIPOS_COMPETICAO.grupo && nomeCompeticao === NOME_COMPETICAO_PARTIDAS_AVULSAS.toLowerCase());
+}
 
 const tiposCompeticaoFormulario = [
   { valor: 1, rotulo: 'Campeonato' },
@@ -73,12 +93,61 @@ const opcoesNivel = [
   { valor: 6, rotulo: 'Livre' }
 ];
 
+const filtrosIniciais = {
+  termo: '',
+  tipo: '',
+  competicaoId: '',
+  categoria: ''
+};
+
+function normalizarTexto(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function obterRotuloTipoCompeticao(tipo) {
+  return tiposCompeticao.find((item) => item.valor === Number(tipo))?.rotulo || '';
+}
+
+function obterRotuloGenero(genero) {
+  return opcoesGenero.find((item) => item.valor === Number(genero))?.rotulo || '';
+}
+
+function obterRotuloNivel(nivel) {
+  return opcoesNivel.find((item) => item.valor === Number(nivel))?.rotulo || '';
+}
+
+function competicaoCorrespondeAoFiltro(competicao, termo) {
+  return [
+    competicao.nome,
+    competicao.descricao,
+    competicao.nomeLocal,
+    competicao.nomeLiga,
+    competicao.nomeUsuarioOrganizador,
+    obterRotuloTipoCompeticao(competicao.tipo)
+  ].some((valor) => normalizarTexto(valor).includes(termo));
+}
+
+function categoriaCorrespondeAoFiltro(categoria, termo) {
+  return [
+    categoria.id,
+    categoria.nome,
+    obterRotuloGenero(categoria.genero),
+    obterRotuloNivel(categoria.nivel)
+  ].some((valor) => normalizarTexto(valor).includes(termo));
+}
+
 export function PaginaCompeticoes() {
-  const { usuario, atualizarUsuarioLocal } = useAutenticacao();
+  const { token, usuario, estadoAcesso, atualizarUsuarioLocal } = useAutenticacao();
+  const visitante = !token;
   const gestorCompeticao = ehGestorCompeticao(usuario);
   const usuarioAtleta = ehAtleta(usuario);
   const usuarioAdministrador = Number(usuario?.perfil) === PERFIS_USUARIO.administrador;
-  const podeCriarCompeticao = gestorCompeticao || usuarioAtleta;
+  const usuarioAtivo = estadoAcesso === ESTADOS_ACESSO.ativo;
+  const podeCriarCompeticao = usuarioAtivo && (gestorCompeticao || usuarioAtleta);
   const [competicoes, setCompeticoes] = useState([]);
   const [ligas, setLigas] = useState([]);
   const [locais, setLocais] = useState([]);
@@ -86,9 +155,13 @@ export function PaginaCompeticoes() {
   const [regras, setRegras] = useState([]);
   const [regrasDisponiveis, setRegrasDisponiveis] = useState(true);
   const [formulario, setFormulario] = useState(() => criarEstadoInicialCompeticao(usuarioAtleta));
+  const [formularioCompeticaoAberto, setFormularioCompeticaoAberto] = useState(true);
+  const [deveRolarParaFormularioCompeticao, setDeveRolarParaFormularioCompeticao] = useState(false);
   const [competicaoEdicaoId, setCompeticaoEdicaoId] = useState(null);
-  const [competicaoCategoriasId, setCompeticaoCategoriasId] = useState(null);
-  const [categoriasCompeticao, setCategoriasCompeticao] = useState([]);
+  const [categoriasFormulario, setCategoriasFormulario] = useState([]);
+  const [carregandoCategoriasFormulario, setCarregandoCategoriasFormulario] = useState(false);
+  const [categoriasPorCompeticao, setCategoriasPorCompeticao] = useState({});
+  const [carregandoCategoriasCompeticoes, setCarregandoCategoriasCompeticoes] = useState(false);
   const [quantidadeInscricoesPorCategoria, setQuantidadeInscricoesPorCategoria] = useState({});
   const [categoriaInscricoesAbertaId, setCategoriaInscricoesAbertaId] = useState(null);
   const [inscricoesCategoria, setInscricoesCategoria] = useState([]);
@@ -96,6 +169,7 @@ export function PaginaCompeticoes() {
   const [grupoAtletas, setGrupoAtletas] = useState([]);
   const [formularioGrupoAtleta, setFormularioGrupoAtleta] = useState(estadoInicialGrupoAtleta);
   const [grupoAtletaSelecionadoId, setGrupoAtletaSelecionadoId] = useState('');
+  const [filtros, setFiltros] = useState(filtrosIniciais);
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -112,10 +186,83 @@ export function PaginaCompeticoes() {
     competicao.tipo !== 3 && competicao.inscricoesAbertas
   )).length;
   const totalGrupos = competicoes.filter((competicao) => competicao.tipo === 3).length;
+  const filtroAtivo = Boolean(filtros.termo || filtros.tipo || filtros.competicaoId || filtros.categoria);
+  const tiposFiltroDisponiveis = visitante
+    ? tiposCompeticao.filter((tipo) => tipo.valor !== TIPOS_COMPETICAO.grupo)
+    : tiposCompeticao;
+  const competicoesDoTipoSelecionado = useMemo(() => {
+    const tipo = filtros.tipo ? Number(filtros.tipo) : null;
+
+    if (!tipo) {
+      return [];
+    }
+
+    return competicoes.filter((competicao) => Number(competicao.tipo) === tipo);
+  }, [competicoes, filtros.tipo]);
+  const categoriasDaCompeticaoSelecionada = filtros.competicaoId
+    ? categoriasPorCompeticao[filtros.competicaoId] || []
+    : [];
+  const categoriasFiltradasPorCompeticao = useMemo(() => {
+    const termoCategoria = normalizarTexto(filtros.categoria);
+
+    return Object.fromEntries(
+      Object.entries(categoriasPorCompeticao).map(([competicaoId, categorias]) => [
+        competicaoId,
+        termoCategoria
+          ? categorias.filter((categoria) => categoriaCorrespondeAoFiltro(categoria, termoCategoria))
+          : categorias
+      ])
+    );
+  }, [categoriasPorCompeticao, filtros.categoria]);
+
+  const competicoesFiltradas = useMemo(() => {
+    const termo = normalizarTexto(filtros.termo);
+    const tipo = filtros.tipo ? Number(filtros.tipo) : null;
+    const competicaoId = filtros.competicaoId;
+    const termoCategoria = normalizarTexto(filtros.categoria);
+
+    return competicoes.filter((competicao) => {
+      const categoriasFiltradas = categoriasFiltradasPorCompeticao[competicao.id] || [];
+      const correspondeAoTermo = !termo || competicaoCorrespondeAoFiltro(competicao, termo);
+      const correspondeAoTipo = !tipo || Number(competicao.tipo) === tipo;
+      const correspondeACompeticao = !competicaoId || competicao.id === competicaoId;
+      const correspondeACategoria = !termoCategoria || (
+        Number(competicao.tipo) !== TIPOS_COMPETICAO.grupo &&
+        categoriasFiltradas.length > 0
+      );
+
+      return correspondeAoTermo && correspondeAoTipo && correspondeACompeticao && correspondeACategoria;
+    });
+  }, [categoriasFiltradasPorCompeticao, competicoes, filtros.categoria, filtros.competicaoId, filtros.termo, filtros.tipo]);
 
   useEffect(() => {
     carregarCompeticoes();
-  }, [gestorCompeticao, usuarioAtleta]);
+  }, [gestorCompeticao, usuarioAtleta, usuarioAtivo]);
+
+  useEffect(() => {
+    if (!carregando && totalCompeticoes === 0) {
+      setFormularioCompeticaoAberto(true);
+    }
+  }, [carregando, totalCompeticoes]);
+
+  useEffect(() => {
+    if (!competicaoEdicaoId || Number(formulario.tipo) === 3) {
+      setCategoriasFormulario([]);
+      setCarregandoCategoriasFormulario(false);
+      return;
+    }
+
+    carregarCategoriasFormulario(competicaoEdicaoId);
+  }, [competicaoEdicaoId, formulario.tipo]);
+
+  useEffect(() => {
+    if (!deveRolarParaFormularioCompeticao || !formularioCompeticaoAberto) {
+      return;
+    }
+
+    rolarParaElemento(formularioCompeticaoRef.current);
+    setDeveRolarParaFormularioCompeticao(false);
+  }, [deveRolarParaFormularioCompeticao, formularioCompeticaoAberto]);
 
   function obterFormatosDisponiveisParaTipo(tipo) {
     const tipoCompeticao = Number(tipo);
@@ -143,18 +290,62 @@ export function PaginaCompeticoes() {
   }
 
   function podeGerenciarCompeticao(competicao) {
-    if (gestorCompeticao) {
+    if (!usuarioAtivo) {
+      return false;
+    }
+
+    if (usuarioAdministrador) {
       return true;
+    }
+
+    if (Number(usuario?.perfil) === PERFIS_USUARIO.organizador) {
+      return competicao.usuarioOrganizadorId === usuario?.id;
     }
 
     return usuarioAtleta && competicao.tipo === 3 && competicao.usuarioOrganizadorId === usuario?.id;
   }
 
   function podeSortearJogosCompeticao(competicao) {
-    return competicao.tipo !== 3 && (
+    return usuarioAtivo && competicao.tipo !== 3 && (
       Number(usuario?.perfil) === PERFIS_USUARIO.administrador ||
       (Number(usuario?.perfil) === PERFIS_USUARIO.organizador && competicao.usuarioOrganizadorId === usuario?.id)
     );
+  }
+
+  function categoriaEhChaveDuplaEliminacao(categoria) {
+    const formatoEfetivoId = categoria.formatoCampeonatoEfetivoId || categoria.formatoCampeonatoId || '';
+    const formato = formatosCampeonato.find((item) => item.id === formatoEfetivoId);
+
+    return Boolean(
+      formato &&
+      Number(formato.tipoFormato) === 3 &&
+      Number(formato.quantidadeDerrotasParaEliminacao) === 2
+    );
+  }
+
+  function inscricoesFechadasParaGerarChaveamento(competicao, categoria) {
+    return Boolean(categoria.inscricoesEncerradas || !competicao.inscricoesAbertas);
+  }
+
+  function atualizarFiltro(campo, valor) {
+    setFiltros((anteriores) => {
+      const proximos = { ...anteriores, [campo]: valor };
+
+      if (campo === 'tipo') {
+        proximos.competicaoId = '';
+        proximos.categoria = '';
+      }
+
+      if (campo === 'competicaoId') {
+        proximos.categoria = '';
+      }
+
+      return proximos;
+    });
+  }
+
+  function limparFiltros() {
+    setFiltros(filtrosIniciais);
   }
 
   async function carregarCompeticoes() {
@@ -164,10 +355,12 @@ export function PaginaCompeticoes() {
 
     try {
       const avisos = [];
-      const listaCompeticoes = await competicoesServico.listar();
-      setCompeticoes(listaCompeticoes);
+      const listaCompeticoes = await competicoesServico.listarVisiveis();
+      const competicoesVisiveis = listaCompeticoes.filter((competicao) => !ehCompeticaoPartidasAvulsas(competicao));
+      setCompeticoes(competicoesVisiveis);
+      await carregarCategoriasCompeticoes(competicoesVisiveis);
 
-      if (podeCriarCompeticao) {
+      if (gestorCompeticao && usuarioAtivo) {
         try {
           const listaFormatos = await formatosCampeonatoServico.listar();
           setFormatosCampeonato(listaFormatos.filter((formato) => formato.ativo));
@@ -179,7 +372,7 @@ export function PaginaCompeticoes() {
         setFormatosCampeonato([]);
       }
 
-      if (!gestorCompeticao) {
+      if (!gestorCompeticao || !usuarioAtivo) {
         setLigas([]);
         setLocais([]);
         setRegras([]);
@@ -219,6 +412,48 @@ export function PaginaCompeticoes() {
     }
   }
 
+  async function carregarCategoriasCompeticoes(listaCompeticoes) {
+    const competicoesComCategorias = listaCompeticoes.filter((competicao) => competicao.tipo !== 3);
+
+    if (competicoesComCategorias.length === 0) {
+      setCategoriasPorCompeticao({});
+      setQuantidadeInscricoesPorCategoria({});
+      setCarregandoCategoriasCompeticoes(false);
+      return;
+    }
+
+    setCarregandoCategoriasCompeticoes(true);
+
+    try {
+      const categoriasCarregadas = await Promise.all(
+        competicoesComCategorias.map(async (competicao) => {
+          const categorias = await categoriasServico.listarPorCompeticao(competicao.id);
+          return [competicao.id, categorias];
+        })
+      );
+
+      const categoriasMap = Object.fromEntries(categoriasCarregadas);
+      setCategoriasPorCompeticao(categoriasMap);
+
+      const contagensInscricoes = await Promise.all(
+        competicoesComCategorias.flatMap((competicao) => (
+          (categoriasMap[competicao.id] || []).map(async (categoria) => {
+            const inscricoes = await inscricoesCampeonatoServico.listarPorCampeonato(competicao.id, categoria.id);
+            return [categoria.id, inscricoes.length];
+          })
+        ))
+      );
+
+      setQuantidadeInscricoesPorCategoria(Object.fromEntries(contagensInscricoes));
+    } catch (error) {
+      setCategoriasPorCompeticao({});
+      setQuantidadeInscricoesPorCategoria({});
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setCarregandoCategoriasCompeticoes(false);
+    }
+  }
+
   function atualizarCampo(campo, valor) {
     setFormulario((anterior) => {
       const proximo = { ...anterior, [campo]: valor };
@@ -254,12 +489,29 @@ export function PaginaCompeticoes() {
     });
   }
 
+  async function carregarCategoriasFormulario(competicaoId) {
+    setCarregandoCategoriasFormulario(true);
+
+    try {
+      const lista = await categoriasServico.listarPorCompeticao(competicaoId);
+      setCategoriasFormulario(lista);
+    } catch (error) {
+      setCategoriasFormulario([]);
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setCarregandoCategoriasFormulario(false);
+    }
+  }
+
   function iniciarEdicao(competicao) {
+    setFormularioCompeticaoAberto(true);
+    setDeveRolarParaFormularioCompeticao(true);
     setCompeticaoEdicaoId(competicao.id);
     setFormulario({
       nome: competicao.nome,
       tipo: normalizarTipoCompeticaoFormulario(competicao.tipo),
       descricao: competicao.descricao || '',
+      link: competicao.link || '',
       dataInicio: paraInputData(competicao.dataInicio),
       dataFim: paraInputData(competicao.dataFim),
       ligaId: competicao.ligaId || '',
@@ -269,45 +521,24 @@ export function PaginaCompeticoes() {
       inscricoesAbertas: Boolean(competicao.inscricoesAbertas),
       possuiFinalReset: Boolean(competicao.possuiFinalReset)
     });
-    rolarParaElemento(formularioCompeticaoRef.current);
   }
 
   function cancelarEdicao() {
+    setFormularioCompeticaoAberto(totalCompeticoes === 0);
+    setDeveRolarParaFormularioCompeticao(false);
     setCompeticaoEdicaoId(null);
+    setCategoriasFormulario([]);
+    setCarregandoCategoriasFormulario(false);
     setFormulario(criarEstadoInicialCompeticao(usuarioAtleta));
   }
 
-  async function abrirCategorias(competicaoId) {
-    setCompeticaoCategoriasId((anterior) => (anterior === competicaoId ? null : competicaoId));
-    setCategoriaInscricoesAbertaId(null);
-    setInscricoesCategoria([]);
-    setQuantidadeInscricoesPorCategoria({});
-
-    if (competicaoCategoriasId === competicaoId) {
-      setCategoriasCompeticao([]);
-      return;
-    }
-
-    try {
-      const lista = await categoriasServico.listarPorCompeticao(competicaoId);
-      setCategoriasCompeticao(lista);
-
-      const competicao = competicoes.find((item) => item.id === competicaoId);
-      if (competicao?.tipo !== 3 && lista.length > 0) {
-        const contagens = await Promise.all(
-          lista.map(async (categoria) => {
-            const inscricoes = await inscricoesCampeonatoServico.listarPorCampeonato(competicaoId, categoria.id);
-            return [categoria.id, inscricoes.length];
-          })
-        );
-
-        setQuantidadeInscricoesPorCategoria(Object.fromEntries(contagens));
-      }
-    } catch (error) {
-      setErro(extrairMensagemErro(error));
-      setCategoriasCompeticao([]);
-      setQuantidadeInscricoesPorCategoria({});
-    }
+  function abrirFormularioCompeticao() {
+    setCompeticaoEdicaoId(null);
+    setCategoriasFormulario([]);
+    setCarregandoCategoriasFormulario(false);
+    setFormulario(criarEstadoInicialCompeticao(usuarioAtleta));
+    setFormularioCompeticaoAberto(true);
+    setDeveRolarParaFormularioCompeticao(true);
   }
 
   async function alternarInscricoesCategoria(competicaoId, categoriaId) {
@@ -373,6 +604,7 @@ export function PaginaCompeticoes() {
       setFormularioGrupoAtleta(estadoInicialGrupoAtleta);
       const lista = await grupoAtletasServico.listarPorCompeticao(competicaoId);
       setGrupoAtletas(lista);
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -387,10 +619,7 @@ export function PaginaCompeticoes() {
 
     try {
       await categoriasServico.remover(id);
-      if (competicaoCategoriasId) {
-        const lista = await categoriasServico.listarPorCompeticao(competicaoCategoriasId);
-        setCategoriasCompeticao(lista);
-      }
+      await carregarCategoriasCompeticoes(competicoes);
     } catch (error) {
       setErro(extrairMensagemErro(error));
     }
@@ -407,7 +636,7 @@ export function PaginaCompeticoes() {
       });
 
       setAviso(resultado.resumo);
-      navegar(`/partidas/consulta?competicaoId=${competicao.id}&categoriaId=${categoria.id}&visualizacao=tabela`);
+      navegar(`/partidas/campeonato?competicaoId=${competicao.id}&categoriaId=${categoria.id}&aba=chaveamento`);
     } catch (error) {
       const mensagemErro = extrairMensagemErro(error);
 
@@ -475,6 +704,7 @@ export function PaginaCompeticoes() {
       nome: formulario.nome,
       tipo,
       descricao: formulario.descricao || null,
+      link: tipo !== 3 ? formulario.link || null : null,
       dataInicio: tipo === 3 ? (formulario.dataInicio || obterDataAtualInput()) : formulario.dataInicio,
       dataFim: tipo === 3 ? null : formulario.dataFim || null,
       ligaId: usuarioAtleta ? null : formulario.ligaId || null,
@@ -494,11 +724,21 @@ export function PaginaCompeticoes() {
 
       cancelarEdicao();
       await carregarCompeticoes();
+      setFormularioCompeticaoAberto(false);
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
       setSalvando(false);
     }
+  }
+
+  function abrirInscricao(competicao, categoria) {
+    if (abrirLinkExterno(competicao.link)) {
+      return;
+    }
+
+    navegar(`/inscricoes?campeonatoId=${competicao.id}&categoriaId=${categoria.id}`);
   }
 
   async function removerCompeticao(id) {
@@ -516,7 +756,21 @@ export function PaginaCompeticoes() {
 
   return (
     <section className="pagina">
-      {podeCriarCompeticao && (
+      {podeCriarCompeticao && !carregando && totalCompeticoes > 0 && (
+        <div className="acoes-item campo-largo">
+          {!formularioCompeticaoAberto ? (
+            <button type="button" className="botao-primario" onClick={abrirFormularioCompeticao}>
+              {usuarioAtleta ? 'Novo grupo' : 'Nova competição'}
+            </button>
+          ) : !competicaoEdicaoId && (
+            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+              Fechar formulário
+            </button>
+          )}
+        </div>
+      )}
+
+      {podeCriarCompeticao && formularioCompeticaoAberto && (
         <form ref={formularioCompeticaoRef} className="formulario-grid formulario-competicao" onSubmit={aoSubmeter}>
           <div className="formulario-competicao-cabecalho campo-largo">
             <h3>
@@ -578,6 +832,16 @@ export function PaginaCompeticoes() {
                   onChange={(evento) => atualizarCampo('dataFim', evento.target.value)}
                 />
               </label>
+
+              <label className="campo-largo">
+                Link de inscrição
+                <input
+                  type="url"
+                  value={formulario.link}
+                  onChange={(evento) => atualizarCampo('link', evento.target.value)}
+                  placeholder="https://site-da-inscricao.com"
+                />
+              </label>
             </>
           )}
 
@@ -596,18 +860,7 @@ export function PaginaCompeticoes() {
                 ))}
               </select>
             </label>
-          )}
-
-          {usuarioAdministrador && Number(formulario.tipo) !== 3 && formatoEfetivoDaCompeticaoEhChaveDuplaEliminacao(formulario.tipo, formulario.formatoCampeonatoId) && (
-            <label className="campo-checkbox">
-              <input
-                type="checkbox"
-                checked={Boolean(formulario.possuiFinalReset)}
-                onChange={(evento) => atualizarCampo('possuiFinalReset', evento.target.checked)}
-              />
-              <span>Permitir final reset na chave com dupla eliminação</span>
-            </label>
-          )}
+          )}          
 
           {usuarioAdministrador && (
             <label>
@@ -660,6 +913,47 @@ export function PaginaCompeticoes() {
             </label>
           )}
 
+          {!usuarioAtleta && Number(formulario.tipo) === 1 && (
+            <div className="campo-largo">
+              <strong>Categorias</strong>
+              {!competicaoEdicaoId ? (
+                <p>Um campeonato pode ter várias categorias. Salve a competição para cadastrar e organizar as categorias.</p>
+              ) : (
+                <>
+                  <p>As categorias deste campeonato são gerenciadas separadamente e ficam vinculadas à competição salva.</p>
+
+                  {carregandoCategoriasFormulario ? (
+                    <p>Carregando categorias...</p>
+                  ) : categoriasFormulario.length === 0 ? (
+                    <p> </p>
+                  ) : (
+                    <div className="lista-cartoes">
+                      {categoriasFormulario.map((categoria) => (
+                        <article key={categoria.id} className="cartao-lista">
+                          <div>
+                            <h4>{categoria.nome}</h4>
+                            <p>Gênero: {opcoesGenero.find((item) => item.valor === categoria.genero)?.rotulo}</p>
+                            <p>Nível: {opcoesNivel.find((item) => item.valor === categoria.nivel)?.rotulo}</p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="acoes-item">
+                    <button
+                      type="button"
+                      className="botao-terciario"
+                      onClick={() => navegar(`/categorias?competicaoId=${competicaoEdicaoId}`)}
+                    >
+                      Gerenciar categorias
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {!usuarioAtleta && Number(formulario.tipo) !== 3 && (
             <label className="campo-checkbox campo-largo">
               <input
@@ -701,21 +995,105 @@ export function PaginaCompeticoes() {
       {carregando ? (
         <p>Carregando competições...</p>
       ) : (
-        <div className="lista-cartoes">
-          {competicoes.map((competicao) => {
-            const gerenciavel = podeGerenciarCompeticao(competicao);
-            const grupoAberto = competicaoGrupoAtletasId === competicao.id;
-            const categoriasAbertas = competicaoCategoriasId === competicao.id;
-            const usuarioJaNoGrupo = grupoAberto && grupoAtletas.some((item) => item.atletaId === usuario?.atletaId);
-            const nomesDisponiveisParaAssumir = grupoAberto
-              ? grupoAtletas.filter((item) => !item.vinculadoAUsuario || item.atletaId === usuario?.atletaId)
-              : [];
+        <>
+          <section className="formulario-grid filtro-competicoes barra-selecao-fixa">
+            <div className="partidas-filtro-cabecalho campo-largo">
+              <div>
+                <strong>Filtrar competições</strong>
+              </div>
+            </div>
 
-            return (
-              <article
-                key={competicao.id}
-                className={`cartao-lista competicao-card ${competicao.tipo === 3 ? 'competicao-card-grupo' : ''}`}
+            <label>
+              Tipo
+              <select
+                value={filtros.tipo}
+                onChange={(evento) => atualizarFiltro('tipo', evento.target.value)}
               >
+                <option value="">Todos</option>
+                {tiposFiltroDisponiveis.map((tipo) => (
+                  <option key={tipo.valor} value={tipo.valor}>
+                    {tipo.rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {visitante ? (
+              <>
+                {filtros.tipo && (
+                  <label>
+                    {Number(filtros.tipo) === TIPOS_COMPETICAO.evento ? 'Evento' : 'Campeonato'}
+                    <select
+                      value={filtros.competicaoId}
+                      onChange={(evento) => atualizarFiltro('competicaoId', evento.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {competicoesDoTipoSelecionado.map((competicao) => (
+                        <option key={competicao.id} value={competicao.id}>
+                          {competicao.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {filtros.competicaoId && categoriasDaCompeticaoSelecionada.length > 0 && (
+                  <label>
+                    Categoria
+                    <select
+                      value={filtros.categoria}
+                      onChange={(evento) => atualizarFiltro('categoria', evento.target.value)}
+                    >
+                      <option value="">Todas</option>
+                      {categoriasDaCompeticaoSelecionada.map((categoria) => (
+                        <option key={categoria.id} value={categoria.id}>
+                          {categoria.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </>
+            ) : (
+              <>
+                <label>
+                  Competição
+                  <input
+                    type="search"
+                    value={filtros.termo}
+                    onChange={(evento) => atualizarFiltro('termo', evento.target.value)}
+                    placeholder="Nome, local ou responsável"
+                  />
+                </label>
+
+                <label>
+                  Categoria
+                  <input
+                    type="search"
+                    value={filtros.categoria}
+                    onChange={(evento) => atualizarFiltro('categoria', evento.target.value)}
+                    placeholder="Nome, gênero ou nível"
+                  />
+                </label>
+              </>
+            )}
+          </section>
+
+          <div className="lista-cartoes">
+            {competicoesFiltradas.map((competicao) => {
+              const gerenciavel = podeGerenciarCompeticao(competicao);
+              const grupoAberto = competicaoGrupoAtletasId === competicao.id;
+              const categoriasCompeticao = categoriasFiltradasPorCompeticao[competicao.id] || [];
+              const usuarioJaNoGrupo = grupoAberto && grupoAtletas.some((item) => item.atletaId === usuario?.atletaId);
+              const nomesDisponiveisParaAssumir = grupoAberto
+                ? grupoAtletas.filter((item) => !item.vinculadoAUsuario || item.atletaId === usuario?.atletaId)
+                : [];
+
+              return (
+                <article
+                  key={competicao.id}
+                  className={`cartao-lista competicao-card ${competicao.tipo === 3 ? 'competicao-card-grupo' : ''}`}
+                >
                 <div className="competicao-card-conteudo">
                   <div className="competicao-card-cabecalho">
                     <div className="competicao-card-titulo">
@@ -725,19 +1103,18 @@ export function PaginaCompeticoes() {
                       <h3>{competicao.nome}</h3>
                     </div>
 
-                    {competicao.tipo === 3 ? (
-                      <span className="tag-status tag-status-alerta competicao-card-status">Grupo</span>
-                    ) : (
-                      <span
-                        className={`tag-status ${competicao.inscricoesAbertas ? 'tag-status-sucesso' : 'tag-status-alerta'} competicao-card-status`}
-                      >
-                        {competicao.inscricoesAbertas ? 'Inscrições abertas' : 'Inscrições fechadas'}
-                      </span>
-                    )}
+                    {competicao.tipo === 1 ? (
+                        <span
+                          className={`tag-status ${
+                            competicao.inscricoesAbertas ? 'tag-status-sucesso' : 'tag-status-alerta'
+                          } competicao-card-status`}
+                        >
+                          {competicao.inscricoesAbertas ? 'Inscrições abertas' : 'Inscrições fechadas'}
+                        </span>
+                      ) : null}
                   </div>
 
                   <div className="competicao-card-detalhes">
-                    <p>Local: {competicao.nomeLocal || '-'}</p>
                     <p>Início: {formatarData(competicao.dataInicio)}</p>
                     <p>Fim: {formatarData(competicao.dataFim)}</p>
                     {usuarioAdministrador && <p>Liga: {competicao.nomeLiga || '-'}</p>}
@@ -747,30 +1124,21 @@ export function PaginaCompeticoes() {
                     )}
                     {usuarioAdministrador && <p>Regra: {competicao.nomeRegraCompeticao || 'Padrão'}</p>}
                     {usuarioAdministrador && <p>Ranking da liga: {competicao.ligaId ? 'Conta automaticamente' : 'Sem liga vinculada'}</p>}
+                    {usuarioAdministrador && obterLinkHttp(competicao.link) && (
+                      <p>
+                        Link de inscrição:{' '}
+                        <a href={obterLinkHttp(competicao.link)} target="_blank" rel="noopener noreferrer">
+                          Abrir
+                        </a>
+                      </p>
+                    )}
                     {competicao.tipo === 3 && (
                       <p>Responsável: {competicao.nomeUsuarioOrganizador || 'Não informado'}</p>
-                    )}
-                    <p>
-                      Regra da partida: mínimo {competicao.pontosMinimosPartidaEfetivo} pontos, diferença mínima{' '}
-                      {competicao.diferencaMinimaPartidaEfetiva} e{' '}
-                      {competicao.permiteEmpateEfetivo ? 'empate permitido' : 'sem empate'}
-                    </p>
-                    <p>
-                      Pontuação: vitória {competicao.pontosVitoriaEfetivo} / derrota {competicao.pontosDerrotaEfetivo}
-                    </p>
-                    <p>Participação: {competicao.pontosParticipacaoEfetivo}</p>
+                    )}                  
                   </div>
                 </div>
 
                 <div className="acoes-item competicao-card-acoes">
-                  <button
-                    type="button"
-                    className="botao-terciario"
-                    onClick={() => abrirCategorias(competicao.id)}
-                  >
-                    {categoriasAbertas ? 'Fechar categorias' : 'Categorias'}
-                  </button>
-
                   {competicao.tipo === 3 && (
                     <button
                       type="button"
@@ -785,25 +1153,15 @@ export function PaginaCompeticoes() {
                     <button
                       type="button"
                       className="botao-terciario"
-                      onClick={() => navegar(`/partidas/registrar?competicaoId=${competicao.id}`)}
+                      onClick={() => navegar(`/partidas/consulta?competicaoId=${competicao.id}`)}
                     >
                       Jogos
                     </button>
                   )}
 
-                  {gestorCompeticao && competicao.tipo !== 3 && (
-                    <button
-                      type="button"
-                      className="botao-terciario"
-                      onClick={() => navegar(`/inscricoes?campeonatoId=${competicao.id}`)}
-                    >
-                      Inscrições
-                    </button>
-                  )}
-
                   {gerenciavel && (
                     <>
-                      <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(competicao)}>
+                      <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(competicao)}>
                         Editar
                       </button>
                       <button type="button" className="botao-perigo" onClick={() => removerCompeticao(competicao.id)}>
@@ -813,40 +1171,29 @@ export function PaginaCompeticoes() {
                   )}
                 </div>
 
-                {categoriasAbertas && (
+                {competicao.tipo !== 3 && (
                   <div className="campo-largo">
-                    {!gestorCompeticao && competicao.tipo === 3 && (
-                      <p>Neste grupo, as categorias são opcionais. Você pode lançar jogos sem categoria ou separar os confrontos por categoria.</p>
-                    )}
-
-                    {gestorCompeticao && competicao.tipo !== 3 && (
-                      <div className="acoes-item">
-                        <button
-                          type="button"
-                          className="botao-terciario"
-                          onClick={() => navegar(`/categorias?competicaoId=${competicao.id}`)}
-                        >
-                          Ir para categorias
-                        </button>
-                      </div>
-                    )}
-
+                    <h3>Categorias</h3>
+                    {carregandoCategoriasCompeticoes ? (
+                      <p>Carregando categorias...</p>
+                    ) : (
                     <div className="lista-cartoes">
-                      {categoriasCompeticao.map((categoria) => (
+                      {categoriasCompeticao.map((categoria) => {
+                        const ehChaveDuplaEliminacao = categoriaEhChaveDuplaEliminacao(categoria);
+                        const quantidadeInscritas = quantidadeInscricoesPorCategoria[categoria.id] ?? 0;
+                        const inscricoesFechadas = inscricoesFechadasParaGerarChaveamento(competicao, categoria);
+
+                        return (
                         <article key={categoria.id} className="cartao-lista">
                           <div>
                             <h3>{categoria.nome}</h3>
                             <p>Gênero: {opcoesGenero.find((item) => item.valor === categoria.genero)?.rotulo}</p>
                             <p>Nível: {opcoesNivel.find((item) => item.valor === categoria.nivel)?.rotulo}</p>
-                            <p>Peso no ranking: {categoria.pesoRanking}</p>
                             {competicao.tipo !== 3 && (
-                              <p>Duplas inscritas: {quantidadeInscricoesPorCategoria[categoria.id] ?? 0}</p>
+                              <p>Duplas inscritas: {quantidadeInscritas}</p>
                             )}
                             {competicao.tipo !== 3 && (
-                              <p>
-                                Formato: {categoria.nomeFormatoCampeonatoEfetivo || 'Sem formato vinculado'}
-                                {categoria.usaFormatoCampeonatoDaCompeticao ? ' (seguindo a competição)' : ''}
-                              </p>
+                              <p>Inscrições da categoria: {categoria.inscricoesEncerradas ? 'Encerradas' : 'Abertas'}</p>
                             )}
                           </div>
 
@@ -868,21 +1215,26 @@ export function PaginaCompeticoes() {
                                 <button
                                   type="button"
                                   className="botao-primario"
-                                  onClick={() => navegar(`/inscricoes?campeonatoId=${competicao.id}&categoriaId=${categoria.id}`)}
+                                  onClick={() => abrirInscricao(competicao, categoria)}
                                 >
                                   Inscrever-se
                                 </button>
                               )}
 
                               {podeSortearJogosCompeticao(competicao) &&
-                                (quantidadeInscricoesPorCategoria[categoria.id] ?? 0) >= 4 && (
+                                quantidadeInscritas >= 4 && (
                                   <button
                                     type="button"
                                     className="botao-primario"
                                     onClick={() => sortearJogosCategoria(competicao, categoria)}
-                                    disabled={sorteandoCategoriaId === categoria.id}
+                                    disabled={sorteandoCategoriaId === categoria.id || !inscricoesFechadas}
+                                    title={!inscricoesFechadas ? 'Feche as inscrições da competição ou encerre a categoria antes de gerar o chaveamento.' : undefined}
                                   >
-                                    {sorteandoCategoriaId === categoria.id ? 'Sorteando...' : 'Sortear jogos'}
+                                    {sorteandoCategoriaId === categoria.id
+                                      ? 'Gerando...'
+                                      : ehChaveDuplaEliminacao
+                                        ? 'Gerar chaveamento'
+                                        : 'Sortear jogos'}
                                   </button>
                                 )}
 
@@ -891,13 +1243,13 @@ export function PaginaCompeticoes() {
                                   <button
                                     type="button"
                                     className="botao-terciario"
-                                    onClick={() => navegar(`/partidas/consulta?competicaoId=${competicao.id}&categoriaId=${categoria.id}&visualizacao=tabela`)}
+                                    onClick={() => navegar(`/partidas/campeonato?competicaoId=${competicao.id}&categoriaId=${categoria.id}&aba=chaveamento`)}
                                   >
-                                    Ver tabela de jogos
+                                    {ehChaveDuplaEliminacao ? 'Chaveamento' : 'Ver tabela de jogos'}
                                   </button>
                                   <button
                                     type="button"
-                                    className="botao-secundario"
+                                    className="botao-secundario botao-editar"
                                     onClick={() => navegar(`/categorias?competicaoId=${categoria.competicaoId}&categoriaId=${categoria.id}`)}
                                   >
                                     Editar
@@ -917,7 +1269,7 @@ export function PaginaCompeticoes() {
                               {carregandoInscricoesCategoria ? (
                                 <p>Carregando duplas inscritas...</p>
                               ) : inscricoesCategoria.length === 0 ? (
-                                <p>Nenhuma dupla inscrita nesta categoria.</p>
+                                <p></p>
                               ) : (
                                 <div className="lista-cartoes">
                                   {inscricoesCategoria.map((inscricao) => (
@@ -935,10 +1287,17 @@ export function PaginaCompeticoes() {
                             </div>
                           )}
                         </article>
-                      ))}
-
-                      {categoriasCompeticao.length === 0 && <p>Nenhuma categoria cadastrada para esta competição.</p>}
+                        );
+                      })}
+                      {categoriasCompeticao.length === 0 && (
+                        <p>
+                          {filtros.categoria
+                            ? 'Nenhuma categoria corresponde ao filtro informado.'
+                            : 'Nenhuma categoria cadastrada para esta competição.'}
+                        </p>
+                      )}
                     </div>
+                    )}
                   </div>
                 )}
 
@@ -1017,39 +1376,51 @@ export function PaginaCompeticoes() {
                     )}
 
                     <div className="lista-cartoes">
-                      {grupoAtletas.map((item) => (
-                        <article key={item.id} className="cartao-lista">
-                          <div>
-                            <h3>{item.nomeAtleta}</h3>
-                            <p>Apelido/complemento: {item.apelidoAtleta || '-'}</p>
-                            <p>Cadastro no sistema: {item.cadastroPendente ? 'Pendente' : 'Completo'}</p>
-                            <p>Usuário vinculado: {item.vinculadoAUsuario ? 'Sim' : 'Não'}</p>
-                          </div>
+                      {grupoAtletas.map((item) => {
+                        const atletaEhUsuarioAtual = Boolean(usuario?.atletaId && item.atletaId === usuario.atletaId);
 
-                          {gerenciavel && (
-                            <div className="acoes-item">
-                              <button
-                                type="button"
-                                className="botao-perigo"
-                                onClick={() => removerGrupoAtleta(competicao.id, item.id)}
-                              >
-                                Remover
-                              </button>
+                        return (
+                          <article key={item.id} className="cartao-lista">
+                            <div>
+                              <h3>{item.nomeAtleta}</h3>
+                              <p>Apelido/complemento: {item.apelidoAtleta || '-'}</p>
+                              <p>Cadastro no sistema: {item.cadastroPendente ? 'Pendente' : 'Completo'}</p>
+                              <p>Usuário vinculado: {item.vinculadoAUsuario ? 'Sim' : 'Não'}</p>
                             </div>
-                          )}
-                        </article>
-                      ))}
 
-                      {grupoAtletas.length === 0 && <p>Nenhum atleta lançado neste grupo ainda.</p>}
+                            {gerenciavel && (
+                              <div className="acoes-item">
+                                {atletaEhUsuarioAtual ? (
+                                  <span className="texto-aviso">Você não pode remover seu próprio atleta do grupo.</span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="botao-perigo"
+                                    onClick={() => removerGrupoAtleta(competicao.id, item.id)}
+                                  >
+                                    Remover
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}                     
                     </div>
                   </div>
                 )}
               </article>
-            );
-          })}
-
-          {competicoes.length === 0 && <p>Nenhuma competição encontrada.</p>}
-        </div>
+              );
+            })}
+            {competicoesFiltradas.length === 0 && (
+              <p>
+                {filtroAtivo
+                  ? 'Nenhuma competição corresponde aos filtros informados.'
+                  : 'Nenhuma competição encontrada.'}
+              </p>
+            )}
+          </div>
+        </>
       )}
     </section>
   );

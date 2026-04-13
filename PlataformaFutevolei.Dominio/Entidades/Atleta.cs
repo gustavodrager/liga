@@ -10,6 +10,7 @@ public class Atleta : EntidadeBase
     public string? Email { get; set; }
     public string? Instagram { get; set; }
     public string? Cpf { get; set; }
+    public string? Bairro { get; set; }
     public string? Cidade { get; set; }
     public string? Estado { get; set; }
     public bool CadastroPendente { get; set; }

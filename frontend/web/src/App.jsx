@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RotaProtegida } from './routes/RotaProtegida';
 import { LayoutPrincipal } from './layouts/LayoutPrincipal';
 import { PaginaLogin } from './pages/PaginaLogin';
+import { PaginaHome } from './pages/PaginaHome';
 import { PaginaDashboard } from './pages/PaginaDashboard';
 import { PaginaAtletas } from './pages/PaginaAtletas';
 import { PaginaDuplas } from './pages/PaginaDuplas';
@@ -16,13 +17,13 @@ import { PaginaCategorias } from './pages/PaginaCategorias';
 import { PaginaInscricoesCampeonato } from './pages/PaginaInscricoesCampeonato';
 import { PaginaRegistrarPartidas } from './pages/PaginaRegistrarPartidas';
 import { PaginaConsultaPartidas } from './pages/PaginaConsultaPartidas';
+import { PaginaPartidasCampeonato } from './pages/PaginaPartidasCampeonato';
 import { PaginaMeuPerfil } from './pages/PaginaMeuPerfil';
 import { PaginaPerfilUsuario } from './pages/PaginaPerfilUsuario';
 import { PaginaPendenciasAtletas } from './pages/PaginaPendenciasAtletas';
 import { PaginaUsuarios } from './pages/PaginaUsuarios';
 import { PaginaConvitesCadastro } from './pages/PaginaConvitesCadastro';
 import { PaginaCadastroConvite } from './pages/PaginaCadastroConvite';
-import { RedirecionamentoInicial } from './pages/RedirecionamentoInicial';
 import { RedirecionamentoPartidas } from './pages/RedirecionamentoPartidas';
 import { PERFIS_USUARIO } from './utils/perfis';
 import { ESTADOS_ACESSO } from './utils/acesso';
@@ -30,12 +31,13 @@ import { ESTADOS_ACESSO } from './utils/acesso';
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<RedirecionamentoInicial />} />
-      <Route path="/login" element={<PaginaLogin />} />
       <Route path="/cadastro/convite" element={<PaginaCadastroConvite />} />
       <Route path="/cadastro/convite/:identificadorPublico" element={<PaginaCadastroConvite />} />
       <Route element={<LayoutPrincipal />}>
+        <Route path="/" element={<PaginaHome />} />
+        <Route path="/login" element={<PaginaLogin />} />
         <Route path="/ranking" element={<PaginaRanking />} />
+        <Route path="/competicoes" element={<PaginaCompeticoes />} />
         <Route path="/inscricoes" element={<PaginaInscricoesCampeonato />} />
       </Route>
 
@@ -205,14 +207,6 @@ export default function App() {
           }
         />
         <Route
-          path="/competicoes"
-          element={
-            <RotaProtegida estadosPermitidos={[ESTADOS_ACESSO.ativo]}>
-              <PaginaCompeticoes />
-            </RotaProtegida>
-          }
-        />
-        <Route
           path="/categorias"
           element={
             <RotaProtegida
@@ -253,6 +247,17 @@ export default function App() {
               estadosPermitidos={[ESTADOS_ACESSO.ativo]}
             >
               <PaginaConsultaPartidas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/partidas/campeonato"
+          element={
+            <RotaProtegida
+              perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador, PERFIS_USUARIO.atleta]}
+              estadosPermitidos={[ESTADOS_ACESSO.ativo]}
+            >
+              <PaginaPartidasCampeonato />
             </RotaProtegida>
           }
         />

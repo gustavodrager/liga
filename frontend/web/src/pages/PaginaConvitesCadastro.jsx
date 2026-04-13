@@ -4,6 +4,7 @@ import { convitesCadastroServico } from '../services/convitesCadastroServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
 import { nomePerfil } from '../utils/perfis';
+import { rolarParaTopo } from '../utils/rolagem';
 
 const formularioInicial = {
   email: '',
@@ -74,6 +75,7 @@ export function PaginaConvitesCadastro() {
       await carregarConvites();
       setFormulario(formularioInicial);
       setMensagem(montarMensagemCriacao(convite));
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -163,7 +165,7 @@ export function PaginaConvitesCadastro() {
     <section className="pagina">
       <div className="cabecalho-pagina">
         <h2>Convites de Cadastro</h2>
-        <p>Crie convites fechados para novos organizadores. Quando o canal incluir e-mail, o sistema tenta enviar automaticamente a mensagem com o link direto para criação de senha e primeiro acesso.</p>
+        <p>Crie convites fechados para novos atletas. Quando o canal incluir e-mail, o sistema tenta enviar automaticamente a mensagem com o link direto para criação de senha e primeiro acesso.</p>
         <p>O WhatsApp usa o mesmo convite e o mesmo código do convite. Falhas de envio não invalidam o convite.</p>
       </div>
 
@@ -174,7 +176,7 @@ export function PaginaConvitesCadastro() {
             type="email"
             value={formulario.email}
             onChange={(evento) => atualizarFormulario('email', evento.target.value)}
-            placeholder="organizador@email.com"
+            placeholder="atleta@email.com"
             required
           />
         </label>
@@ -214,7 +216,7 @@ export function PaginaConvitesCadastro() {
 
         <label>
           Perfil de destino
-          <input type="text" value="Organizador" readOnly />
+          <input type="text" value="Atleta" readOnly />
         </label>
 
         <div className="acoes-formulario">

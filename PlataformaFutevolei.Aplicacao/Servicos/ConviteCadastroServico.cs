@@ -22,6 +22,7 @@ public class ConviteCadastroServico(
 ) : IConviteCadastroServico
 {
     private static readonly TimeSpan ValidadePadrao = TimeSpan.FromDays(7);
+    private const PerfilUsuario PerfilDestinoPadraoConvite = PerfilUsuario.Atleta;
 
     public async Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
@@ -88,12 +89,6 @@ public class ConviteCadastroServico(
             throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
         }
 
-        var perfilDestino = dto.PerfilDestino ?? PerfilUsuario.Organizador;
-        if (perfilDestino != PerfilUsuario.Organizador)
-        {
-            throw new RegraNegocioException("Neste momento, convites de cadastro só podem criar usuários com perfil organizador.");
-        }
-
         var telefoneNormalizado = NormalizarTelefone(dto.Telefone);
         ValidarCanalEnvio(dto.CanalEnvio, telefoneNormalizado);
         var expiraEmUtc = NormalizarExpiracao(dto.ExpiraEmUtc);
@@ -102,7 +97,7 @@ public class ConviteCadastroServico(
             Email = emailNormalizado,
             Telefone = telefoneNormalizado,
             IdentificadorPublico = await GerarIdentificadorPublicoUnicoAsync(cancellationToken),
-            PerfilDestino = perfilDestino,
+            PerfilDestino = PerfilDestinoPadraoConvite,
             ExpiraEmUtc = expiraEmUtc,
             Ativo = true,
             CriadoPorUsuarioId = usuario.Id,

@@ -6,7 +6,7 @@ import { atletasServico } from '../services/atletasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarData, normalizarDataParaApi, paraInputData } from '../utils/formatacao';
 import { nomeNivelAtleta, opcoesNivelAtleta } from '../utils/niveisAtleta';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 import { ehOrganizador } from '../utils/perfis';
 
 const estadoInicial = {
@@ -16,6 +16,7 @@ const estadoInicial = {
   email: '',
   instagram: '',
   cpf: '',
+  bairro: '',
   cidade: '',
   estado: '',
   cadastroPendente: false,
@@ -87,6 +88,7 @@ export function PaginaAtletas() {
       email: atleta.email || '',
       instagram: atleta.instagram || '',
       cpf: atleta.cpf || '',
+      bairro: atleta.bairro || '',
       cidade: atleta.cidade || '',
       estado: atleta.estado || '',
       cadastroPendente: Boolean(atleta.cadastroPendente),
@@ -114,6 +116,7 @@ export function PaginaAtletas() {
       email: formulario.email.trim() || null,
       instagram: formulario.instagram.trim() || null,
       cpf: formulario.cpf.trim() || null,
+      bairro: formulario.bairro.trim() || null,
       cidade: formulario.cidade.trim() || null,
       estado: formulario.estado.trim() || null,
       cadastroPendente: Boolean(formulario.cadastroPendente),
@@ -131,6 +134,7 @@ export function PaginaAtletas() {
 
       cancelarEdicao();
       await carregarAtletas();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -235,6 +239,15 @@ export function PaginaAtletas() {
         </label>
 
         <label>
+          Bairro
+          <input
+            type="text"
+            value={formulario.bairro}
+            onChange={(evento) => atualizarCampo('bairro', evento.target.value)}
+          />
+        </label>
+
+        <label>
           Cidade
           <input
             type="text"
@@ -314,6 +327,7 @@ export function PaginaAtletas() {
                 <p>Instagram: {atleta.instagram || '-'}</p>
                 <p>CPF: {atleta.cpf || '-'}</p>
                 <p>Nível: {nomeNivelAtleta(atleta.nivel)}</p>
+                <p>Bairro: {atleta.bairro || '-'}</p>
                 <p>Cidade: {atleta.cidade || '-'}</p>
                 <p>Estado: {atleta.estado || '-'}</p>
                 <p>Status: {atleta.cadastroPendente ? 'Cadastro pendente' : 'Cadastro completo'}</p>
@@ -323,7 +337,7 @@ export function PaginaAtletas() {
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(atleta)}>
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(atleta)}>
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerAtleta(atleta.id)}>

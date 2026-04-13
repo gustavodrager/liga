@@ -3,7 +3,7 @@ import { ConteudoBotao } from '../components/ConteudoBotao';
 import { ligasServico } from '../services/ligasServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
-import { rolarParaElemento } from '../utils/rolagem';
+import { rolarParaElemento, rolarParaTopo } from '../utils/rolagem';
 
 const estadoInicial = {
   nome: '',
@@ -74,6 +74,7 @@ export function PaginaLigas() {
 
       cancelarEdicao();
       await carregarLigas();
+      rolarParaTopo();
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -151,7 +152,7 @@ export function PaginaLigas() {
               </div>
 
               <div className="acoes-item">
-                <button type="button" className="botao-secundario" onClick={() => iniciarEdicao(liga)}>
+                <button type="button" className="botao-secundario botao-editar" onClick={() => iniciarEdicao(liga)}>
                   <ConteudoBotao icone="editar" texto="Editar" />
                 </button>
                 <button type="button" className="botao-perigo" onClick={() => removerLiga(liga.id)}>

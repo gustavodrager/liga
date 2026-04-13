@@ -48,7 +48,10 @@ public interface IDuplaServico
 
 public interface ICompeticaoServico
 {
-    Task<IReadOnlyList<CompeticaoDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CompeticaoDto>> ListarAsync(
+        bool incluirPublicas = false,
+        CancellationToken cancellationToken = default);
+    Task<ResumoCompeticoesPublicoDto> ObterResumoPublicoAsync(CancellationToken cancellationToken = default);
     Task<CompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default);
     Task<CompeticaoDto> AtualizarAsync(Guid id, AtualizarCompeticaoDto dto, CancellationToken cancellationToken = default);
@@ -97,6 +100,7 @@ public interface IPartidaServico
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
+    Task<ChaveamentoCategoriaDto> ObterChaveamentoPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
@@ -187,6 +191,10 @@ public interface IInscricaoCampeonatoServico
         Guid inscricaoId,
         CriarInscricaoCampeonatoDto dto,
         CancellationToken cancellationToken = default);
+    Task<InscricaoCampeonatoDto> AprovarAsync(
+        Guid campeonatoId,
+        Guid inscricaoId,
+        CancellationToken cancellationToken = default);
     Task RemoverAsync(
         Guid campeonatoId,
         Guid inscricaoId,
@@ -203,6 +211,15 @@ public interface IRankingServico
 
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorLigaAsync(
         Guid ligaId,
+        CancellationToken cancellationToken = default);
+
+    Task<RankingRegiaoFiltroDto> ListarRegioesDisponiveisAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorRegiaoAsync(
+        string? estado,
+        string? cidade,
+        string? bairro,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import logoLiga from '../assets/logo-liga.svg';
@@ -10,6 +10,7 @@ import { nomeEstadoAcesso } from '../utils/acesso';
 export function LayoutPrincipal() {
   const { token, usuario, estadoAcesso, sair } = useAutenticacao();
   const location = useLocation();
+  const navegar = useNavigate();
   const [menuAberto, setMenuAberto] = useState(false);
   const autenticado = Boolean(token);
   const itensMenu = autenticado
@@ -20,16 +21,21 @@ export function LayoutPrincipal() {
     setMenuAberto(false);
   }, [location.pathname]);
 
+  function aoSair() {
+    sair();
+    navegar('/', { replace: true });
+  }
+
   return (
     <div className="layout-app">
       <header className="topo-app">
-        <div className="marca-topo">
+        <NavLink to="/" className="marca-topo" aria-label="Ir para a home">
           <img className="logo-interno" src={logoLiga} alt="Liga" />
           <div className="marca-texto">
             <p className="marca-subtitulo">Plataforma</p>
-            <h1 className="marca-titulo">Plataforma QuebraNunca Futevôlei</h1>
+            <h1 className="marca-titulo">QuebraNunca Futevôlei</h1>
           </div>
-        </div>
+        </NavLink>
 
         <div className="usuario-topo">
           <span className="usuario-identidade">
@@ -73,12 +79,12 @@ export function LayoutPrincipal() {
             <span className="rotulo-menu-mobile">{menuAberto ? 'Fechar' : 'Menu'}</span>
           </button>
           {autenticado ? (
-            <button type="button" className="botao-secundario botao-sair-topo" onClick={sair}>
+            <button type="button" className="botao-secundario botao-sair-topo" onClick={aoSair}>
               <ConteudoBotao icone="sair" texto="Sair" />
             </button>
           ) : (
             <NavLink to="/login" className="botao-secundario botao-sair-topo">
-              Entrar
+              <ConteudoBotao icone="entrar" texto="Entrar" />
             </NavLink>
           )}
         </div>

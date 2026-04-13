@@ -3,26 +3,30 @@ import { ESTADOS_ACESSO } from '../utils/acesso';
 
 const ITENS_NAVEGACAO_PUBLICA = [
   {
+    caminho: '/',
+    nome: 'Home'
+  },
+  {
     caminho: '/ranking',
     nome: 'Ranking'
   },
   {
-    caminho: '/inscricoes',
-    nome: 'Inscrições'
+    caminho: '/competicoes',
+    nome: 'Competições'
   },
   {
-    caminho: '/login',
-    nome: 'Entrar'
+    caminho: '/loja',
+    nome: 'Loja'
   }
 ];
 
 const ITENS_NAVEGACAO = [
   {
-    caminho: '/app/inicio',
-    nome: 'Início',
+    caminho: '/',
+    nome: 'Home',
     mostrarNoDashboard: false,
-    descricao: 'Acompanhe competições, jogos e atalhos do seu dia a dia.',
-    visivel: ({ atleta, estadoAtivo }) => atleta && estadoAtivo
+    descricao: 'Veja campeonatos, inscrições abertas e rankings públicos.',
+    visivel: () => true
   },
   {
     caminho: '/app/organizacao',
@@ -126,7 +130,7 @@ const ITENS_NAVEGACAO = [
     caminho: '/inscricoes',
     nome: 'Inscrições',
     descricao: 'Gerencie inscrições de duplas nas categorias de campeonatos.',
-    visivel: ({ estadoAtivo }) => estadoAtivo
+    visivel: ({ administrador }) => administrador
   },
   {
     caminho: '/partidas/consulta',
