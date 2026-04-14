@@ -25,6 +25,7 @@ export function PaginaRegrasCompeticao() {
   const usuarioAdministrador = ehAdministrador(usuario);
   const [regras, setRegras] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [regraEdicaoId, setRegraEdicaoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -76,6 +77,7 @@ export function PaginaRegrasCompeticao() {
       return;
     }
 
+    setFormularioAberto(true);
     setRegraEdicaoId(regra.id);
     setFormulario({
       nome: regra.nome,
@@ -89,12 +91,20 @@ export function PaginaRegrasCompeticao() {
       pontosDerrota: regra.pontosDerrota,
       pontosParticipacao: regra.pontosParticipacao
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setRegraEdicaoId(null);
     setFormulario(estadoInicial);
+  }
+
+  function abrirFormulario() {
+    setRegraEdicaoId(null);
+    setFormulario(estadoInicial);
+    setFormularioAberto(true);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -169,7 +179,15 @@ export function PaginaRegrasCompeticao() {
         <p>Cadastre regras reutilizáveis e organize a pontuação da competição em blocos mais fáceis de revisar.</p>
       </div>
 
-      {regrasDisponiveis && (
+      {regrasDisponiveis && !formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Nova regra
+          </button>
+        </div>
+      )}
+
+      {regrasDisponiveis && formularioAberto && (
         <form ref={formularioRef} className="formulario-secoes" onSubmit={aoSubmeter}>
           <div className="secao-formulario">
             <div className="secao-formulario-cabecalho">
@@ -325,11 +343,9 @@ export function PaginaRegrasCompeticao() {
               {salvando ? 'Salvando...' : 'Salvar'}
             </button>
 
-            {regraEdicaoId && (
-              <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-                <ConteudoBotao icone="cancelar" texto="Cancelar" />
-              </button>
-            )}
+            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+              <ConteudoBotao icone="cancelar" texto={regraEdicaoId ? 'Cancelar' : 'Fechar'} />
+            </button>
           </div>
         </form>
       )}

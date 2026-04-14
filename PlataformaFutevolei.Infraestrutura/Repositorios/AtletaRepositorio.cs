@@ -17,6 +17,24 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Atleta>> ListarComEmailEmPartidasSemUsuarioAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Atletas
+            .AsNoTracking()
+            .Where(x => x.Email != null && x.Email != string.Empty)
+            .Where(x => x.Usuario == null)
+            .Where(x => !dbContext.Usuarios.Any(usuario => usuario.Email.ToLower() == x.Email!.ToLower()))
+            .Where(x =>
+                x.DuplasComoAtleta1.Any(dupla =>
+                    dupla.PartidasComoDuplaA.Any() ||
+                    dupla.PartidasComoDuplaB.Any()) ||
+                x.DuplasComoAtleta2.Any(dupla =>
+                    dupla.PartidasComoDuplaA.Any() ||
+                    dupla.PartidasComoDuplaB.Any()))
+            .OrderBy(x => x.Nome)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Atleta>> ListarInscritosPorOrganizadorAsync(
         Guid usuarioOrganizadorId,
         CancellationToken cancellationToken = default)

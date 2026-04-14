@@ -21,6 +21,7 @@ export function PaginaDuplas() {
   const [duplas, setDuplas] = useState([]);
   const [atletas, setAtletas] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [duplaEdicaoId, setDuplaEdicaoId] = useState(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -70,18 +71,27 @@ export function PaginaDuplas() {
   }
 
   function iniciarEdicao(dupla) {
+    setFormularioAberto(true);
     setDuplaEdicaoId(dupla.id);
     setFormulario({
       nome: dupla.nome || '',
       atleta1Id: dupla.atleta1Id,
       atleta2Id: dupla.atleta2Id
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setDuplaEdicaoId(null);
     setFormulario(estadoInicial);
+  }
+
+  function abrirFormulario() {
+    setDuplaEdicaoId(null);
+    setFormulario(estadoInicial);
+    setFormularioAberto(true);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -136,61 +146,69 @@ export function PaginaDuplas() {
         </p>
       </div>
 
-      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
-        <label>
-          Nome da dupla (opcional)
-          <input
-            type="text"
-            value={formulario.nome}
-            onChange={(evento) => atualizarCampo('nome', evento.target.value)}
-            placeholder="Ex: Raio Azul"
-          />
-        </label>
-
-        <label>
-          Atleta 1
-          <select
-            value={formulario.atleta1Id}
-            onChange={(evento) => atualizarCampo('atleta1Id', evento.target.value)}
-            required
-          >
-            <option value="">Selecione</option>
-            {atletas.map((atleta) => (
-              <option key={atleta.id} value={atleta.id}>
-                {atleta.nome}{atleta.cadastroPendente ? ' (pendente)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Atleta 2
-          <select
-            value={formulario.atleta2Id}
-            onChange={(evento) => atualizarCampo('atleta2Id', evento.target.value)}
-            required
-          >
-            <option value="">Selecione</option>
-            {atletas.map((atleta) => (
-              <option key={atleta.id} value={atleta.id}>
-                {atleta.nome}{atleta.cadastroPendente ? ' (pendente)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="acoes-formulario">
-          <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar'}
+      {!formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Nova dupla
           </button>
-
-          {duplaEdicaoId && (
-            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              <ConteudoBotao icone="cancelar" texto="Cancelar" />
-            </button>
-          )}
         </div>
-      </form>
+      )}
+
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
+          <label>
+            Nome da dupla (opcional)
+            <input
+              type="text"
+              value={formulario.nome}
+              onChange={(evento) => atualizarCampo('nome', evento.target.value)}
+              placeholder="Ex: Raio Azul"
+            />
+          </label>
+
+          <label>
+            Atleta 1
+            <select
+              value={formulario.atleta1Id}
+              onChange={(evento) => atualizarCampo('atleta1Id', evento.target.value)}
+              required
+            >
+              <option value="">Selecione</option>
+              {atletas.map((atleta) => (
+                <option key={atleta.id} value={atleta.id}>
+                  {atleta.nome}{atleta.cadastroPendente ? ' (pendente)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Atleta 2
+            <select
+              value={formulario.atleta2Id}
+              onChange={(evento) => atualizarCampo('atleta2Id', evento.target.value)}
+              required
+            >
+              <option value="">Selecione</option>
+              {atletas.map((atleta) => (
+                <option key={atleta.id} value={atleta.id}>
+                  {atleta.nome}{atleta.cadastroPendente ? ' (pendente)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="acoes-formulario">
+            <button type="submit" className="botao-primario" disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+
+            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+              <ConteudoBotao icone="cancelar" texto={duplaEdicaoId ? 'Cancelar' : 'Fechar'} />
+            </button>
+          </div>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
 

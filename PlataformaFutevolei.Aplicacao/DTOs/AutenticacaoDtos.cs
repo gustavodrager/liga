@@ -7,7 +7,7 @@ public record RegistrarUsuarioRequisicaoDto(
     string? CodigoConvite,
     string Nome,
     string Email,
-    string Senha
+    string? Senha
 );
 
 public record LoginRequisicaoDto(

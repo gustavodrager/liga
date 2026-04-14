@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
+import { pendenciasServico } from '../services/pendenciasServico';
 import { rankingServico } from '../services/rankingServico';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarData } from '../utils/formatacao';
@@ -11,6 +12,8 @@ import { obterLinkHttp } from '../utils/links';
 const TIPO_CAMPEONATO = 1;
 const TIPO_GRUPO = 3;
 const NOME_COMPETICAO_PARTIDAS_AVULSAS = 'Partidas avulsas';
+const TIPO_PENDENCIA_COMPLETAR_CONTATO = 2;
+const STATUS_PENDENCIA_PENDENTE = 1;
 
 function obterTimestamp(data, fallback = Number.MAX_SAFE_INTEGER) {
   if (!data) {
@@ -36,6 +39,18 @@ function ehCompeticaoPartidasAvulsas(competicao) {
 
 function ehCompeticaoGrupo(competicao) {
   return Number(competicao?.tipo) === TIPO_GRUPO && !ehCompeticaoPartidasAvulsas(competicao);
+}
+
+function pendenciaAindaVisivel(item) {
+  if (!item || item.status !== STATUS_PENDENCIA_PENDENTE) {
+    return false;
+  }
+
+  if (item.tipo !== TIPO_PENDENCIA_COMPLETAR_CONTATO) {
+    return true;
+  }
+
+  return !item.emailAtleta && !item.atletaPossuiUsuarioVinculado;
 }
 
 function selecionarTopRanking(ranking) {
@@ -95,6 +110,7 @@ export function PaginaHome() {
   const [competicoes, setCompeticoes] = useState([]);
   const [categoriasPorCompeticao, setCategoriasPorCompeticao] = useState({});
   const [rankingGeral, setRankingGeral] = useState([]);
+  const [pendenciasUsuario, setPendenciasUsuario] = useState([]);
   const [resumoPublico, setResumoPublico] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -176,6 +192,17 @@ export function PaginaHome() {
       setResumoPublico(null);
     }
 
+    if (token) {
+      try {
+        const listaPendencias = await pendenciasServico.listar();
+        setPendenciasUsuario((listaPendencias || []).filter(pendenciaAindaVisivel));
+      } catch {
+        setPendenciasUsuario([]);
+      }
+    } else {
+      setPendenciasUsuario([]);
+    }
+
     setCarregando(false);
   }
 
@@ -208,6 +235,7 @@ export function PaginaHome() {
   function renderizarCategoriasCampeonato(competicao) {
     const categorias = categoriasPorCompeticao[competicao.id] || [];
     const linkInscricao = obterLinkHttp(competicao.link);
+    const inscricoesAbertas = Boolean(competicao.inscricoesAbertas);
 
     if (categorias.length === 0) {
       return null;
@@ -218,7 +246,16 @@ export function PaginaHome() {
         {categorias.map((categoria) => (
           <div key={categoria.id} className="home-card-categoria-item">
             <span>{categoria.nome}</span>
-            {linkInscricao ? (
+            {!inscricoesAbertas ? (
+              <button
+                type="button"
+                className="botao-secundario botao-compacto home-card-categoria-acao"
+                disabled
+                title="As inscrições deste campeonato estão fechadas."
+              >
+                Inscrever dupla
+              </button>
+            ) : linkInscricao ? (
               <a
                 href={linkInscricao}
                 target="_blank"
@@ -304,6 +341,29 @@ export function PaginaHome() {
         <p>Carregando informações públicas...</p>
       ) : (
         <>
+          {token && pendenciasUsuario.length > 0 && (
+            <section className="home-secao">
+              <article className="cartao-lista">
+                <div className="linha-entre">
+                  <div>
+                    <h3>Pendências</h3>
+                    <p>
+                      {pendenciasUsuario.length === 1
+                        ? 'Você tem 1 pendência aguardando ação.'
+                        : `Você tem ${pendenciasUsuario.length} pendências aguardando ação.`}
+                    </p>
+                  </div>
+                  <span className="tag-status tag-status-alerta">Ação necessária</span>
+                </div>
+                <div className="acoes-item">
+                  <Link to="/app/pendencias" className="botao-primario">
+                    Ver pendências
+                  </Link>
+                </div>
+              </article>
+            </section>
+          )}
+
           <section className="home-secao">
             <div className="home-secao-cabecalho">
               <div>

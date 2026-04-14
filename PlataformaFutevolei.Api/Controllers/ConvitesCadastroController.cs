@@ -19,6 +19,14 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
         return Ok(convites);
     }
 
+    [HttpGet("atletas-elegiveis")]
+    [ProducesResponseType(typeof(IReadOnlyList<AtletaElegivelConviteCadastroDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarAtletasElegiveis(CancellationToken cancellationToken)
+    {
+        var atletas = await conviteCadastroServico.ListarAtletasElegiveisAsync(cancellationToken);
+        return Ok(atletas);
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ConviteCadastroDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)

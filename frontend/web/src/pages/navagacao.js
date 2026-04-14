@@ -15,7 +15,8 @@ const ITENS_NAVEGACAO_PUBLICA = [
     nome: 'Competições'
   },
   {
-    caminho: '/loja',
+    caminho: 'https://www.quebranunca.com/quebranunca',
+    externo: true,
     nome: 'Loja'
   }
 ];

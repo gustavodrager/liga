@@ -13,6 +13,7 @@ const estadoInicial = {
 export function PaginaLigas() {
   const [ligas, setLigas] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [ligaEdicaoId, setLigaEdicaoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -42,17 +43,26 @@ export function PaginaLigas() {
   }
 
   function iniciarEdicao(liga) {
+    setFormularioAberto(true);
     setLigaEdicaoId(liga.id);
     setFormulario({
       nome: liga.nome || '',
       descricao: liga.descricao || ''
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setLigaEdicaoId(null);
     setFormulario(estadoInicial);
+  }
+
+  function abrirFormulario() {
+    setLigaEdicaoId(null);
+    setFormulario(estadoInicial);
+    setFormularioAberto(true);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -103,38 +113,46 @@ export function PaginaLigas() {
         <p>Cadastre, edite e consulte as ligas usadas para organizar as competições.</p>
       </div>
 
-      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
-        <label>
-          Nome
-          <input
-            type="text"
-            value={formulario.nome}
-            onChange={(evento) => atualizarCampo('nome', evento.target.value)}
-            required
-          />
-        </label>
-
-        <label className="campo-largo">
-          Descrição
-          <textarea
-            value={formulario.descricao}
-            onChange={(evento) => atualizarCampo('descricao', evento.target.value)}
-            rows={3}
-          />
-        </label>
-
-        <div className="acoes-formulario">
-          <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar'}
+      {!formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Nova liga
           </button>
-
-          {ligaEdicaoId && (
-            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              <ConteudoBotao icone="cancelar" texto="Cancelar" />
-            </button>
-          )}
         </div>
-      </form>
+      )}
+
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
+          <label>
+            Nome
+            <input
+              type="text"
+              value={formulario.nome}
+              onChange={(evento) => atualizarCampo('nome', evento.target.value)}
+              required
+            />
+          </label>
+
+          <label className="campo-largo">
+            Descrição
+            <textarea
+              value={formulario.descricao}
+              onChange={(evento) => atualizarCampo('descricao', evento.target.value)}
+              rows={3}
+            />
+          </label>
+
+          <div className="acoes-formulario">
+            <button type="submit" className="botao-primario" disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+
+            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+              <ConteudoBotao icone="cancelar" texto={ligaEdicaoId ? 'Cancelar' : 'Fechar'} />
+            </button>
+          </div>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
 

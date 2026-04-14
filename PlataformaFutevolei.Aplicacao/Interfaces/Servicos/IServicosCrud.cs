@@ -25,6 +25,7 @@ public interface IAtletaServico
 public interface IConviteCadastroServico
 {
     Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AtletaElegivelConviteCadastroDto>> ListarAtletasElegiveisAsync(CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastroPublicoDto> ObterPublicoAsync(string identificadorOuToken, CancellationToken cancellationToken = default);

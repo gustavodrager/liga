@@ -59,6 +59,15 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public Task<Competicao?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default)
+    {
+        var nomeNormalizado = nome.Trim().ToLowerInvariant();
+
+        return dbContext.Competicoes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Nome.ToLower() == nomeNormalizado, cancellationToken);
+    }
+
     public async Task AdicionarAsync(Competicao competicao, CancellationToken cancellationToken = default)
     {
         await dbContext.Competicoes.AddAsync(competicao, cancellationToken);

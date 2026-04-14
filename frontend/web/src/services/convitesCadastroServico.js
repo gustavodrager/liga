@@ -6,6 +6,11 @@ export const convitesCadastroServico = {
     return resposta.data;
   },
 
+  async listarAtletasElegiveis() {
+    const resposta = await http.get('/convites-cadastro/atletas-elegiveis');
+    return resposta.data;
+  },
+
   async obterPorId(id) {
     const resposta = await http.get(`/convites-cadastro/${id}`);
     return resposta.data;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ConteudoBotao } from '../components/ConteudoBotao';
 import { convitesCadastroServico } from '../services/convitesCadastroServico';
 import { extrairMensagemErro } from '../utils/erros';
@@ -19,20 +19,32 @@ function canalIncluiWhatsapp(canalEnvio) {
 
 export function PaginaConvitesCadastro() {
   const [convites, setConvites] = useState([]);
+  const [atletasElegiveis, setAtletasElegiveis] = useState([]);
   const [formulario, setFormulario] = useState(formularioInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
+  const [atletaSelecionadoId, setAtletaSelecionadoId] = useState('');
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [carregandoAtletasElegiveis, setCarregandoAtletasElegiveis] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [enviandoEmailId, setEnviandoEmailId] = useState(null);
   const [enviandoWhatsappId, setEnviandoWhatsappId] = useState(null);
   const [obtendoLinkId, setObtendoLinkId] = useState(null);
   const [acessosAceite, setAcessosAceite] = useState({});
+  const formularioRef = useRef(null);
 
   useEffect(() => {
-    carregarConvites();
+    carregarDados();
   }, []);
+
+  async function carregarDados() {
+    await Promise.all([
+      carregarConvites(),
+      carregarAtletasElegiveis()
+    ]);
+  }
 
   async function carregarConvites() {
     setCarregando(true);
@@ -48,8 +60,54 @@ export function PaginaConvitesCadastro() {
     }
   }
 
+  async function carregarAtletasElegiveis() {
+    setCarregandoAtletasElegiveis(true);
+
+    try {
+      const lista = await convitesCadastroServico.listarAtletasElegiveis();
+      setAtletasElegiveis(lista);
+    } catch (error) {
+      setAtletasElegiveis([]);
+      setErro(extrairMensagemErro(error));
+    } finally {
+      setCarregandoAtletasElegiveis(false);
+    }
+  }
+
   function atualizarFormulario(campo, valor) {
+    if (campo === 'email') {
+      setAtletaSelecionadoId('');
+    }
+
     setFormulario((anterior) => ({ ...anterior, [campo]: valor }));
+  }
+
+  function selecionarAtletaElegivel(atletaId) {
+    setAtletaSelecionadoId(atletaId);
+    const atleta = atletasElegiveis.find((item) => item.atletaId === atletaId);
+    if (!atleta) {
+      return;
+    }
+
+    setFormulario((anterior) => ({
+      ...anterior,
+      email: atleta.email,
+      telefone: atleta.telefone || anterior.telefone,
+      canalEnvio: 'E-mail'
+    }));
+  }
+
+  function abrirFormulario() {
+    setFormulario(formularioInicial);
+    setAtletaSelecionadoId('');
+    setFormularioAberto(true);
+    setTimeout(() => formularioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  }
+
+  function fecharFormulario() {
+    setFormulario(formularioInicial);
+    setAtletaSelecionadoId('');
+    setFormularioAberto(false);
   }
 
   async function aoCriarConvite(evento) {
@@ -73,7 +131,10 @@ export function PaginaConvitesCadastro() {
       });
 
       await carregarConvites();
+      await carregarAtletasElegiveis();
       setFormulario(formularioInicial);
+      setAtletaSelecionadoId('');
+      setFormularioAberto(false);
       setMensagem(montarMensagemCriacao(convite));
       rolarParaTopo();
     } catch (error) {
@@ -117,6 +178,7 @@ export function PaginaConvitesCadastro() {
     try {
       await convitesCadastroServico.desativar(id);
       await carregarConvites();
+      await carregarAtletasElegiveis();
       setMensagem('Convite cancelado com sucesso.');
     } catch (error) {
       setErro(extrairMensagemErro(error));
@@ -169,66 +231,102 @@ export function PaginaConvitesCadastro() {
         <p>O WhatsApp usa o mesmo convite e o mesmo código do convite. Falhas de envio não invalidam o convite.</p>
       </div>
 
-      <form className="formulario-grid" onSubmit={aoCriarConvite}>
-        <label>
-          E-mail
-          <input
-            type="email"
-            value={formulario.email}
-            onChange={(evento) => atualizarFormulario('email', evento.target.value)}
-            placeholder="atleta@email.com"
-            required
-          />
-        </label>
-
-        <label>
-          Telefone
-          <input
-            type="text"
-            value={formulario.telefone}
-            onChange={(evento) => atualizarFormulario('telefone', evento.target.value)}
-            placeholder="Obrigatório para WhatsApp"
-            required={canalIncluiWhatsapp(formulario.canalEnvio)}
-          />
-        </label>
-
-        <label>
-          Canal de envio
-          <select
-            value={formulario.canalEnvio}
-            onChange={(evento) => atualizarFormulario('canalEnvio', evento.target.value)}
-          >
-            <option value="">Não informado</option>
-            <option value="E-mail">E-mail</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="E-mail e WhatsApp">E-mail e WhatsApp</option>
-          </select>
-        </label>
-
-        <label>
-          Expira em
-          <input
-            type="datetime-local"
-            value={formulario.expiraEmUtc}
-            onChange={(evento) => atualizarFormulario('expiraEmUtc', evento.target.value)}
-          />
-        </label>
-
-        <label>
-          Perfil de destino
-          <input type="text" value="Atleta" readOnly />
-        </label>
-
-        <div className="acoes-formulario">
-          <button type="submit" className="botao-primario" disabled={salvando}>
-            <ConteudoBotao
-              icone="convite"
-              texto={salvando ? 'Criando...' : 'Criar convite'}
-              somenteIconeNoMobile={false}
-            />
+      {!formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Novo convite
           </button>
         </div>
-      </form>
+      )}
+
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-grid" onSubmit={aoCriarConvite}>
+          <label>
+            Atleta registrado em jogo
+            <select
+              value={atletaSelecionadoId}
+              onChange={(evento) => selecionarAtletaElegivel(evento.target.value)}
+              disabled={carregandoAtletasElegiveis || atletasElegiveis.length === 0}
+            >
+              <option value="">
+                {carregandoAtletasElegiveis
+                  ? 'Carregando atletas...'
+                  : atletasElegiveis.length > 0
+                    ? 'Selecionar atleta com e-mail'
+                    : 'Nenhum atleta pendente com e-mail'}
+              </option>
+              {atletasElegiveis.map((atleta) => (
+                <option key={atleta.atletaId} value={atleta.atletaId}>
+                  {atleta.nomeAtleta} - {atleta.email}
+                </option>
+              ))}
+            </select>
+            <small>Atletas sem usuário, registrados em jogos e com e-mail preenchido aparecem aqui para convite por e-mail.</small>
+          </label>
+
+          <label>
+            E-mail
+            <input
+              type="email"
+              value={formulario.email}
+              onChange={(evento) => atualizarFormulario('email', evento.target.value)}
+              placeholder="atleta@email.com"
+              required
+            />
+          </label>
+
+          <label>
+            Telefone
+            <input
+              type="text"
+              value={formulario.telefone}
+              onChange={(evento) => atualizarFormulario('telefone', evento.target.value)}
+              placeholder="Obrigatório para WhatsApp"
+              required={canalIncluiWhatsapp(formulario.canalEnvio)}
+            />
+          </label>
+
+          <label>
+            Canal de envio
+            <select
+              value={formulario.canalEnvio}
+              onChange={(evento) => atualizarFormulario('canalEnvio', evento.target.value)}
+            >
+              <option value="">Não informado</option>
+              <option value="E-mail">E-mail</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="E-mail e WhatsApp">E-mail e WhatsApp</option>
+            </select>
+          </label>
+
+          <label>
+            Expira em
+            <input
+              type="datetime-local"
+              value={formulario.expiraEmUtc}
+              onChange={(evento) => atualizarFormulario('expiraEmUtc', evento.target.value)}
+            />
+          </label>
+
+          <label>
+            Perfil de destino
+            <input type="text" value="Atleta" readOnly />
+          </label>
+
+          <div className="acoes-formulario">
+            <button type="submit" className="botao-primario" disabled={salvando}>
+              <ConteudoBotao
+                icone="convite"
+                texto={salvando ? 'Criando...' : 'Criar convite'}
+                somenteIconeNoMobile={false}
+              />
+            </button>
+            <button type="button" className="botao-secundario" onClick={fecharFormulario}>
+              <ConteudoBotao icone="cancelar" texto="Fechar" somenteIconeNoMobile={false} />
+            </button>
+          </div>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
       {mensagem && <p className="texto-sucesso">{mensagem}</p>}

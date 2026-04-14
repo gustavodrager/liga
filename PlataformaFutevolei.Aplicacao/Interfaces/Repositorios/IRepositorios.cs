@@ -29,6 +29,7 @@ public interface IConviteCadastroRepositorio
 public interface IAtletaRepositorio
 {
     Task<IReadOnlyList<Atleta>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> ListarComEmailEmPartidasSemUsuarioAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarInscritosPorOrganizadorAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<bool> PertenceAoOrganizadorAsync(Guid atletaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
@@ -86,6 +87,7 @@ public interface ICompeticaoRepositorio
         Guid usuarioId,
         Guid? atletaId,
         CancellationToken cancellationToken = default);
+    Task<Competicao?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<Competicao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Competicao competicao, CancellationToken cancellationToken = default);
     void Atualizar(Competicao competicao);

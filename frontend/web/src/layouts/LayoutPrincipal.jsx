@@ -96,13 +96,25 @@ export function LayoutPrincipal() {
         aria-label="Navegação principal"
       >
         {itensMenu.map((item) => (
-          <NavLink
-            key={item.caminho}
-            to={item.caminho}
-            className={({ isActive }) => `item-menu ${isActive ? 'ativo' : ''}`}
-          >
-            {item.nome}
-          </NavLink>
+          item.externo ? (
+            <a
+              key={item.caminho}
+              href={item.caminho}
+              className="item-menu"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {item.nome}
+            </a>
+          ) : (
+            <NavLink
+              key={item.caminho}
+              to={item.caminho}
+              className={({ isActive }) => `item-menu ${isActive ? 'ativo' : ''}`}
+            >
+              {item.nome}
+            </NavLink>
+          )
         ))}
       </nav>
 

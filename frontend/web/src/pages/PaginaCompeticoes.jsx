@@ -155,7 +155,7 @@ export function PaginaCompeticoes() {
   const [regras, setRegras] = useState([]);
   const [regrasDisponiveis, setRegrasDisponiveis] = useState(true);
   const [formulario, setFormulario] = useState(() => criarEstadoInicialCompeticao(usuarioAtleta));
-  const [formularioCompeticaoAberto, setFormularioCompeticaoAberto] = useState(true);
+  const [formularioCompeticaoAberto, setFormularioCompeticaoAberto] = useState(false);
   const [deveRolarParaFormularioCompeticao, setDeveRolarParaFormularioCompeticao] = useState(false);
   const [competicaoEdicaoId, setCompeticaoEdicaoId] = useState(null);
   const [categoriasFormulario, setCategoriasFormulario] = useState([]);
@@ -238,12 +238,6 @@ export function PaginaCompeticoes() {
   useEffect(() => {
     carregarCompeticoes();
   }, [gestorCompeticao, usuarioAtleta, usuarioAtivo]);
-
-  useEffect(() => {
-    if (!carregando && totalCompeticoes === 0) {
-      setFormularioCompeticaoAberto(true);
-    }
-  }, [carregando, totalCompeticoes]);
 
   useEffect(() => {
     if (!competicaoEdicaoId || Number(formulario.tipo) === 3) {
@@ -524,7 +518,7 @@ export function PaginaCompeticoes() {
   }
 
   function cancelarEdicao() {
-    setFormularioCompeticaoAberto(totalCompeticoes === 0);
+    setFormularioCompeticaoAberto(false);
     setDeveRolarParaFormularioCompeticao(false);
     setCompeticaoEdicaoId(null);
     setCategoriasFormulario([]);
@@ -756,7 +750,7 @@ export function PaginaCompeticoes() {
 
   return (
     <section className="pagina">
-      {podeCriarCompeticao && !carregando && totalCompeticoes > 0 && (
+      {podeCriarCompeticao && !carregando && (
         <div className="acoes-item campo-largo">
           {!formularioCompeticaoAberto ? (
             <button type="button" className="botao-primario" onClick={abrirFormularioCompeticao}>
