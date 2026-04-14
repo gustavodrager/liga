@@ -264,15 +264,13 @@ export function ProvedorAutenticacao({ children }) {
     conviteIdPublico,
     codigoConvite,
     nome,
-    email,
-    senha
+    email
   }) => {
     const resposta = await autenticacaoServico.registrarPorConvite({
       conviteIdPublico,
       codigoConvite,
       nome,
-      email,
-      senha
+      email
     });
     salvarAutenticacao(resposta, { primeiroAcessoPendente: true });
     return resposta;

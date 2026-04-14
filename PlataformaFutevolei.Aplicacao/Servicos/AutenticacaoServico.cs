@@ -8,6 +8,7 @@ using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using System.Security.Cryptography;
+
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class AutenticacaoServico(
@@ -46,7 +47,7 @@ public class AutenticacaoServico(
         {
             Nome = dto.Nome.Trim(),
             Email = emailNormalizado,
-            SenhaHash = senhaServico.GerarHash(dto.Senha),
+            SenhaHash = senhaServico.GerarHash(GerarSenhaInicialInterna()),
             Perfil = PerfilUsuario.Atleta,
             Ativo = true
         };
@@ -297,10 +298,11 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("E-mail é obrigatório.");
         }
 
-        if (string.IsNullOrWhiteSpace(dto.Senha) || dto.Senha.Length < 6)
-        {
-            throw new RegraNegocioException("A senha deve ter no mínimo 6 caracteres.");
-        }
+    }
+
+    private static string GerarSenhaInicialInterna()
+    {
+        return Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     }
 
     private async Task<ConviteCadastro?> ObterConviteParaRegistroAsync(

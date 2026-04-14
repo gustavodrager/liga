@@ -187,6 +187,7 @@ export function PaginaPendenciasAtletas() {
         setMensagem('Aprovação registrada com sucesso.');
       }
 
+      setPendencias((listaAtual) => listaAtual.filter((item) => item.id !== pendenciaId));
       await carregarPendencias();
     } catch (error) {
       setErro(extrairMensagemErro(error));

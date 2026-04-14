@@ -25,6 +25,7 @@ export function PaginaLocais() {
   const usuarioAdministrador = ehAdministrador(usuario);
   const [locais, setLocais] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [localEdicaoId, setLocalEdicaoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -59,18 +60,27 @@ export function PaginaLocais() {
       return;
     }
 
+    setFormularioAberto(true);
     setLocalEdicaoId(local.id);
     setFormulario({
       nome: local.nome || '',
       tipo: String(local.tipo),
       quantidadeQuadras: String(local.quantidadeQuadras)
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setLocalEdicaoId(null);
     setFormulario(estadoInicial);
+  }
+
+  function abrirFormulario() {
+    setLocalEdicaoId(null);
+    setFormulario(estadoInicial);
+    setFormularioAberto(true);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -128,56 +138,64 @@ export function PaginaLocais() {
         <p>Cadastre arenas e redes usadas para receber campeonatos, eventos e grupos.</p>
       </div>
 
-      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
-        <label>
-          Nome
-          <input
-            type="text"
-            value={formulario.nome}
-            onChange={(evento) => atualizarCampo('nome', evento.target.value)}
-            required
-          />
-        </label>
-
-        <label>
-          Tipo
-          <select
-            value={formulario.tipo}
-            onChange={(evento) => atualizarCampo('tipo', evento.target.value)}
-            required
-          >
-            {tiposLocal.map((tipo) => (
-              <option key={tipo.valor} value={tipo.valor}>
-                {tipo.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Quantidade de quadras
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={formulario.quantidadeQuadras}
-            onChange={(evento) => atualizarCampo('quantidadeQuadras', evento.target.value)}
-            required
-          />
-        </label>
-
-        <div className="acoes-formulario">
-          <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar'}
+      {!formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Novo local
           </button>
-
-          {localEdicaoId && (
-            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              <ConteudoBotao icone="cancelar" texto="Cancelar" />
-            </button>
-          )}
         </div>
-      </form>
+      )}
+
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
+          <label>
+            Nome
+            <input
+              type="text"
+              value={formulario.nome}
+              onChange={(evento) => atualizarCampo('nome', evento.target.value)}
+              required
+            />
+          </label>
+
+          <label>
+            Tipo
+            <select
+              value={formulario.tipo}
+              onChange={(evento) => atualizarCampo('tipo', evento.target.value)}
+              required
+            >
+              {tiposLocal.map((tipo) => (
+                <option key={tipo.valor} value={tipo.valor}>
+                  {tipo.rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Quantidade de quadras
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={formulario.quantidadeQuadras}
+              onChange={(evento) => atualizarCampo('quantidadeQuadras', evento.target.value)}
+              required
+            />
+          </label>
+
+          <div className="acoes-formulario">
+            <button type="submit" className="botao-primario" disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+
+            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+              <ConteudoBotao icone="cancelar" texto={localEdicaoId ? 'Cancelar' : 'Fechar'} />
+            </button>
+          </div>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
 

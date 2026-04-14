@@ -67,6 +67,7 @@ function descreverTipo(tipoFormato) {
 export function PaginaFormatosCampeonato() {
   const [formatos, setFormatos] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [formatoEdicaoId, setFormatoEdicaoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -113,6 +114,7 @@ export function PaginaFormatosCampeonato() {
       return;
     }
 
+    setFormularioAberto(true);
     setFormatoEdicaoId(formato.id);
     setFormulario({
       nome: formato.nome,
@@ -130,12 +132,20 @@ export function PaginaFormatosCampeonato() {
       permiteCabecaDeChave: Boolean(formato.permiteCabecaDeChave),
       disputaTerceiroLugar: Boolean(formato.disputaTerceiroLugar)
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setFormatoEdicaoId(null);
     setFormulario(estadoInicial);
+  }
+
+  function abrirFormulario() {
+    setFormatoEdicaoId(null);
+    setFormulario(estadoInicial);
+    setFormularioAberto(true);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -208,7 +218,16 @@ export function PaginaFormatosCampeonato() {
         <p>Cadastre formatos reutilizáveis para campeonato sem antecipar geração de tabela ou chaveamento.</p>
       </div>
 
-      <form ref={formularioRef} className="formulario-secoes" onSubmit={aoSubmeter}>
+      {!formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Novo formato
+          </button>
+        </div>
+      )}
+
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-secoes" onSubmit={aoSubmeter}>
         <div className="secao-formulario">
           <div className="secao-formulario-cabecalho">
             <h3>Identificação</h3>
@@ -394,13 +413,12 @@ export function PaginaFormatosCampeonato() {
             {salvando ? 'Salvando...' : 'Salvar'}
           </button>
 
-          {formatoEdicaoId && (
-            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              <ConteudoBotao icone="cancelar" texto="Cancelar" />
-            </button>
-          )}
+          <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+            <ConteudoBotao icone="cancelar" texto={formatoEdicaoId ? 'Cancelar' : 'Fechar'} />
+          </button>
         </div>
-      </form>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
 

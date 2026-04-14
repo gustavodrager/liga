@@ -12,8 +12,6 @@ export function PaginaCadastroConvite() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [codigoConvite, setCodigoConvite] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmacaoSenha, setConfirmacaoSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregandoConvite, setCarregandoConvite] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -59,11 +57,6 @@ export function PaginaCadastroConvite() {
       return;
     }
 
-    if (senha !== confirmacaoSenha) {
-      setErro('A confirmação de senha não confere.');
-      return;
-    }
-
     if (!codigoConvite.trim()) {
       setErro('Informe o código do convite.');
       return;
@@ -76,8 +69,7 @@ export function PaginaCadastroConvite() {
         conviteIdPublico: identificadorPublico,
         codigoConvite,
         nome,
-        email,
-        senha
+        email
       });
     } catch (error) {
       setErro(extrairMensagemErro(error));
@@ -91,7 +83,7 @@ export function PaginaCadastroConvite() {
       <div className="painel-login">
         <img className="logo-login" src={logoLiga} alt="Logo Liga" />
         <h1>Seu primeiro acesso</h1>
-        <p>Use este convite para criar sua senha e entrar pela primeira vez na Plataforma QuebraNunca Futevôlei.</p>
+        <p>Use este convite para confirmar seu acesso à Plataforma QuebraNunca Futevôlei.</p>
 
         {carregandoConvite ? (
           <p>Validando convite...</p>
@@ -121,7 +113,7 @@ export function PaginaCadastroConvite() {
                 <p>
                   Este link identifica o convite, mas o cadastro só é concluído com o e-mail convidado
                   {' e o código do convite recebido por e-mail, WhatsApp ou pelo administrador.'}
-                  Depois de definir sua senha, você entra automaticamente no app e segue para o seu perfil para completar os dados.
+                  Depois da confirmação, você entra automaticamente no app e segue para o seu perfil para completar os dados.
                 </p>
                 <p>
                   Se você já tiver participado de partidas antes de criar o acesso, o app tentará reaproveitar esse atleta quando você concluir o perfil.
@@ -162,30 +154,8 @@ export function PaginaCadastroConvite() {
                       />
                     </label>
 
-                    <label>
-                      Senha
-                      <input
-                        type="password"
-                        value={senha}
-                        onChange={(evento) => setSenha(evento.target.value)}
-                        placeholder="Mínimo 6 caracteres"
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      Confirmar senha
-                      <input
-                        type="password"
-                        value={confirmacaoSenha}
-                        onChange={(evento) => setConfirmacaoSenha(evento.target.value)}
-                        placeholder="Repita a senha"
-                        required
-                      />
-                    </label>
-
                     <button type="submit" className="botao-primario" disabled={salvando}>
-                      {salvando ? 'Entrando no app...' : 'Criar senha e entrar'}
+                      {salvando ? 'Entrando no app...' : 'Confirmar acesso e entrar'}
                     </button>
                   </form>
                 )}

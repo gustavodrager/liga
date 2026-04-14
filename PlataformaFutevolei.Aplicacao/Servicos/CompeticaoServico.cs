@@ -138,6 +138,8 @@ public class CompeticaoServico(
         var link = NormalizarLink(dto.Link);
 
         Validar(dto.Nome, dataInicioUtc, dataFimUtc, link);
+        var nome = dto.Nome.Trim();
+        await ValidarNomeUnicoAsync(nome, null, cancellationToken);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
         var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(dto.Tipo, dto.FormatoCampeonatoId, cancellationToken);
@@ -146,7 +148,7 @@ public class CompeticaoServico(
 
         var competicao = new Competicao
         {
-            Nome = dto.Nome.Trim(),
+            Nome = nome,
             Tipo = dto.Tipo,
             Descricao = dto.Descricao?.Trim(),
             Link = link,
@@ -207,12 +209,14 @@ public class CompeticaoServico(
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
         }
 
+        var nome = dto.Nome.Trim();
+        await ValidarNomeUnicoAsync(nome, id, cancellationToken);
         var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(dto.Tipo, dto.FormatoCampeonatoId, cancellationToken);
         var possuiFinalReset = await ResolverPossuiFinalResetAsync(dto.Tipo, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
         await ValidarCategoriasExistentesAsync(id, dto.Tipo, formatoCampeonatoId, cancellationToken);
         await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
 
-        competicao.Nome = dto.Nome.Trim();
+        competicao.Nome = nome;
         competicao.Tipo = dto.Tipo;
         competicao.Descricao = dto.Descricao?.Trim();
         competicao.Link = link;
@@ -288,6 +292,15 @@ public class CompeticaoServico(
         if (regra is null)
         {
             throw new RegraNegocioException("A regra informada para a competição não foi encontrada.");
+        }
+    }
+
+    private async Task ValidarNomeUnicoAsync(string nome, Guid? idAtual, CancellationToken cancellationToken)
+    {
+        var existente = await competicaoRepositorio.ObterPorNomeAsync(nome, cancellationToken);
+        if (existente is not null && existente.Id != idAtual)
+        {
+            throw new RegraNegocioException("Já existe uma competição cadastrada com este nome. Escolha outro nome.");
         }
     }
 

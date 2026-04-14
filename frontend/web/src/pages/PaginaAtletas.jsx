@@ -37,6 +37,7 @@ export function PaginaAtletas() {
   const [params] = useSearchParams();
   const [atletas, setAtletas] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [atletaEdicaoId, setAtletaEdicaoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -80,6 +81,7 @@ export function PaginaAtletas() {
   }
 
   function iniciarEdicao(atleta) {
+    setFormularioAberto(true);
     setAtletaEdicaoId(atleta.id);
     setFormulario({
       nome: atleta.nome || '',
@@ -96,12 +98,20 @@ export function PaginaAtletas() {
       lado: String(atleta.lado || 3),
       dataNascimento: paraInputData(atleta.dataNascimento)
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setAtletaEdicaoId(null);
     setFormulario(estadoInicial);
+  }
+
+  function abrirFormulario() {
+    setAtletaEdicaoId(null);
+    setFormulario(estadoInicial);
+    setFormularioAberto(true);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -167,76 +177,85 @@ export function PaginaAtletas() {
         </p>
       </div>
 
-      <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
-        <label>
-          Nome completo
-          <input
-            type="text"
-            value={formulario.nome}
-            onChange={(evento) => atualizarCampo('nome', evento.target.value)}
-            required
-          />
-        </label>
+      {!formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormulario}>
+            Novo atleta
+          </button>
+        </div>
+      )}
 
-        <label>
-          Apelido
-          <input
-            type="text"
-            value={formulario.apelido}
-            onChange={(evento) => atualizarCampo('apelido', evento.target.value)}
-          />
-        </label>
+      {formularioAberto && (
+        <form ref={formularioRef} className="formulario-grid" onSubmit={aoSubmeter}>
+          <label>
+            Nome completo
+            <input
+              type="text"
+              value={formulario.nome}
+              onChange={(evento) => atualizarCampo('nome', evento.target.value)}
+              required
+            />
+          </label>
 
-        <label>
-          Telefone
-          <input
-            type="text"
-            value={formulario.telefone}
-            onChange={(evento) => atualizarCampo('telefone', evento.target.value)}
-          />
-        </label>
+          <label>
+            Apelido
+            <input
+              type="text"
+              value={formulario.apelido}
+              onChange={(evento) => atualizarCampo('apelido', evento.target.value)}
+            />
+          </label>
 
-        <label>
-          E-mail
-          <input
-            type="email"
-            value={formulario.email}
-            onChange={(evento) => atualizarCampo('email', evento.target.value)}
-          />
-        </label>
+          <label>
+            Telefone
+            <input
+              type="text"
+              value={formulario.telefone}
+              onChange={(evento) => atualizarCampo('telefone', evento.target.value)}
+            />
+          </label>
 
-        <label>
-          Instagram
-          <input
-            type="text"
-            value={formulario.instagram}
-            onChange={(evento) => atualizarCampo('instagram', evento.target.value)}
-          />
-        </label>
+          <label>
+            E-mail
+            <input
+              type="email"
+              value={formulario.email}
+              onChange={(evento) => atualizarCampo('email', evento.target.value)}
+            />
+          </label>
 
-        <label>
-          CPF
-          <input
-            type="text"
-            value={formulario.cpf}
-            onChange={(evento) => atualizarCampo('cpf', evento.target.value)}
-          />
-        </label>
+          <label>
+            Instagram
+            <input
+              type="text"
+              value={formulario.instagram}
+              onChange={(evento) => atualizarCampo('instagram', evento.target.value)}
+            />
+          </label>
 
-        <label>
-          Nível
-          <select
-            value={formulario.nivel}
-            onChange={(evento) => atualizarCampo('nivel', evento.target.value)}
-          >
-            <option value="">Selecione</option>
-            {opcoesNivelAtleta.map((opcao) => (
-              <option key={opcao.valor} value={opcao.valor}>
-                {opcao.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label>
+            CPF
+            <input
+              type="text"
+              value={formulario.cpf}
+              onChange={(evento) => atualizarCampo('cpf', evento.target.value)}
+            />
+          </label>
+
+          <label>
+            Nível
+            <select
+              value={formulario.nivel}
+              onChange={(evento) => atualizarCampo('nivel', evento.target.value)}
+            >
+              <option value="">Selecione</option>
+              {opcoesNivelAtleta.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>
+                  {opcao.rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
 
         <label>
           Bairro
@@ -298,18 +317,17 @@ export function PaginaAtletas() {
           />
         </label>
 
-        <div className="acoes-formulario campo-largo">
-          <button type="submit" className="botao-primario" disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar'}
-          </button>
-
-          {atletaEdicaoId && (
-            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              <ConteudoBotao icone="cancelar" texto="Cancelar" />
+          <div className="acoes-formulario campo-largo">
+            <button type="submit" className="botao-primario" disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
-          )}
-        </div>
-      </form>
+
+            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+              <ConteudoBotao icone="cancelar" texto={atletaEdicaoId ? 'Cancelar' : 'Fechar'} />
+            </button>
+          </div>
+        </form>
+      )}
 
       {erro && <p className="texto-erro">{erro}</p>}
 

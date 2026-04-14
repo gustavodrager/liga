@@ -482,6 +482,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
   const [estruturaRodadas, setEstruturaRodadas] = useState([]);
   const [competicaoId, setCompeticaoId] = useState('');
   const [formulario, setFormulario] = useState(() => criarEstadoInicial());
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [partidaEdicaoId, setPartidaEdicaoId] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -574,6 +575,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
   const podeSortearPartidasNaPagina = permiteEdicaoNaPagina && podeSortearPartidas;
   const podeAprovarSorteioNaPagina = permiteEdicaoNaPagina && podeAprovarSorteio;
   const podeExibirFormulario = permiteEdicaoNaPagina && podeEditarPartidas && (podeRegistrarManual || Boolean(partidaEdicaoId));
+  const formularioPartidaVisivel = formularioAberto && podeExibirFormulario;
   const podeSalvarFormulario = !salvando && !(grupoSelecionado && atletaUsuarioSemVinculo);
   const podeLancarResultado = grupoSelecionado || !competicaoComInscricoes || tabelaJogosAprovada;
   const podeLancarResultadoDireto = competicaoComInscricoes && tabelaJogosAprovada && podeEditarPartidas;
@@ -1650,6 +1652,7 @@ export function PaginaPartidas({ modo = 'consulta' }) {
       setCompeticaoId(categoria.competicaoId);
     }
 
+    setFormularioAberto(true);
     setPartidaEdicaoId(partida.id);
     setMensagem('');
     setFeedbackPendencias([]);
@@ -1676,10 +1679,11 @@ export function PaginaPartidas({ modo = 'consulta' }) {
       dataPartida: paraInputDataHora(partida.dataPartida),
       observacoes: partida.observacoes || ''
     });
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
+    setFormularioAberto(false);
     setPartidaEdicaoId(null);
     setFeedbackPendencias([]);
     setFormulario((anterior) => ({
@@ -1691,6 +1695,26 @@ export function PaginaPartidas({ modo = 'consulta' }) {
         : {}),
       status: grupoSelecionado ? '2' : '1'
     }));
+  }
+
+  function abrirFormularioPartida() {
+    setFormularioAberto(true);
+    setPartidaEdicaoId(null);
+    setMensagem('');
+    setFeedbackPendencias([]);
+    if (!grupoSelecionado) {
+      setModoCadastroPartida('duplas');
+    }
+    setFormulario((anterior) => ({
+      ...criarEstadoInicial(),
+      nomeGrupo: anterior.nomeGrupo,
+      categoriaCompeticaoId: anterior.categoriaCompeticaoId,
+      ...(usandoCadastroPorAtletas && temAtletaUsuarioVinculado
+        ? obterCamposIniciaisAtletaUsuarioPrimeiraDupla()
+        : {}),
+      status: grupoSelecionado ? '2' : '1'
+    }));
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -2377,7 +2401,15 @@ export function PaginaPartidas({ modo = 'consulta' }) {
         <p>{descricaoPagina}</p>
       </div>
 
-      {podeExibirFormulario && (
+      {podeExibirFormulario && !formularioAberto && (
+        <div className="acoes-item campo-largo">
+          <button type="button" className="botao-primario" onClick={abrirFormularioPartida}>
+            Registrar partida
+          </button>
+        </div>
+      )}
+
+      {formularioPartidaVisivel && (
         <form ref={formularioRef} className="formulario-grid formulario-partida" onSubmit={aoSubmeter}>
           <div className="campo-largo formulario-partida-cabecalho">
             <h3>{partidaEdicaoId ? 'Editar partida' : 'Registrar partida'}</h3>
@@ -2638,11 +2670,9 @@ export function PaginaPartidas({ modo = 'consulta' }) {
               {salvando ? 'Salvando...' : 'Salvar'}
             </button>
 
-            {partidaEdicaoId && (
-              <button type="button" className="botao-secundario botao-compacto" onClick={cancelarEdicao}>
-                <ConteudoBotao icone="cancelar" texto="Cancelar" />
-              </button>
-            )}
+            <button type="button" className="botao-secundario botao-compacto" onClick={cancelarEdicao}>
+              <ConteudoBotao icone="cancelar" texto={partidaEdicaoId ? 'Cancelar' : 'Fechar'} />
+            </button>
           </div>
         </form>
       )}

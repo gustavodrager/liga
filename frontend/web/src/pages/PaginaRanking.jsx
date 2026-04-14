@@ -437,7 +437,7 @@ export function PaginaRanking() {
   function renderizarDetalhesAtleta(item) {
     return (
       <div className="ranking-detalhes">
-        <strong>Partidas do ranking</strong>
+        <strong>Partidas</strong>
         {item.partidas.length === 0 ? (
           <p>Nenhuma partida detalhada.</p>
         ) : (

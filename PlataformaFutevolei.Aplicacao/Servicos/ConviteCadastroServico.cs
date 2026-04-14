@@ -13,6 +13,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class ConviteCadastroServico(
     IConviteCadastroRepositorio conviteCadastroRepositorio,
+    IAtletaRepositorio atletaRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
@@ -29,6 +30,29 @@ public class ConviteCadastroServico(
         await GarantirAdministradorAsync(cancellationToken);
         var convites = await conviteCadastroRepositorio.ListarAsync(cancellationToken);
         return convites.Select(x => x.ParaDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<AtletaElegivelConviteCadastroDto>> ListarAtletasElegiveisAsync(CancellationToken cancellationToken = default)
+    {
+        await GarantirAdministradorAsync(cancellationToken);
+
+        var atletas = await atletaRepositorio.ListarComEmailEmPartidasSemUsuarioAsync(cancellationToken);
+        var agoraUtc = DateTime.UtcNow;
+        var emailsComConviteAtivo = (await conviteCadastroRepositorio.ListarAsync(cancellationToken))
+            .Where(x => x.PodeSerUsado(agoraUtc))
+            .Select(x => x.Email)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return atletas
+            .Where(x => !string.IsNullOrWhiteSpace(x.Email))
+            .Where(x => !emailsComConviteAtivo.Contains(x.Email!))
+            .Select(x => new AtletaElegivelConviteCadastroDto(
+                x.Id,
+                x.Nome,
+                x.Apelido,
+                x.Email!,
+                x.Telefone))
+            .ToList();
     }
 
     public async Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)

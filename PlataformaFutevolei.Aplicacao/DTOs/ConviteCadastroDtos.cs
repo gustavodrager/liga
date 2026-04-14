@@ -50,6 +50,14 @@ public record ConviteCadastroPublicoDto(
     bool PodeSerUsado
 );
 
+public record AtletaElegivelConviteCadastroDto(
+    Guid AtletaId,
+    string NomeAtleta,
+    string? ApelidoAtleta,
+    string Email,
+    string? Telefone
+);
+
 public record ResultadoEnvioEmailConviteDto(
     bool TentativaRealizada,
     bool Enviado,

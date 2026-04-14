@@ -39,7 +39,7 @@ export function PaginaCategorias() {
   const [categorias, setCategorias] = useState([]);
   const [formatosCampeonato, setFormatosCampeonato] = useState([]);
   const [formulario, setFormulario] = useState(estadoInicial);
-  const [formularioAberto, setFormularioAberto] = useState(true);
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [categoriaEdicaoId, setCategoriaEdicaoId] = useState(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -116,7 +116,7 @@ export function PaginaCategorias() {
     try {
       const lista = await categoriasServico.listarPorCompeticao(competicaoId);
       setCategorias(lista);
-      setFormularioAberto(lista.length === 0);
+      setFormularioAberto(false);
     } catch (error) {
       setErro(extrairMensagemErro(error));
     }
@@ -183,11 +183,11 @@ export function PaginaCategorias() {
       inscricoesEncerradas: Boolean(categoria.inscricoesEncerradas)
     });
     atualizarParametros(categoria.competicaoId, categoria.id);
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   function cancelarEdicao() {
-    setFormularioAberto(categorias.length === 0);
+    setFormularioAberto(false);
     setCategoriaEdicaoId(null);
     setFormulario((anterior) => ({
       ...estadoInicial,
@@ -204,7 +204,7 @@ export function PaginaCategorias() {
       competicaoId: anterior.competicaoId || ''
     }));
     atualizarParametros(formulario.competicaoId, '');
-    rolarParaElemento(formularioRef.current);
+    setTimeout(() => rolarParaElemento(formularioRef.current), 0);
   }
 
   async function aoSubmeter(evento) {
@@ -300,7 +300,7 @@ export function PaginaCategorias() {
         <p>Cada categoria pertence a uma competição e define gênero e nível técnico.</p>
       </div>
 
-      {!carregando && formulario.competicaoId && categorias.length > 0 && (
+      {!carregando && formulario.competicaoId && (
         <div className="acoes-item campo-largo">
           {!formularioAberto ? (
             <button type="button" className="botao-primario" onClick={abrirFormularioCategoria}>

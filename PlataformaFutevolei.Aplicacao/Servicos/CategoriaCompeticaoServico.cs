@@ -48,7 +48,7 @@ public class CategoriaCompeticaoServico(
                 usuario.Id,
                 usuario.AtletaId,
                 cancellationToken);
-            if (!possuiAcesso)
+            if (!possuiAcesso && !PodeVisualizarCategoriasPublicas(competicao))
             {
                 throw new RegraNegocioException("Atletas só podem visualizar categorias de competições das quais fazem parte.");
             }
@@ -78,7 +78,7 @@ public class CategoriaCompeticaoServico(
                 usuario.Id,
                 usuario.AtletaId,
                 cancellationToken);
-            if (!possuiAcesso)
+            if (!possuiAcesso && !PodeVisualizarCategoriasPublicas(categoria.Competicao))
             {
                 throw new RegraNegocioException("Atletas só podem visualizar categorias de competições das quais fazem parte.");
             }
@@ -335,5 +335,10 @@ public class CategoriaCompeticaoServico(
     private static bool AceitaInscricoes(TipoCompeticao tipo)
     {
         return tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento;
+    }
+
+    private static bool PodeVisualizarCategoriasPublicas(Competicao competicao)
+    {
+        return AceitaInscricoes(competicao.Tipo) && competicao.InscricoesAbertas;
     }
 }
