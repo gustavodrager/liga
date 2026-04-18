@@ -94,51 +94,10 @@ const opcoesNivel = [
 ];
 
 const filtrosIniciais = {
-  termo: '',
   tipo: '',
   competicaoId: '',
   categoria: ''
 };
-
-function normalizarTexto(valor) {
-  return String(valor || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-}
-
-function obterRotuloTipoCompeticao(tipo) {
-  return tiposCompeticao.find((item) => item.valor === Number(tipo))?.rotulo || '';
-}
-
-function obterRotuloGenero(genero) {
-  return opcoesGenero.find((item) => item.valor === Number(genero))?.rotulo || '';
-}
-
-function obterRotuloNivel(nivel) {
-  return opcoesNivel.find((item) => item.valor === Number(nivel))?.rotulo || '';
-}
-
-function competicaoCorrespondeAoFiltro(competicao, termo) {
-  return [
-    competicao.nome,
-    competicao.descricao,
-    competicao.nomeLocal,
-    competicao.nomeLiga,
-    competicao.nomeUsuarioOrganizador,
-    obterRotuloTipoCompeticao(competicao.tipo)
-  ].some((valor) => normalizarTexto(valor).includes(termo));
-}
-
-function categoriaCorrespondeAoFiltro(categoria, termo) {
-  return [
-    categoria.id,
-    categoria.nome,
-    obterRotuloGenero(categoria.genero),
-    obterRotuloNivel(categoria.nivel)
-  ].some((valor) => normalizarTexto(valor).includes(termo));
-}
 
 export function PaginaCompeticoes() {
   const { token, usuario, estadoAcesso, atualizarUsuarioLocal } = useAutenticacao();
@@ -186,7 +145,7 @@ export function PaginaCompeticoes() {
     competicao.tipo !== 3 && competicao.inscricoesAbertas
   )).length;
   const totalGrupos = competicoes.filter((competicao) => competicao.tipo === 3).length;
-  const filtroAtivo = Boolean(filtros.termo || filtros.tipo || filtros.competicaoId || filtros.categoria);
+  const filtroAtivo = Boolean(filtros.tipo || filtros.competicaoId || filtros.categoria);
   const tiposFiltroDisponiveis = visitante
     ? tiposCompeticao.filter((tipo) => tipo.valor !== TIPOS_COMPETICAO.grupo)
     : tiposCompeticao;
@@ -202,38 +161,33 @@ export function PaginaCompeticoes() {
   const categoriasDaCompeticaoSelecionada = filtros.competicaoId
     ? categoriasPorCompeticao[filtros.competicaoId] || []
     : [];
-  const categoriasFiltradasPorCompeticao = useMemo(() => {
-    const termoCategoria = normalizarTexto(filtros.categoria);
+  const categoriasVisiveisPorCompeticao = useMemo(() => {
+    if (!filtros.categoria) {
+      return categoriasPorCompeticao;
+    }
 
     return Object.fromEntries(
       Object.entries(categoriasPorCompeticao).map(([competicaoId, categorias]) => [
         competicaoId,
-        termoCategoria
-          ? categorias.filter((categoria) => categoriaCorrespondeAoFiltro(categoria, termoCategoria))
-          : categorias
+        categorias.filter((categoria) => categoria.id === filtros.categoria)
       ])
     );
   }, [categoriasPorCompeticao, filtros.categoria]);
 
   const competicoesFiltradas = useMemo(() => {
-    const termo = normalizarTexto(filtros.termo);
     const tipo = filtros.tipo ? Number(filtros.tipo) : null;
     const competicaoId = filtros.competicaoId;
-    const termoCategoria = normalizarTexto(filtros.categoria);
+    const categoriaId = filtros.categoria;
 
     return competicoes.filter((competicao) => {
-      const categoriasFiltradas = categoriasFiltradasPorCompeticao[competicao.id] || [];
-      const correspondeAoTermo = !termo || competicaoCorrespondeAoFiltro(competicao, termo);
+      const categoriasCompeticao = categoriasPorCompeticao[competicao.id] || [];
       const correspondeAoTipo = !tipo || Number(competicao.tipo) === tipo;
       const correspondeACompeticao = !competicaoId || competicao.id === competicaoId;
-      const correspondeACategoria = !termoCategoria || (
-        Number(competicao.tipo) !== TIPOS_COMPETICAO.grupo &&
-        categoriasFiltradas.length > 0
-      );
+      const correspondeACategoria = !categoriaId || categoriasCompeticao.some((categoria) => categoria.id === categoriaId);
 
-      return correspondeAoTermo && correspondeAoTipo && correspondeACompeticao && correspondeACategoria;
+      return correspondeAoTipo && correspondeACompeticao && correspondeACategoria;
     });
-  }, [categoriasFiltradasPorCompeticao, competicoes, filtros.categoria, filtros.competicaoId, filtros.termo, filtros.tipo]);
+  }, [categoriasPorCompeticao, competicoes, filtros.categoria, filtros.competicaoId, filtros.tipo]);
 
   useEffect(() => {
     carregarCompeticoes();
@@ -750,17 +704,19 @@ export function PaginaCompeticoes() {
 
   return (
     <section className="pagina">
-      {podeCriarCompeticao && !carregando && (
+      {podeCriarCompeticao && !carregando && !formularioCompeticaoAberto && (
         <div className="acoes-item campo-largo">
-          {!formularioCompeticaoAberto ? (
-            <button type="button" className="botao-primario" onClick={abrirFormularioCompeticao}>
-              {usuarioAtleta ? 'Novo grupo' : 'Nova competição'}
-            </button>
-          ) : !competicaoEdicaoId && (
-            <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
-              Fechar formulário
-            </button>
-          )}
+          <button type="button" className="botao-primario" onClick={abrirFormularioCompeticao}>
+            {usuarioAtleta ? 'Novo grupo' : 'Nova competição'}
+          </button>
+        </div>
+      )}
+
+      {podeCriarCompeticao && formularioCompeticaoAberto && (
+        <div className="acoes-formulario formulario-competicao-acoes-fixas barra-selecao-fixa">
+          <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+            Fechar formulário
+          </button>
         </div>
       )}
 
@@ -986,9 +942,10 @@ export function PaginaCompeticoes() {
       {erro && <p className="texto-erro">{erro}</p>}
       {aviso && <p>{aviso}</p>}
 
-      {carregando ? (
-        <p>Carregando competições...</p>
-      ) : (
+      {!formularioCompeticaoAberto && (
+        carregando ? (
+          <p>Carregando competições...</p>
+        ) : (
         <>
           <section className="formulario-grid filtro-competicoes barra-selecao-fixa">
             <div className="partidas-filtro-cabecalho campo-largo">
@@ -998,12 +955,12 @@ export function PaginaCompeticoes() {
             </div>
 
             <label>
-              Tipo
+              Tipo de competição
               <select
                 value={filtros.tipo}
                 onChange={(evento) => atualizarFiltro('tipo', evento.target.value)}
               >
-                <option value="">Todos</option>
+                <option value="">Todos os tipos</option>
                 {tiposFiltroDisponiveis.map((tipo) => (
                   <option key={tipo.valor} value={tipo.valor}>
                     {tipo.rotulo}
@@ -1012,64 +969,41 @@ export function PaginaCompeticoes() {
               </select>
             </label>
 
-            {visitante ? (
-              <>
-                {filtros.tipo && (
-                  <label>
-                    {Number(filtros.tipo) === TIPOS_COMPETICAO.evento ? 'Evento' : 'Campeonato'}
-                    <select
-                      value={filtros.competicaoId}
-                      onChange={(evento) => atualizarFiltro('competicaoId', evento.target.value)}
-                    >
-                      <option value="">Todos</option>
-                      {competicoesDoTipoSelecionado.map((competicao) => (
-                        <option key={competicao.id} value={competicao.id}>
-                          {competicao.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
+            {filtros.tipo && (
+              <label>
+                Competição
+                <select
+                  value={filtros.competicaoId}
+                  onChange={(evento) => atualizarFiltro('competicaoId', evento.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {competicoesDoTipoSelecionado.map((competicao) => (
+                    <option key={competicao.id} value={competicao.id}>
+                      {competicao.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
-                {filtros.competicaoId && categoriasDaCompeticaoSelecionada.length > 0 && (
-                  <label>
-                    Categoria
-                    <select
-                      value={filtros.categoria}
-                      onChange={(evento) => atualizarFiltro('categoria', evento.target.value)}
-                    >
-                      <option value="">Todas</option>
-                      {categoriasDaCompeticaoSelecionada.map((categoria) => (
-                        <option key={categoria.id} value={categoria.id}>
-                          {categoria.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-              </>
-            ) : (
-              <>
-                <label>
-                  Competição
-                  <input
-                    type="search"
-                    value={filtros.termo}
-                    onChange={(evento) => atualizarFiltro('termo', evento.target.value)}
-                    placeholder="Nome, local ou responsável"
-                  />
-                </label>
-
-                <label>
-                  Categoria
-                  <input
-                    type="search"
-                    value={filtros.categoria}
-                    onChange={(evento) => atualizarFiltro('categoria', evento.target.value)}
-                    placeholder="Nome, gênero ou nível"
-                  />
-                </label>
-              </>
+            {filtros.competicaoId && (
+              <label>
+                Categoria
+                <select
+                  value={filtros.categoria}
+                  onChange={(evento) => atualizarFiltro('categoria', evento.target.value)}
+                  disabled={categoriasDaCompeticaoSelecionada.length === 0}
+                >
+                  <option value="">
+                    {categoriasDaCompeticaoSelecionada.length === 0 ? 'Nenhuma categoria cadastrada' : 'Todas'}
+                  </option>
+                  {categoriasDaCompeticaoSelecionada.map((categoria) => (
+                    <option key={categoria.id} value={categoria.id}>
+                      {categoria.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
           </section>
 
@@ -1077,7 +1011,9 @@ export function PaginaCompeticoes() {
             {competicoesFiltradas.map((competicao) => {
               const gerenciavel = podeGerenciarCompeticao(competicao);
               const grupoAberto = competicaoGrupoAtletasId === competicao.id;
-              const categoriasCompeticao = categoriasFiltradasPorCompeticao[competicao.id] || [];
+              const categoriasCadastradasCompeticao = categoriasPorCompeticao[competicao.id] || [];
+              const categoriasCompeticao = categoriasVisiveisPorCompeticao[competicao.id] || [];
+              const competicaoSemCategoriasCadastradas = categoriasCadastradasCompeticao.length === 0;
               const usuarioJaNoGrupo = grupoAberto && grupoAtletas.some((item) => item.atletaId === usuario?.atletaId);
               const nomesDisponiveisParaAssumir = grupoAberto
                 ? grupoAtletas.filter((item) => !item.vinculadoAUsuario || item.atletaId === usuario?.atletaId)
@@ -1167,7 +1103,7 @@ export function PaginaCompeticoes() {
 
                 {competicao.tipo !== 3 && (
                   <div className="campo-largo">
-                    <h3>Categorias</h3>
+                    {!competicaoSemCategoriasCadastradas && <h3>Categorias</h3>}
                     {carregandoCategoriasCompeticoes ? (
                       <p>Carregando categorias...</p>
                     ) : (
@@ -1284,11 +1220,19 @@ export function PaginaCompeticoes() {
                         );
                       })}
                       {categoriasCompeticao.length === 0 && (
-                        <p>
-                          {filtros.categoria
-                            ? 'Nenhuma categoria corresponde ao filtro informado.'
-                            : 'Nenhuma categoria cadastrada para esta competição.'}
-                        </p>
+                        <>                          
+                          {!filtros.categoria && gerenciavel && competicaoSemCategoriasCadastradas && (
+                            <div className="acoes-item">
+                              <button
+                                type="button"
+                                className="botao-primario"
+                                onClick={() => navegar(`/categorias?competicaoId=${competicao.id}`)}
+                              >
+                                Cadastrar categorias
+                              </button>
+                            </div>
+                          )}
+                      </>
                       )}
                     </div>
                     )}
@@ -1415,6 +1359,7 @@ export function PaginaCompeticoes() {
             )}
           </div>
         </>
+        )
       )}
     </section>
   );

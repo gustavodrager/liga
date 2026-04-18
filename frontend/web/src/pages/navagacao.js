@@ -34,7 +34,7 @@ const ITENS_NAVEGACAO = [
     nome: 'Painel',
     mostrarNoDashboard: false,
     descricao: 'Continue a operação das competições e dos jogos sob sua gestão.',
-    visivel: ({ organizador, estadoAtivo }) => organizador && estadoAtivo
+    visivel: () => false
   },
   {
     caminho: '/admin',

@@ -71,7 +71,7 @@ internal static class MapeadorEntidades
         return new ConviteCadastroPublicoDto(
             conviteCadastro.Id,
             conviteCadastro.IdentificadorPublico,
-            MascararEmail(conviteCadastro.Email),
+            conviteCadastro.Email,
             conviteCadastro.PerfilDestino,
             conviteCadastro.ExpiraEmUtc,
             conviteCadastro.ObterSituacao(agoraUtc),

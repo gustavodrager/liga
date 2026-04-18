@@ -51,7 +51,10 @@ export default function App() {
         <Route
           path="/app/inicio"
           element={
-            <RotaProtegida estadosPermitidos={[ESTADOS_ACESSO.ativo]}>
+            <RotaProtegida
+              perfisPermitidos={[PERFIS_USUARIO.administrador]}
+              estadosPermitidos={[ESTADOS_ACESSO.ativo]}
+            >
               <PaginaDashboard />
             </RotaProtegida>
           }
@@ -60,7 +63,7 @@ export default function App() {
           path="/app/organizacao"
           element={
             <RotaProtegida
-              perfisPermitidos={[PERFIS_USUARIO.administrador, PERFIS_USUARIO.organizador]}
+              perfisPermitidos={[PERFIS_USUARIO.administrador]}
               estadosPermitidos={[ESTADOS_ACESSO.ativo]}
             >
               <PaginaDashboard />
@@ -81,7 +84,10 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <RotaProtegida estadosPermitidos={[ESTADOS_ACESSO.ativo]}>
+            <RotaProtegida
+              perfisPermitidos={[PERFIS_USUARIO.administrador]}
+              estadosPermitidos={[ESTADOS_ACESSO.ativo]}
+            >
               <PaginaDashboard />
             </RotaProtegida>
           }

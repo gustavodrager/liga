@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import { atletasServico } from '../services/atletasServico';
 import { pendenciasServico } from '../services/pendenciasServico';
-import { ESTADOS_ACESSO } from '../utils/acesso';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarDataHora } from '../utils/formatacao';
+import { criarPendenciasPerfil } from '../utils/pendenciasPerfil';
 import { rolarParaTopo } from '../utils/rolagem';
 
 const TIPOS_PENDENCIA = {
@@ -77,37 +78,10 @@ function obterClasseStatusAprovacao(status) {
   }
 }
 
-function criarPendenciasPerfil(estadoAcesso, usuario) {
-  const pendencias = [];
-
-  if (estadoAcesso === ESTADOS_ACESSO.primeiroAcesso) {
-    pendencias.push({
-      id: 'perfil-primeiro-acesso',
-      tipoLocal: 'perfil',
-      titulo: 'Concluir primeiro acesso',
-      descricao: 'Revise os dados do seu acesso e conclua o perfil antes de seguir com o restante do app.',
-      acaoTexto: 'Ir para Meu Perfil'
-    });
-  }
-
-  if (estadoAcesso === ESTADOS_ACESSO.cadastroIncompleto) {
-    pendencias.push({
-      id: 'perfil-cadastro-incompleto',
-      tipoLocal: 'perfil',
-      titulo: 'Completar cadastro do perfil',
-      descricao: Number(usuario?.perfil) === 3
-        ? 'Seu usuário ainda precisa concluir o vínculo com atleta no Meu Perfil.'
-        : 'Seu cadastro ainda precisa de revisão no Meu Perfil.',
-      acaoTexto: 'Completar perfil'
-    });
-  }
-
-  return pendencias;
-}
-
 export function PaginaPendenciasAtletas() {
   const { usuario, estadoAcesso } = useAutenticacao();
   const [pendencias, setPendencias] = useState([]);
+  const [atletaPerfil, setAtletaPerfil] = useState(null);
   const [emails, setEmails] = useState({});
   const [carregando, setCarregando] = useState(true);
   const [processandoId, setProcessandoId] = useState(null);
@@ -116,7 +90,7 @@ export function PaginaPendenciasAtletas() {
 
   useEffect(() => {
     carregarPendencias();
-  }, []);
+  }, [usuario?.atletaId]);
 
   const totalSemContato = useMemo(
     () => pendencias.filter((item) => item.tipo === TIPOS_PENDENCIA.completarContato && !item.emailAtleta).length,
@@ -127,8 +101,8 @@ export function PaginaPendenciasAtletas() {
     [pendencias]
   );
   const pendenciasPerfil = useMemo(
-    () => criarPendenciasPerfil(estadoAcesso, usuario),
-    [estadoAcesso, usuario]
+    () => criarPendenciasPerfil({ estadoAcesso, usuario, atletaDetalhe: atletaPerfil }),
+    [atletaPerfil, estadoAcesso, usuario]
   );
 
   async function carregarPendencias() {
@@ -140,9 +114,16 @@ export function PaginaPendenciasAtletas() {
       const pendenciasVisiveis = (lista || []).filter(pendenciaAindaVisivel);
       setPendencias(pendenciasVisiveis);
       setEmails(criarEstadoEmails(pendenciasVisiveis));
+
+      if (usuario?.atletaId) {
+        setAtletaPerfil(await atletasServico.obterMeu());
+      } else {
+        setAtletaPerfil(null);
+      }
     } catch (error) {
       setErro(extrairMensagemErro(error));
       setPendencias([]);
+      setAtletaPerfil(null);
     } finally {
       setCarregando(false);
     }

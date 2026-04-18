@@ -30,9 +30,9 @@ public class CategoriaCompeticaoServico(
                 throw new EntidadeNaoEncontradaException("Competição não encontrada.");
             }
 
-            if (!AceitaInscricoes(competicao.Tipo) || !competicao.InscricoesAbertas)
+            if (!AceitaInscricoes(competicao.Tipo))
             {
-                throw new RegraNegocioException("Visitantes só podem visualizar categorias de competições com inscrições abertas.");
+                throw new RegraNegocioException("Visitantes só podem visualizar categorias de campeonatos e eventos.");
             }
         }
         else if (usuario.Perfil == PerfilUsuario.Atleta)
@@ -339,6 +339,6 @@ public class CategoriaCompeticaoServico(
 
     private static bool PodeVisualizarCategoriasPublicas(Competicao competicao)
     {
-        return AceitaInscricoes(competicao.Tipo) && competicao.InscricoesAbertas;
+        return AceitaInscricoes(competicao.Tipo);
     }
 }

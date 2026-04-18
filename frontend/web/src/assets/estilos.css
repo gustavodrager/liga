@@ -743,6 +743,47 @@ code {
   gap: 1.15rem;
 }
 
+.home-usuario-card {
+  gap: 0.8rem;
+}
+
+.home-usuario-card-conteudo {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.home-usuario-card h3,
+.home-usuario-card p {
+  margin: 0;
+}
+
+.home-usuario-eyebrow {
+  margin-bottom: 0.45rem;
+  border-color: var(--cor-borda);
+  color: #7a5a00;
+}
+
+.home-usuario-infos,
+.home-usuario-pendencias {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.home-usuario-infos {
+  justify-content: flex-end;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.home-usuario-pendencias {
+  padding-top: 0.15rem;
+}
+
 .home-hero {
   position: relative;
   overflow: hidden;
@@ -1180,6 +1221,12 @@ code {
 
 .formulario-competicao {
   align-items: start;
+}
+
+.formulario-competicao-acoes-fixas {
+  z-index: 35;
+  padding: 0.65rem 0;
+  background: var(--cor-fundo);
 }
 
 .formulario-competicao-cabecalho {

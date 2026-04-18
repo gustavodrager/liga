@@ -1,4 +1,4 @@
-import { ehAdministrador, ehAtleta, ehGestorCompeticao, temPerfil } from './perfis';
+import { ehAtleta, temPerfil } from './perfis';
 
 export const ESTADOS_ACESSO = {
   convitePendente: 'ConvitePendente',
@@ -28,7 +28,7 @@ export function obterEstadoAcessoUsuario(usuario, opcoes = {}) {
   }
 
   const { primeiroAcessoPendente = false } = opcoes;
-  if (primeiroAcessoPendente && !(ehAtleta(usuario) && usuario?.atletaId)) {
+  if (primeiroAcessoPendente) {
     return ESTADOS_ACESSO.primeiroAcesso;
   }
 
@@ -51,16 +51,8 @@ export function temEstadoAcesso(estadoAcesso, estadosPermitidos = []) {
   return estadosPermitidos.includes(estadoAcesso);
 }
 
-export function obterRotaPainelPorPerfil(usuario) {
-  if (ehAdministrador(usuario)) {
-    return '/admin';
-  }
-
-  if (ehGestorCompeticao(usuario)) {
-    return '/app/organizacao';
-  }
-
-  return '/app/inicio';
+export function obterRotaPainelPorPerfil() {
+  return '/';
 }
 
 export function obterRotaPadraoEstado(usuario, estadoAcesso) {
@@ -70,7 +62,6 @@ export function obterRotaPadraoEstado(usuario, estadoAcesso) {
 
   if (
     estadoAcesso === ESTADOS_ACESSO.primeiroAcesso
-    || estadoAcesso === ESTADOS_ACESSO.cadastroIncompleto
   ) {
     return '/app/perfil';
   }

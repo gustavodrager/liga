@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import { atletasServico } from '../services/atletasServico';
 import { categoriasServico } from '../services/categoriasServico';
 import { competicoesServico } from '../services/competicoesServico';
 import { pendenciasServico } from '../services/pendenciasServico';
 import { rankingServico } from '../services/rankingServico';
+import { nomeEstadoAcesso } from '../utils/acesso';
 import { extrairMensagemErro } from '../utils/erros';
 import { formatarData } from '../utils/formatacao';
 import { obterLinkHttp } from '../utils/links';
+import { criarPendenciasPerfil } from '../utils/pendenciasPerfil';
+import { nomePerfil } from '../utils/perfis';
 
 const TIPO_CAMPEONATO = 1;
 const TIPO_GRUPO = 3;
@@ -106,18 +110,19 @@ function montarResumoPlataforma(competicoes, ranking, resumoPublico) {
 }
 
 export function PaginaHome() {
-  const { token } = useAutenticacao();
+  const { token, usuario, estadoAcesso } = useAutenticacao();
   const [competicoes, setCompeticoes] = useState([]);
   const [categoriasPorCompeticao, setCategoriasPorCompeticao] = useState({});
   const [rankingGeral, setRankingGeral] = useState([]);
   const [pendenciasUsuario, setPendenciasUsuario] = useState([]);
+  const [atletaPerfil, setAtletaPerfil] = useState(null);
   const [resumoPublico, setResumoPublico] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
     carregarHome();
-  }, [token]);
+  }, [token, usuario?.atletaId]);
 
   const hoje = useMemo(() => {
     const data = new Date();
@@ -159,6 +164,11 @@ export function PaginaHome() {
     () => montarResumoPlataforma(competicoes, rankingGeral, resumoPublico),
     [competicoes, rankingGeral, resumoPublico]
   );
+  const pendenciasPerfil = useMemo(
+    () => criarPendenciasPerfil({ estadoAcesso, usuario, atletaDetalhe: atletaPerfil }),
+    [atletaPerfil, estadoAcesso, usuario]
+  );
+  const totalPendenciasHome = pendenciasUsuario.length + pendenciasPerfil.length;
 
   async function carregarHome() {
     setCarregando(true);
@@ -199,8 +209,19 @@ export function PaginaHome() {
       } catch {
         setPendenciasUsuario([]);
       }
+
+      if (usuario?.atletaId) {
+        try {
+          setAtletaPerfil(await atletasServico.obterMeu());
+        } catch {
+          setAtletaPerfil(null);
+        }
+      } else {
+        setAtletaPerfil(null);
+      }
     } else {
       setPendenciasUsuario([]);
+      setAtletaPerfil(null);
     }
 
     setCarregando(false);
@@ -278,6 +299,59 @@ export function PaginaHome() {
     );
   }
 
+  function renderizarCardUsuarioLogado() {
+    if (!token) {
+      return null;
+    }
+
+    const nomeAtleta = atletaPerfil?.nome || usuario?.atleta?.nome || '';
+    const rotaPendenciaPrincipal = pendenciasUsuario.length > 0 ? '/app/pendencias' : '/app/perfil';
+
+    return (
+      <article className="cartao-lista home-usuario-card">
+        <div className="home-usuario-card-conteudo">
+          <div>
+            <span className="home-eyebrow home-usuario-eyebrow">Acesso logado</span>
+            <h3>{usuario?.nome ? `Olá, ${usuario.nome}` : 'Bem-vindo'}</h3>
+            <p>
+              {nomePerfil(usuario?.perfil)}
+              {estadoAcesso ? ` · ${nomeEstadoAcesso(estadoAcesso)}` : ''}
+            </p>
+          </div>
+
+          <div className="home-usuario-infos">
+            <span>E-mail: {usuario?.email || '-'}</span>
+            <span>Atleta: {nomeAtleta || 'Não vinculado'}</span>
+            <span>Pendências: {totalPendenciasHome}</span>
+          </div>
+        </div>
+
+        {pendenciasPerfil.length > 0 && (
+          <div className="home-usuario-pendencias">
+            {pendenciasPerfil.slice(0, 4).map((pendencia) => (
+              <span key={pendencia.id} className="tag-status tag-status-alerta">
+                {pendencia.titulo}
+              </span>
+            ))}
+            {pendenciasPerfil.length > 4 && (
+              <span className="tag-status tag-status-alerta">
+                +{pendenciasPerfil.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+
+        {totalPendenciasHome > 0 && (
+          <div className="acoes-item">
+            <Link to={rotaPendenciaPrincipal} className="botao-primario">
+              {pendenciasUsuario.length > 0 ? 'Ver pendências' : 'Completar perfil'}
+            </Link>
+          </div>
+        )}
+      </article>
+    );
+  }
+
   function renderizarCardCampeonato(competicao, acao) {
     const nomeLocal = obterNomeLocal(competicao);
 
@@ -305,10 +379,12 @@ export function PaginaHome() {
 
   return (
     <section className="pagina pagina-home">
+      {renderizarCardUsuarioLogado()}
+
       <article className="cartao home-hero">
         <div className="home-hero-conteudo">
           <span className="home-eyebrow">Plataforma Futevôlei</span>
-          <h2>Registre seus jogos, crie seu ranking que a resenha está garantida.</h2>
+          <h2>Registre seus jogos, crie o grupo e monte seu ranking.</h2>
           <p>
             Acompanhe os próximos campeonatos, entre nas inscrições abertas e consulte os rankings dos torneios já realizados.
           </p>
@@ -341,23 +417,32 @@ export function PaginaHome() {
         <p>Carregando informações públicas...</p>
       ) : (
         <>
-          {token && pendenciasUsuario.length > 0 && (
+          {token && totalPendenciasHome > 0 && (
             <section className="home-secao">
               <article className="cartao-lista">
                 <div className="linha-entre">
                   <div>
                     <h3>Pendências</h3>
                     <p>
-                      {pendenciasUsuario.length === 1
+                      {totalPendenciasHome === 1
                         ? 'Você tem 1 pendência aguardando ação.'
-                        : `Você tem ${pendenciasUsuario.length} pendências aguardando ação.`}
+                        : `Você tem ${totalPendenciasHome} pendências aguardando ação.`}
                     </p>
                   </div>
                   <span className="tag-status tag-status-alerta">Ação necessária</span>
                 </div>
+                {pendenciasPerfil.length > 0 && (
+                  <div className="home-usuario-pendencias">
+                    {pendenciasPerfil.map((pendencia) => (
+                      <span key={pendencia.id} className="tag-status tag-status-alerta">
+                        {pendencia.titulo}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="acoes-item">
-                  <Link to="/app/pendencias" className="botao-primario">
-                    Ver pendências
+                  <Link to={pendenciasUsuario.length > 0 ? '/app/pendencias' : '/app/perfil'} className="botao-primario">
+                    {pendenciasUsuario.length > 0 ? 'Ver pendências' : 'Completar perfil'}
                   </Link>
                 </div>
               </article>

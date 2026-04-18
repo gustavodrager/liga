@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { autenticacaoServico } from '../services/autenticacaoServico';
 import { extrairMensagemErro } from '../utils/erros';
@@ -27,7 +27,6 @@ export function PaginaLogin() {
 
   const { solicitarCodigoLogin, entrarComCodigo, token, rotaInicial } = useAutenticacao();
   const navegar = useNavigate();
-  const localizacao = useLocation();
 
   useEffect(() => {
     if (token) {
@@ -35,7 +34,6 @@ export function PaginaLogin() {
     }
   }, [token, rotaInicial, navegar]);
 
-  const origem = localizacao.state?.origem?.pathname || rotaInicial;
   const emModoRecuperacao = modo === 'recuperacao';
 
   function alterarModo(novoModo) {
@@ -79,7 +77,7 @@ export function PaginaLogin() {
       }
 
       if (!emModoRecuperacao) {
-        navegar(origem, { replace: true });
+        navegar('/', { replace: true });
       }
     } catch (error) {
       setErro(extrairMensagemErro(error));

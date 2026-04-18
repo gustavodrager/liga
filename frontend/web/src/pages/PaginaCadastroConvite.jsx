@@ -4,7 +4,6 @@ import logoLiga from '../assets/logo-liga.svg';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { convitesCadastroServico } from '../services/convitesCadastroServico';
 import { extrairMensagemErro } from '../utils/erros';
-import { nomePerfil } from '../utils/perfis';
 
 export function PaginaCadastroConvite() {
   const { identificadorPublico = '' } = useParams();
@@ -38,6 +37,7 @@ export function PaginaCadastroConvite() {
       try {
         const resposta = await convitesCadastroServico.obterPublico(identificadorPublico);
         setConvite(resposta);
+        setEmail(resposta.emailMascarado || '');
       } catch (error) {
         setErro(extrairMensagemErro(error));
       } finally {
@@ -62,15 +62,21 @@ export function PaginaCadastroConvite() {
       return;
     }
 
+    if (!email.trim()) {
+      setErro('Informe o e-mail.');
+      return;
+    }
+
     setSalvando(true);
 
     try {
       await registrarPorConvite({
         conviteIdPublico: identificadorPublico,
-        codigoConvite,
-        nome,
-        email
+        codigoConvite: codigoConvite.trim(),
+        nome: nome.trim(),
+        email: email.trim()
       });
+      navegar('/app/perfil', { replace: true });
     } catch (error) {
       setErro(extrairMensagemErro(error));
     } finally {
@@ -91,84 +97,54 @@ export function PaginaCadastroConvite() {
           <>
             {erro && <p className="texto-erro">{erro}</p>}
 
-            {convite && (
-              <>
-                <div className="formulario-grid unico">
+            {convite && convite.podeSerUsado && (
+              <form onSubmit={aoSubmeter} className="formulario-grid unico">
                   <label>
-                    E-mail liberado para o convite
-                    <input type="text" value={convite.emailMascarado} readOnly />
+                    E-mail do convite
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(evento) => setEmail(evento.target.value)}
+                      placeholder="voce@email.com"
+                      required
+                    />
                   </label>
 
                   <label>
-                    Perfil do convite
-                    <input type="text" value={nomePerfil(convite.perfilDestino)} readOnly />
+                    Nome completo
+                    <input
+                      type="text"
+                      value={nome}
+                      onChange={(evento) => setNome(evento.target.value)}
+                      placeholder="Seu nome completo"
+                      required
+                    />
                   </label>
 
                   <label>
-                    Situação
-                    <input type="text" value={convite.situacao} readOnly />
+                    Código do convite
+                    <input
+                      type="text"
+                      value={codigoConvite}
+                      onChange={(evento) => setCodigoConvite(evento.target.value)}
+                      placeholder="Informe o código recebido"
+                      required
+                    />
                   </label>
-                </div>
 
-                <p>
-                  Este link identifica o convite, mas o cadastro só é concluído com o e-mail convidado
-                  {' e o código do convite recebido por e-mail, WhatsApp ou pelo administrador.'}
-                  Depois da confirmação, você entra automaticamente no app e segue para o seu perfil para completar os dados.
+                  <button type="submit" className="botao-primario" disabled={salvando}>
+                    {salvando ? 'Entrando no app...' : 'Confirmar acesso e entrar'}
+                  </button>
+                </form>
+              )}
+
+              {convite && !convite.podeSerUsado && (
+                <p className="texto-aviso">
+                  Este convite não está mais disponível. Se precisar, solicite um novo link ao administrador.
                 </p>
-                <p>
-                  Se você já tiver participado de partidas antes de criar o acesso, o app tentará reaproveitar esse atleta quando você concluir o perfil.
-                </p>
-
-                {convite.podeSerUsado && (
-                  <form onSubmit={aoSubmeter} className="formulario-grid unico">
-                    <label>
-                      E-mail do convite
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(evento) => setEmail(evento.target.value)}
-                        placeholder="voce@email.com"
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      Nome completo
-                      <input
-                        type="text"
-                        value={nome}
-                        onChange={(evento) => setNome(evento.target.value)}
-                        placeholder="Seu nome completo"
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      Código do convite
-                      <input
-                        type="text"
-                        value={codigoConvite}
-                        onChange={(evento) => setCodigoConvite(evento.target.value)}
-                        placeholder="Informe o código recebido"
-                        required
-                      />
-                    </label>
-
-                    <button type="submit" className="botao-primario" disabled={salvando}>
-                      {salvando ? 'Entrando no app...' : 'Confirmar acesso e entrar'}
-                    </button>
-                  </form>
-                )}
-
-                {!convite.podeSerUsado && (
-                  <p className="texto-aviso">
-                    Este convite não está mais disponível. Se precisar, solicite um novo link ao administrador.
-                  </p>
-                )}
-              </>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
       </div>
     </section>
   );
